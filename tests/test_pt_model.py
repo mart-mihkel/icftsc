@@ -1,0 +1,130 @@
+from typing import cast
+
+import pytest
+from transformers import (
+    AutoTokenizer,
+    DataCollatorForLanguageModeling,
+    DataCollatorForSeq2Seq,
+    DataCollatorWithPadding,
+    PreTrainedTokenizerFast,
+)
+
+from icft.datasets.multinerd import Multinerd
+from icft.models.pt import PTModel, PTModelConfig
+from icft.scripts.prompt_tune import _init_pt_model
+
+
+def test_init_pt_model():
+    tokenizer = cast(
+        PreTrainedTokenizerFast,
+        AutoTokenizer.from_pretrained("jhu-clsp/mmBERT-base"),
+    )
+
+    data = Multinerd(
+        tokenizer=tokenizer,
+        task="seq-cls",
+        system_prompt_mode="random",
+        split=["train[:10]", "validation[:10]", "test[:10]"],
+        filter_english=False,
+    )
+
+    model = _init_pt_model(
+        task="seq-cls",
+        prefix_init="pretrained",
+        tokenizer=tokenizer,
+        data=data,
+        model_path="jhu-clsp/mmBERT-base",
+    )
+
+    assert model is not None
+    assert model.base is not None
+    assert model.prefix is not None
+
+
+def test_pt_bert():
+    tokenizer = cast(
+        PreTrainedTokenizerFast,
+        AutoTokenizer.from_pretrained("jhu-clsp/mmBERT-base"),
+    )
+
+    cls = tokenizer.cls_token_id
+    data = [
+        {"input_ids": [cls, 1, 2], "label": 0},
+        {"input_ids": [cls, 3], "label": 1},
+    ]
+
+    config = PTModelConfig(
+        task="seq-cls",
+        pretrained_model="jhu-clsp/mmBERT-base",
+        num_virtual_tokens=10,
+        num_labels=2,
+        id2label={0: "0", 1: "1"},
+        label2id={"0": 0, "1": 1},
+    )
+
+    model = PTModel(config=config)
+    collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    out = model(**collator(data))
+
+    assert out.loss is not None
+    assert out.logits is not None
+
+
+def test_pt_gpt2():
+    tokenizer = cast(
+        PreTrainedTokenizerFast,
+        AutoTokenizer.from_pretrained("openai-community/gpt2"),
+    )
+
+    eos = tokenizer.eos_token_id
+    data = [
+        {"input_ids": [1, 2], "label": [-100, -100, 3, eos]},
+        {"input_ids": [3], "label": [-100, 4, eos]},
+    ]
+
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    # TODO: implement
+    with pytest.raises(NotImplementedError):
+        config = PTModelConfig(
+            task="causal-lm",
+            pretrained_model="openai-community/gpt2",
+            num_virtual_tokens=10,
+            num_labels=2,
+        )
+
+        model = PTModel(config=config)
+        model.base.config.pad_token_id = tokenizer.eos_token_id
+        collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+        out = model(**collator(data))
+
+        assert out.loss is not None
+        assert out.logits is not None
+
+
+def test_pt_t5():
+    tokenizer = cast(
+        PreTrainedTokenizerFast,
+        AutoTokenizer.from_pretrained("google-t5/t5-small"),
+    )
+
+    eos = tokenizer.eos_token_id
+    data = [
+        {"input_ids": [34, 231, eos], "labels": [453, eos]},
+        {"input_ids": [123, eos], "labels": [64, eos]},
+    ]
+
+    config = PTModelConfig(
+        task="seq2seq",
+        pretrained_model="google-t5/t5-small",
+        num_virtual_tokens=10,
+    )
+
+    model = PTModel(config=config)
+    model.base.config.pad_token_id = tokenizer.eos_token_id
+    collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
+    out = model(**collator(data))
+
+    assert out.loss is not None
+    assert out.logits is not None
