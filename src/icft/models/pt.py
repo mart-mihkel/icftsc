@@ -103,3 +103,13 @@ class PTModel(PreTrainedModel):
             labels = torch.cat([prefix_labels, labels], dim=1)
 
         return self.base(inputs_embeds=inputs, attention_mask=attn, labels=labels)
+
+    def gradient_checkpointing_enable(self, **kwargs):
+        if hasattr(self.base, "gradient_checkpointing_enable"):
+            self.base.gradient_checkpointing_enable(**kwargs)
+        else:
+            raise ValueError("Base model does not support gradient checkpointing")
+
+    def gradient_checkpointing_disable(self):
+        if hasattr(self.base, "gradient_checkpointing_disable"):
+            self.base.gradient_checkpointing_disable()

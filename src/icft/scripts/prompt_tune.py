@@ -35,7 +35,7 @@ def _init_pt_model(
 
     system_ids = torch.tensor(data.system_tokens["input_ids"])
     if task == "seq2seq":
-        logger.debug("load base model for seq2seq")
+        logger.debug("load seq2seq base model %s", model_path)
         base = AutoModelForSeq2SeqLM.from_pretrained(model_path)
         info = {"missing_keys": set()}
         config = PTModelConfig(
@@ -44,7 +44,7 @@ def _init_pt_model(
             num_virtual_tokens=len(system_ids),
         )
     elif task == "seq-cls":
-        logger.debug("load base model for seq-cls")
+        logger.debug("load seq-cls base model %s", model_path)
         base, info = AutoModelForSequenceClassification.from_pretrained(
             model_path,
             output_loading_info=True,
@@ -62,7 +62,7 @@ def _init_pt_model(
             label2id=cast(dict[str, int], data.TAG2ID),
         )
     elif task == "causal-lm":
-        logger.debug("load base model for causal-lm")
+        logger.debug("load causal-lm base model %s", model_path)
         base = AutoModelForCausalLM.from_pretrained(model_path)
         info = {"missing_keys": set()}
         config = PTModelConfig(
@@ -106,6 +106,7 @@ def main(
     epochs: int,
     batch_size: int,
     workers: int,
+    grad_chkpts: bool,
 ):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
@@ -151,6 +152,7 @@ def main(
     logger.info("batch size     | %-24d |", batch_size)
     logger.info("epochs         | %-24d |", epochs)
 
+    logger.debug("init trainer")
     train(
         model=model,
         data=data,
@@ -159,4 +161,5 @@ def main(
         run_name=run_name,
         epochs=epochs,
         batch_size=batch_size,
+        grad_chkpts=grad_chkpts,
     )

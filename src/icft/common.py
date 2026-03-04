@@ -1,4 +1,5 @@
 from functools import partial
+from math import ceil
 from typing import Any, Callable
 
 import torch
@@ -114,26 +115,36 @@ def train(
     run_name: str,
     epochs: int,
     batch_size: int,
+    grad_chkpts: bool,
 ):
-    logger.debug("init trainer")
-
     steps_per_epoch = len(data.train) // (batch_size * epochs)
+    gradient_accumulation_steps = max(1, ceil(64 / batch_size))
+    have_cuda = torch.cuda.is_available()
+
+    logger.debug("%shave CUDA", "" if have_cuda else "don't ")
+    logger.debug("using %d gradient accumulation steps", gradient_accumulation_steps)
+    logger.debug("%susing gradient checkpointing", "" if grad_chkpts else "not ")
+    logger.debug("effective batch size %d", gradient_accumulation_steps * batch_size)
+
     args = TrainingArguments(
         project="icft",
-        output_dir=f"out/{run_name}",
+        run_name=run_name,
         report_to="trackio",
         trackio_space_id=None,
-        run_name=run_name,
-        logging_steps=steps_per_epoch // 100,
-        eval_steps=steps_per_epoch // 5,
-        eval_strategy="steps",
+        output_dir=f"out/{run_name}",
+        remove_unused_columns=False,
         save_strategy="epoch",
+        eval_strategy="steps",
+        eval_steps=steps_per_epoch // 5,
+        logging_steps=steps_per_epoch // 100,
+        optim="adamw_8bit" if have_cuda else "adamw_torch_fused",
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size * 4,
-        gradient_checkpointing=False,
-        remove_unused_columns=False,
-        fp16=True,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        gradient_checkpointing=grad_chkpts,
+        bf16_full_eval=have_cuda,
+        bf16=have_cuda,
     )
 
     trainer = Trainer(

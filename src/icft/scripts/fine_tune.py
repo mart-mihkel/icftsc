@@ -31,11 +31,11 @@ def _init_model(
     model_path: str,
 ) -> Module:
     if task == "seq2seq":
-        logger.debug("load seq2seq pretrained model")
+        logger.debug("load seq2seq pretrained model %s", model_path)
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
         info = {"missing_keys": set()}
     elif task == "seq-cls":
-        logger.debug("load seq-cls pretrained model")
+        logger.debug("load seq-cls pretrained model %s", model_path)
         model, info = AutoModelForSequenceClassification.from_pretrained(
             model_path,
             output_loading_info=True,
@@ -44,7 +44,7 @@ def _init_model(
             label2id=data.TAG2ID,
         )
     elif task == "causal-lm":
-        logger.debug("load causal-lm pretrained model")
+        logger.debug("load causal-lm pretrained model %s", model_path)
         model = AutoModelForCausalLM.from_pretrained(model_path)
         info = {"missing_keys": set()}
     else:
@@ -69,6 +69,7 @@ def main(
     epochs: int,
     batch_size: int,
     workers: int,
+    grad_chkpts: bool,
 ):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
@@ -109,6 +110,7 @@ def main(
     logger.info("batch size    | %-24d |", batch_size)
     logger.info("epochs        | %-24d |", epochs)
 
+    logger.debug("init trainer")
     train(
         model=model,
         data=data,
@@ -117,4 +119,5 @@ def main(
         run_name=run_name,
         epochs=epochs,
         batch_size=batch_size,
+        grad_chkpts=grad_chkpts,
     )
