@@ -12,6 +12,7 @@ mkdir -p out
 # BASE=distilbert/distilbert-base-uncased
 # BASE=jhu-clsp/mmBERT-small
 # BASE=jhu-clsp/mmBERT-base
+# BASE=FacebookAI/roberta-large
 
 # BASE=openai-community/gpt2
 # BASE=openai-community/gpt2-medium

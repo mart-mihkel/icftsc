@@ -48,9 +48,11 @@ Prompt template:
 | DistilBERT-Base |   67M | 602K |    26K |     35 |
 | mmBERT-Small    |  140M |   6K |    14K |     39 |
 | mmBERT-Base     |  307M |  12K |    29K |     39 |
-| GPT2            |  124M |      |        |        |
-| GPT2-Medium     |  355M |      |        |        |
-| GPT2-Large      |  774M |      |        |        |
-| GPT2-XL         |  1.5B |      |        |        |
-| T5-Small        |   60M |      |        |        |
-| T5-Base         |  220M |      |        |        |
+| RoBERTa-Large   |  355M | 106K |    45K |     44 |
+| GPT2            |  124M |  12K |    33K |     43 |
+| GPT2-Medium     |  354M |  16K |    45K |     44 |
+| GPT2-Large      |  774M |  20K |    56K |     44 |
+| GPT2-XL         | 1557M |  25K |    70K |     44 |
+| T5-Small        |   60M |    - |    19K |     39 |
+| T5-Base         |  222M |    - |    29k |     39 |
+| T5-Large        |  737M |    - |    39K |     39 |

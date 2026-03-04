@@ -9,6 +9,7 @@ mkdir -p out
 # BASE=distilbert/distilbert-base-uncased
 # BASE=jhu-clsp/mmBERT-small
 BASE=jhu-clsp/mmBERT-base
+# BASE=FacebookAI/roberta-large
 
 # BASE=openai-community/gpt2
 # BASE=openai-community/gpt2-medium
@@ -26,7 +27,7 @@ DATASET=multinerd
 LOG_LEVEL=DEBUG
 TASK=seq-cls
 
-BATCH_SIZE=8
+BATCH_SIZE=32
 WORKERS=16
 EPOCHS=1
 
