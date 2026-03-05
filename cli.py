@@ -22,6 +22,7 @@ def fine_tune(
     run_name: Annotated[str, Option()],
     grad_chkpts: bool = False,
     epochs: int = 1,
+    lr: float = 5e-5,
     batch_size: int = 8,
     workers: int = 4,
 ):
@@ -35,6 +36,7 @@ def fine_tune(
         model_path=model,
         run_name=run_name,
         epochs=epochs,
+        lr=lr,
         batch_size=batch_size,
         workers=workers,
         grad_chkpts=grad_chkpts,
@@ -50,6 +52,7 @@ def prompt_tune(
     run_name: Annotated[str, Option()],
     grad_chkpts: bool = False,
     epochs: int = 1,
+    lr: float = 5e-5,
     batch_size: int = 8,
     workers: int = 4,
 ):
@@ -62,6 +65,7 @@ def prompt_tune(
         model_path=model,
         run_name=run_name,
         epochs=epochs,
+        lr=lr,
         batch_size=batch_size,
         workers=workers,
         grad_chkpts=grad_chkpts,

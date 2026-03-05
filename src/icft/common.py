@@ -114,24 +114,34 @@ def train(
     metrics_fn: Callable,
     run_name: str,
     epochs: int,
+    lr: float,
     batch_size: int,
     grad_chkpts: bool,
 ):
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
-    gradient_accumulation_steps = max(1, ceil(64 / batch_size))
-    effective_batch_size = batch_size * gradient_accumulation_steps
-    total_train_steps = ceil(len(data.train) / effective_batch_size) * epochs
-    eval_steps = max(1, total_train_steps // 5)
-    logging_steps = max(1, total_train_steps // 100)
+    grad_acc_steps = max(1, ceil(64 / batch_size))
+    effective_batch_size = batch_size * grad_acc_steps
+    train_steps = ceil(len(data.train) / effective_batch_size) * epochs
+    eval_steps = max(1, train_steps // 5)
+    logging_steps = max(1, train_steps // 100)
+
+    logger.info("CUDA                    | %-24s |", have_cuda)
+    logger.info("optimizer               | %-24s |", optim)
+    logger.info("epochs                  | %-24d |", epochs)
+    logger.info("learning rate           | %-24f |", lr)
+    logger.info("grad checkpoints        | %-24s |", grad_chkpts)
+    logger.info("grad accumulation steps | %-24d |", grad_acc_steps)
+    logger.info("batch size              | %-24d |", batch_size)
+    logger.info("effective batch size    | %-24d |", effective_batch_size)
+    logger.info("train samples           | %-24d |", len(data.train))
+    logger.info("eval samples            | %-24d |", len(data.eval))
+    logger.info("test samples            | %-24d |", len(data.test))
+    logger.info("train steps             | %-24d |", train_steps)
+    logger.info("logging steps           | %-24d |", logging_steps)
+    logger.info("eval steps              | %-24d |", eval_steps)
 
     logger.debug("init trainer")
-    logger.debug("%shave CUDA", "" if have_cuda else "don't ")
-    logger.debug("using %d gradient accumulation steps", gradient_accumulation_steps)
-    logger.debug("%susing gradient checkpointing", "" if grad_chkpts else "not ")
-    logger.debug("effective batch size %d", effective_batch_size)
-    logger.debug("logging steps %d", logging_steps)
-    logger.debug("eval steps %d", eval_steps)
 
     args = TrainingArguments(
         run_name=run_name,
@@ -141,11 +151,12 @@ def train(
         eval_strategy="steps",
         eval_steps=eval_steps,
         logging_steps=logging_steps,
+        learning_rate=lr,
         optim=optim,
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size * 4,
-        gradient_accumulation_steps=gradient_accumulation_steps,
+        gradient_accumulation_steps=grad_acc_steps,
         gradient_checkpointing=grad_chkpts,
         bf16_full_eval=have_cuda,
         bf16=have_cuda,
@@ -163,11 +174,3 @@ def train(
     )
 
     trainer.train()
-
-    metrics = trainer.evaluate(
-        eval_dataset=data.test,
-        metric_key_prefix="test",
-    )
-
-    trainer.log_metrics("test", metrics)
-    trainer.save_metrics("test", metrics)

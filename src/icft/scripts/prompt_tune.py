@@ -107,6 +107,7 @@ def main(
     run_name: str,
     epochs: int,
     batch_size: int,
+    lr: float,
     workers: int,
     grad_chkpts: bool,
 ):
@@ -136,23 +137,18 @@ def main(
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     prefix = model.prefix.numel()
 
-    logger.info("Thing          | %-24s |", "Value")
-    logger.info("---------------+-" + 24 * "-" + "-+-")
-    logger.info("model          | %-24s |", model_path.split("/")[-1])
-    logger.info("virtual tokens | %-24d |", model.prefix.shape[0])
-    logger.info("params         | %-24d |", total)
-    logger.info("trainable      | %-24d |", trainable)
-    logger.info("prefix         | %-24d |", prefix)
-    logger.info("head           | %-24d |", trainable - prefix)
-    logger.info("task           | %-24s |", task)
-    logger.info("prompt         | %-24s |", "none")
-    logger.info("prefix init    | %-24s |", prefix_init)
-    logger.info("dataset        | %-24s |", dataset)
-    logger.info("train samples  | %-24d |", len(data.train))
-    logger.info("eval samples   | %-24d |", len(data.eval))
-    logger.info("test samples   | %-24d |", len(data.test))
-    logger.info("batch size     | %-24d |", batch_size)
-    logger.info("epochs         | %-24d |", epochs)
+    logger.info("Key                     | %-24s |", "Value")
+    logger.info("------------------------+-" + 24 * "-" + "-+")
+    logger.info("model                   | %-24s |", model_path.split("/")[-1])
+    logger.info("params                  | %-24d |", total)
+    logger.info("trainable               | %-24d |", trainable)
+    logger.info("head                    | %-24d |", trainable - prefix)
+    logger.info("prefix                  | %-24d |", prefix)
+    logger.info("prefix init             | %-24s |", prefix_init)
+    logger.info("prefix tokens           | %-24d |", model.prefix.shape[0])
+    logger.info("task                    | %-24s |", task)
+    logger.info("prompt                  | %-24s |", "none")
+    logger.info("dataset                 | %-24s |", dataset)
 
     train(
         model=model,
@@ -161,6 +157,7 @@ def main(
         metrics_fn=init_metrics_fn(tokenizer=tokenizer, task=task),
         run_name=run_name,
         epochs=epochs,
+        lr=lr,
         batch_size=batch_size,
         grad_chkpts=grad_chkpts,
     )

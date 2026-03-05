@@ -8,10 +8,10 @@ mkdir -p out
 
 # BASE=distilbert/distilbert-base-uncased
 # BASE=jhu-clsp/mmBERT-small
-BASE=jhu-clsp/mmBERT-base
+# BASE=jhu-clsp/mmBERT-base
 # BASE=FacebookAI/roberta-large
 
-# BASE=openai-community/gpt2
+BASE=openai-community/gpt2
 # BASE=openai-community/gpt2-medium
 # BASE=openai-community/gpt2-large
 # BASE=openai-community/gpt2-xl
@@ -27,9 +27,10 @@ DATASET=multinerd
 LOG_LEVEL=DEBUG
 TASK=seq-cls
 
-BATCH_SIZE=32
+BATCH_SIZE=16
 WORKERS=16
 EPOCHS=1
+LR=1e-4
 
 nix-shell --argstr run "make install"
 
@@ -37,25 +38,25 @@ nix-shell --argstr run "make install"
 nix-shell --argstr run "uv run cli.py --log-level $LOG_LEVEL fine-tune \
     --task $TASK --dataset $DATASET --system-prompt none --no-head-only \
     --model $BASE --run-name ft-none-$DATASET-$MODEL_NAME \
-    --epochs $EPOCHS --batch-size $BATCH_SIZE --workers $WORKERS"
+    --epochs $EPOCHS --lr $LR --batch-size $BATCH_SIZE --workers $WORKERS"
 
 nix-shell --argstr run "uv run cli.py --log-level $LOG_LEVEL fine-tune \
     --task $TASK --dataset $DATASET --system-prompt ner --no-head-only \
     --model $BASE --run-name ft-ner-$DATASET-$MODEL_NAME \
-    --epochs $EPOCHS --batch-size $BATCH_SIZE --workers $WORKERS"
+    --epochs $EPOCHS --lr $LR --batch-size $BATCH_SIZE --workers $WORKERS"
 
 nix-shell --argstr run "uv run cli.py --log-level $LOG_LEVEL fine-tune \
     --task $TASK --dataset $DATASET --system-prompt random --no-head-only \
     --model $BASE --run-name ft-random-$DATASET-$MODEL_NAME \
-    --epochs $EPOCHS --batch-size $BATCH_SIZE --workers $WORKERS"
+    --epochs $EPOCHS --lr $LR --batch-size $BATCH_SIZE --workers $WORKERS"
 
 # prompt-tune
 nix-shell --argstr run "uv run cli.py --log-level $LOG_LEVEL prompt-tune \
     --task $TASK --dataset $DATASET --prefix-init pretrained \
     --model $BASE --run-name pt-pretrained-$DATASET-$MODEL_NAME \
-    --epochs $EPOCHS --batch-size $BATCH_SIZE --workers $WORKERS" 
+    --epochs $EPOCHS --lr $LR --batch-size $BATCH_SIZE --workers $WORKERS" 
 
 nix-shell --argstr run "uv run cli.py --log-level $LOG_LEVEL prompt-tune \
     --task $TASK --dataset $DATASET --prefix-init random \
     --model $BASE --run-name pt-random-$DATASET-$MODEL_NAME \
-    --epochs $EPOCHS --batch-size $BATCH_SIZE --workers $WORKERS"
+    --epochs $EPOCHS --lr $LR --batch-size $BATCH_SIZE --workers $WORKERS"
