@@ -2,14 +2,14 @@ from typing import cast
 
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
-from icft.datasets.multinerd import Multinerd
+from icft.datasets.multinerd import Multinerd, _join_spans
 
 
 def test_join_spans():
     tokens = ["New", "York", "is", "sus", "."]
     ids = [5, 4, 0, 0, 0]
 
-    tokens, ids = Multinerd._join_spans(tokens, ids)
+    tokens, ids = _join_spans(tokens, ids)
 
     assert tokens == ["New York", "is", "sus", "."]
     assert ids == [3, 0, 0, 0]

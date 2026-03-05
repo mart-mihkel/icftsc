@@ -140,27 +140,30 @@ Answer: LOC
         filter_english: bool = True,
     ) -> None:
         self.tokenizer = tokenizer
-        self.system_prompt_mode = system_prompt_mode
 
-        cls_token = tokenizer.cls_token if task == "seq-cls" else ""
-        self.system_tokens = self.tokenizer(
+        cls_token = tokenizer.cls_token or "" if task == "seq-cls" else ""
+        self.system_prompt_tokens = self.tokenizer(
             f"{cls_token}{self.SYSTEM_PROMPT}",
             add_special_tokens=False,
         )
 
-        self.none_tokens = BatchEncoding(
-            {
-                "input_ids": [tokenizer.cls_token_id] if cls_token else [],
-                "attention_mask": [1] if cls_token else [],
-            }
-        )
-
-        self.random_tokens = self._randomize_system_prompt()
-
         logger.debug(
             "prepared multinerd system prompt with %d tokens",
-            len(self.system_tokens["input_ids"]),
+            len(self.system_prompt_tokens["input_ids"]),
         )
+
+        if system_prompt_mode == "ner":
+            self.system_tokens = self.system_prompt_tokens
+        elif system_prompt_mode == "random":
+            self.system_tokens = self._randomize_system_prompt()
+        elif system_prompt_mode == "none":
+            ids = [tokenizer.cls_token_id] if cls_token else []
+            attn = [1] if cls_token else []
+            self.system_tokens = BatchEncoding(
+                {"input_ids": ids, "attention_mask": attn}
+            )
+        else:
+            raise NotImplementedError(f"System prompt mode '{system_prompt_mode}'")
 
         train, eval, test = load_dataset(
             "Babelscape/multinerd",
@@ -170,9 +173,9 @@ Answer: LOC
 
         if filter_english:
             logger.debug("filter multinerd english")
-            train = train.filter(self._filter_english, batched=True)
-            eval = eval.filter(self._filter_english, batched=True)
-            test = test.filter(self._filter_english, batched=True)
+            train = train.filter(_filter_english, batched=True)
+            eval = eval.filter(_filter_english, batched=True)
+            test = test.filter(_filter_english, batched=True)
 
         if task == "seq2seq":
             tokenize_fn = self._tokenize_seq2seq
@@ -184,7 +187,6 @@ Answer: LOC
             raise NotImplementedError(f"Task '{task}'")
 
         logger.debug("tokenize multinerd for %s", task)
-
         self.train = train.map(
             tokenize_fn,
             batched=True,
@@ -211,7 +213,7 @@ Answer: LOC
         special_ids = self.tokenizer.all_special_ids
 
         random_ids = []
-        for token_id in self.system_tokens["input_ids"]:
+        for token_id in self.system_prompt_tokens["input_ids"]:
             if token_id in special_ids:
                 random_ids.append(token_id)
                 continue
@@ -225,7 +227,7 @@ Answer: LOC
         return BatchEncoding(
             {
                 "input_ids": random_ids,
-                "attention_mask": self.system_tokens["attention_mask"],
+                "attention_mask": self.system_prompt_tokens["attention_mask"],
             }
         )
 
@@ -235,17 +237,17 @@ Answer: LOC
 
         for tokens, tag_ids in zip(batch["tokens"], batch["ner_tags"]):
             sentence = " ".join(tokens)
-            tokens, tag_ids = self._join_spans(tokens=tokens, tag_ids=tag_ids)
+            tokens, tag_ids = _join_spans(tokens=tokens, tag_ids=tag_ids)
 
             for token, tag_id in zip(tokens, tag_ids):
-                prompt = self._prompt_template(sentence=sentence, token=token)
+                prompt = _prompt_template(sentence=sentence, token=token)
                 prompts.append(prompt)
                 labels.append(tag_id)
 
         enc = self.tokenizer(prompts, add_special_tokens=False)
         enc["labels"] = labels
 
-        return self._maybe_prepend_system_tokens(enc=enc)
+        return _prepend_system_tokens(enc=enc, sys=self.system_tokens)
 
     def _tokenize_seq2seq(self, batch: MultinerdBatch) -> BatchEncoding:
         prompts: list[str] = []
@@ -253,10 +255,10 @@ Answer: LOC
 
         for tokens, tag_ids in zip(batch["tokens"], batch["ner_tags"]):
             sentence = " ".join(tokens)
-            tokens, tag_ids = self._join_spans(tokens=tokens, tag_ids=tag_ids)
+            tokens, tag_ids = _join_spans(tokens=tokens, tag_ids=tag_ids)
 
             for token, tag_id in zip(tokens, tag_ids):
-                prompt = self._prompt_template(sentence=sentence, token=token)
+                prompt = _prompt_template(sentence=sentence, token=token)
                 prompts.append(prompt)
                 labels.append(f"{self.ID2TAG[tag_id]}{self.tokenizer.eos_token}")
 
@@ -264,7 +266,7 @@ Answer: LOC
         labels_enc = self.tokenizer(labels, add_special_tokens=False)
         prompts_enc["labels"] = labels_enc["input_ids"]
 
-        return self._maybe_prepend_system_tokens(enc=prompts_enc)
+        return _prepend_system_tokens(enc=prompts_enc, sys=self.system_tokens)
 
     def _tokenize_causal_lm(self, batch: MultinerdBatch) -> BatchEncoding:
         ids: list[list[int]] = []
@@ -273,10 +275,10 @@ Answer: LOC
 
         for tokens, tag_ids in zip(batch["tokens"], batch["ner_tags"]):
             sentence = " ".join(tokens)
-            tokens, tag_ids = self._join_spans(tokens=tokens, tag_ids=tag_ids)
+            tokens, tag_ids = _join_spans(tokens=tokens, tag_ids=tag_ids)
 
             for token, tag_id in zip(tokens, tag_ids):
-                prompt = self._prompt_template(sentence=sentence, token=token)
+                prompt = _prompt_template(sentence=sentence, token=token)
                 answer = f"{self.ID2TAG[tag_id]}{self.tokenizer.eos_token}"
 
                 prompt_enc = self.tokenizer(prompt, add_special_tokens=False)
@@ -300,63 +302,55 @@ Answer: LOC
             }
         )
 
-        return self._maybe_prepend_system_tokens(enc=enc)
+        return _prepend_system_tokens(enc=enc, sys=self.system_tokens)
 
-    def _maybe_prepend_system_tokens(
-        self,
-        enc: BatchEncoding,
-    ) -> BatchEncoding:
-        if self.system_prompt_mode == "none":
-            sys_tokens = self.none_tokens
-        elif self.system_prompt_mode == "ner":
-            sys_tokens = self.system_tokens
-        elif self.system_prompt_mode == "random":
-            sys_tokens = self.random_tokens
+
+def _prepend_system_tokens(
+    enc: BatchEncoding,
+    sys: BatchEncoding,
+) -> BatchEncoding:
+    ids: list[list[int]] = []
+    attn: list[list[int]] = []
+    it = zip(
+        cast(Iterable, enc["input_ids"]),
+        cast(Iterable, enc["attention_mask"]),
+    )
+
+    for _ids, _attn in it:
+        ids.append(sys["input_ids"] + _ids)
+        attn.append(sys["attention_mask"] + _attn)
+
+    return BatchEncoding(
+        {"input_ids": ids, "attention_mask": attn, "labels": enc["labels"]}
+    )
+
+
+def _prompt_template(sentence: str, token: str) -> str:
+    return f"Sentence: {sentence}\nTarget: {token}\nAnswer: "
+
+
+def _join_spans(
+    tokens: list[str],
+    tag_ids: list[int],
+) -> tuple[list[str], list[int]]:
+    out_ids = []
+    out_tokens = []
+    for token, id in zip(tokens, tag_ids):
+        tag = Multinerd._ID2TAG_FULL[id]
+
+        if tag.startswith("B-"):
+            tag = cast(MultinerdTag, tag[2:])
+            out_ids.append(Multinerd.TAG2ID[tag])
+            out_tokens.append(token)
+        elif tag.startswith("I-"):
+            out_tokens[-1] = f"{out_tokens[-1]} {token}"
         else:
-            raise NotImplementedError(f"System prompt mode '{self.system_prompt_mode}'")
+            tag = cast(MultinerdTag, tag)
+            out_ids.append(Multinerd.TAG2ID[tag])
+            out_tokens.append(token)
 
-        ids: list[list[int]] = []
-        attn: list[list[int]] = []
-        it = zip(
-            cast(Iterable, enc["input_ids"]),
-            cast(Iterable, enc["attention_mask"]),
-        )
+    return out_tokens, out_ids
 
-        for _ids, _attn in it:
-            ids.append(sys_tokens["input_ids"] + _ids)
-            attn.append(sys_tokens["attention_mask"] + _attn)
 
-        return BatchEncoding(
-            {"input_ids": ids, "attention_mask": attn, "labels": enc["labels"]}
-        )
-
-    @staticmethod
-    def _prompt_template(sentence: str, token: str) -> str:
-        return f"Sentence: {sentence}\nTarget: {token}\nAnswer: "
-
-    @staticmethod
-    def _join_spans(
-        tokens: list[str],
-        tag_ids: list[int],
-    ) -> tuple[list[str], list[int]]:
-        out_ids = []
-        out_tokens = []
-        for token, id in zip(tokens, tag_ids):
-            tag = Multinerd._ID2TAG_FULL[id]
-
-            if tag.startswith("B-"):
-                tag = cast(MultinerdTag, tag[2:])
-                out_ids.append(Multinerd.TAG2ID[tag])
-                out_tokens.append(token)
-            elif tag.startswith("I-"):
-                out_tokens[-1] = f"{out_tokens[-1]} {token}"
-            else:
-                tag = cast(MultinerdTag, tag)
-                out_ids.append(Multinerd.TAG2ID[tag])
-                out_tokens.append(token)
-
-        return out_tokens, out_ids
-
-    @staticmethod
-    def _filter_english(batch: MultinerdBatch) -> list[bool]:
-        return [lang == "en" for lang in batch["lang"]]
+def _filter_english(batch: MultinerdBatch) -> list[bool]:
+    return [lang == "en" for lang in batch["lang"]]

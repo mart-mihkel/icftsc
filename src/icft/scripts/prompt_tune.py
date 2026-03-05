@@ -33,7 +33,7 @@ def _init_pt_model(
             local_files_only=True,
         )
 
-    system_ids = torch.tensor(data.system_tokens["input_ids"])
+    system_ids = torch.tensor(data.system_prompt_tokens["input_ids"])
     if task == "seq2seq":
         logger.debug("load seq2seq base model %s", model_path)
         base = AutoModelForSeq2SeqLM.from_pretrained(model_path)
