@@ -52,7 +52,7 @@ Prompt template:
 | GPT2            |  124M |  12K |    33K |     43 |
 | GPT2-Medium     |  354M |  16K |    45K |     44 |
 | GPT2-Large      |  774M |  20K |    56K |     44 |
-| GPT2-XL         | 1557M |  25K |    70K |     44 |
-| T5-Small        |   60M |    - |    19K |     39 |
-| T5-Base         |  222M |    - |    29k |     39 |
-| T5-Large        |  737M |    - |    39K |     39 |
+| GPT2-XL         |  1.5B |  25K |    70K |     44 |
+| T5-Small        |   60M |  27K |    19K |     39 |
+| T5-Base         |  222M | 602K |    29k |     39 |
+| T5-Large        |  737M |   1M |    39K |     39 |
