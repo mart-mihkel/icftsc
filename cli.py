@@ -1,8 +1,30 @@
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Callable
+from functools import wraps
 
+import time
 from typer import Option, Typer
 
 app = Typer(no_args_is_help=True, add_completion=False)
+
+
+def timed(func: Callable) -> Callable:
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        from icft.logging import logger
+
+        start = time.time()
+
+        result = func(*args, **kwargs)
+
+        elapsed = time.time() - start
+        hours, remainder = divmod(int(elapsed), 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        logger.info("time elapsed %02d:%02d:%02d", hours, minutes, seconds)
+
+        return result
+
+    return wrapper
 
 
 @app.callback()
@@ -13,6 +35,7 @@ def callback(log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"):
 
 
 @app.command()
+@timed
 def fine_tune(
     task: Annotated[Literal["seq2seq", "seq-cls", "causal-lm"], Option()],
     dataset: Annotated[Literal["multinerd"], Option()],
@@ -44,6 +67,7 @@ def fine_tune(
 
 
 @app.command()
+@timed
 def prompt_tune(
     task: Annotated[Literal["seq2seq", "seq-cls", "causal-lm"], Option()],
     dataset: Annotated[Literal["multinerd"], Option()],
