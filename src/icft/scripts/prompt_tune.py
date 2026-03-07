@@ -3,17 +3,19 @@ from typing import cast
 import torch
 from torch.nn import Parameter
 from transformers import (
+    AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     PreTrainedTokenizerFast,
-    AutoModelForCausalLM,
 )
 
 from icft.common import freeze, init_collate_fn, init_data, init_metrics_fn, train
 from icft.datasets.multinerd import Multinerd
 from icft.logging import logger
+from icft.models.gpt2 import PTGPT2Model
 from icft.models.pt import PTModel, PTModelConfig
+from icft.models.t5 import PTT5Model
 from icft.types import ICFTDataset, ICFTTask, PrefixInit
 
 
@@ -75,8 +77,15 @@ def _init_pt_model(
     else:
         raise NotImplementedError(f"Task '{task}'")
 
-    logger.debug("init pt-model")
-    model = PTModel(config=config)
+    if base.config.model_type == "gpt2":
+        logger.debug("init pt-gpt2-model")
+        model = PTGPT2Model(config=config)
+    elif base.config.model_type == "t5":
+        logger.debug("init pt-t5-model")
+        model = PTT5Model(config=config)
+    else:
+        logger.debug("init pt-model")
+        model = PTModel(config=config)
 
     logger.debug("load pretrained weights")
     model.base.load_state_dict(base.state_dict(), strict=False)

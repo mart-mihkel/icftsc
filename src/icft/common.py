@@ -83,8 +83,8 @@ def init_data(
     system_prompt: PromptMode,
     workers: int,
 ) -> Multinerd:
+    logger.debug("init %s dataset", dataset)
     if dataset == "multinerd":
-        logger.debug("init multinerd")
         data = Multinerd(
             tokenizer=tokenizer,
             system_prompt_mode=system_prompt,

@@ -1,3 +1,4 @@
+from pytest import fixture
 from typing import cast
 
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
@@ -5,17 +6,43 @@ from transformers import AutoTokenizer, PreTrainedTokenizerFast
 from icft.common import init_collate_fn
 from icft.datasets.multinerd import Multinerd
 from icft.models.pt import PTModel, PTModelConfig
+from icft.models.gpt2 import PTGPT2Model
+from icft.models.t5 import PTT5Model
 from icft.scripts.prompt_tune import _init_pt_model
 
 
-def test_init_pt_model():
-    tokenizer = cast(
+@fixture
+def mmbert_tokenizer() -> PreTrainedTokenizerFast:
+    return cast(
         PreTrainedTokenizerFast,
         AutoTokenizer.from_pretrained("jhu-clsp/mmBERT-base"),
     )
 
+
+@fixture
+def gpt2_tokenizer() -> PreTrainedTokenizerFast:
+    tokenizer = cast(
+        PreTrainedTokenizerFast,
+        AutoTokenizer.from_pretrained("openai-community/gpt2"),
+    )
+
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    return tokenizer
+
+
+@fixture
+def t5_tokenizer() -> PreTrainedTokenizerFast:
+    return cast(
+        PreTrainedTokenizerFast,
+        AutoTokenizer.from_pretrained("google-t5/t5-small"),
+    )
+
+
+def test_init_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
     data = Multinerd(
-        tokenizer=tokenizer,
+        tokenizer=mmbert_tokenizer,
         task="seq-cls",
         system_prompt_mode="random",
         split=["train[:10]", "validation[:10]", "test[:10]"],
@@ -25,7 +52,7 @@ def test_init_pt_model():
     model = _init_pt_model(
         task="seq-cls",
         prefix_init="pretrained",
-        tokenizer=tokenizer,
+        tokenizer=mmbert_tokenizer,
         data=data,
         model_path="jhu-clsp/mmBERT-base",
     )
@@ -35,13 +62,8 @@ def test_init_pt_model():
     assert model.prefix is not None
 
 
-def test_pt_bert():
-    tokenizer = cast(
-        PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("jhu-clsp/mmBERT-base"),
-    )
-
-    cls = tokenizer.cls_token_id
+def test_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
+    cls = mmbert_tokenizer.cls_token_id
     data = [
         {"input_ids": [cls, 1, 2], "label": 0},
         {"input_ids": [cls, 3], "label": 1},
@@ -57,27 +79,20 @@ def test_pt_bert():
     )
 
     model = PTModel(config=config)
-    collate_fn = init_collate_fn(tokenizer=tokenizer, task="seq-cls")
+    collate_fn = init_collate_fn(tokenizer=mmbert_tokenizer, task="seq-cls")
     out = model(**collate_fn(data))
 
     assert out.loss is not None
     assert out.logits is not None
+    assert out.logits.shape == (2, 2)
 
 
-def test_pt_gpt2():
-    tokenizer = cast(
-        PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("openai-community/gpt2"),
-    )
-
-    eos = tokenizer.eos_token_id
+def test_pt_gpt2_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast):
+    eos = gpt2_tokenizer.eos_token_id
     data = [
         {"input_ids": [1, 2, 3, eos], "labels": [-100, -100, 3, eos]},
         {"input_ids": [3, 4, eos], "labels": [-100, 4, eos]},
     ]
-
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.pad_token_id = tokenizer.eos_token_id
 
     config = PTModelConfig(
         task="causal-lm",
@@ -86,22 +101,42 @@ def test_pt_gpt2():
         num_labels=2,
     )
 
-    model = PTModel(config=config)
-    model.base.config.pad_token_id = tokenizer.eos_token_id
-    collate_fn = init_collate_fn(tokenizer=tokenizer, task="causal-lm")
+    model = PTGPT2Model(config=config)
+    model.base.config.pad_token_id = gpt2_tokenizer.eos_token_id
+    collate_fn = init_collate_fn(tokenizer=gpt2_tokenizer, task="causal-lm")
     out = model(**collate_fn(data))
 
     assert out.loss is not None
     assert out.logits is not None
 
 
-def test_pt_t5():
-    tokenizer = cast(
-        PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("google-t5/t5-small"),
+def test_pt_gpt2_seq_cls(gpt2_tokenizer: PreTrainedTokenizerFast):
+    data = [
+        {"input_ids": [1, 2], "label": 0},
+        {"input_ids": [3], "label": 1},
+    ]
+
+    config = PTModelConfig(
+        task="seq-cls",
+        pretrained_model="openai-community/gpt2",
+        num_virtual_tokens=10,
+        num_labels=2,
+        id2label={0: "0", 1: "1"},
+        label2id={"0": 0, "1": 1},
     )
 
-    eos = tokenizer.eos_token_id
+    model = PTGPT2Model(config=config)
+    model.base.config.pad_token_id = gpt2_tokenizer.eos_token_id
+    collate_fn = init_collate_fn(tokenizer=gpt2_tokenizer, task="seq-cls")
+    out = model(**collate_fn(data))
+
+    assert out.loss is not None
+    assert out.logits is not None
+    assert out.logits.shape == (2, 2)
+
+
+def test_pt_t5_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
+    eos = t5_tokenizer.eos_token_id
     data = [
         {"input_ids": [34, 231, eos], "labels": [453, eos]},
         {"input_ids": [123, eos], "labels": [64, eos]},
@@ -113,10 +148,35 @@ def test_pt_t5():
         num_virtual_tokens=10,
     )
 
-    model = PTModel(config=config)
-    model.base.config.pad_token_id = tokenizer.eos_token_id
-    collate_fn = init_collate_fn(tokenizer=tokenizer, task="seq2seq")
+    model = PTT5Model(config=config)
+    model.base.config.pad_token_id = t5_tokenizer.eos_token_id
+    collate_fn = init_collate_fn(tokenizer=t5_tokenizer, task="seq2seq")
     out = model(**collate_fn(data))
 
     assert out.loss is not None
     assert out.logits is not None
+
+
+def test_pt_t5_seq_cls(t5_tokenizer: PreTrainedTokenizerFast):
+    data = [
+        {"input_ids": [1, 2], "label": 0},
+        {"input_ids": [3], "label": 1},
+    ]
+
+    config = PTModelConfig(
+        task="seq-cls",
+        pretrained_model="google-t5/t5-small",
+        num_virtual_tokens=10,
+        num_labels=2,
+        id2label={0: "0", 1: "1"},
+        label2id={"0": 0, "1": 1},
+    )
+
+    model = PTT5Model(config=config)
+    model.base.config.pad_token_id = t5_tokenizer.eos_token_id
+    collate_fn = init_collate_fn(tokenizer=t5_tokenizer, task="seq-cls")
+    out = model(**collate_fn(data))
+
+    assert out.loss is not None
+    assert out.logits is not None
+    assert out.logits.shape == (2, 2)
