@@ -1,15 +1,17 @@
-from typing import Annotated, Literal, Callable
-from functools import wraps
+from typing import Annotated, Any, Callable, Literal
 
-import time
-from typer import Option, Typer
+from typer import Context, Option, Typer
 
 app = Typer(no_args_is_help=True, add_completion=False)
 
 
 def timed(func: Callable) -> Callable:
+    import time
+    from functools import wraps
+
     @wraps(func)
     def wrapper(*args, **kwargs):
+
         from icft.logging import logger
 
         start = time.time()
@@ -27,6 +29,15 @@ def timed(func: Callable) -> Callable:
     return wrapper
 
 
+def save_params(params: dict[str, Any], run_name: str):
+    import json
+    import os
+
+    os.makedirs(f"out/{run_name}", exist_ok=True)
+    with open(f"out/{run_name}/cli_params.json", "w") as f:
+        json.dump(params, f, indent=2)
+
+
 @app.callback()
 def callback(log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"):
     from icft.logging import logger
@@ -37,6 +48,7 @@ def callback(log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"):
 @app.command()
 @timed
 def fine_tune(
+    ctx: Context,
     task: Annotated[Literal["seq2seq", "seq-cls", "causal-lm"], Option()],
     dataset: Annotated[Literal["multinerd"], Option()],
     system_prompt: Annotated[Literal["ner", "random", "none"], Option()],
@@ -51,6 +63,7 @@ def fine_tune(
 ):
     from icft.scripts.fine_tune import main
 
+    save_params(ctx.params, run_name)
     main(
         task=task,
         dataset=dataset,
@@ -69,6 +82,7 @@ def fine_tune(
 @app.command()
 @timed
 def prompt_tune(
+    ctx: Context,
     task: Annotated[Literal["seq2seq", "seq-cls", "causal-lm"], Option()],
     dataset: Annotated[Literal["multinerd"], Option()],
     prefix_init: Annotated[Literal["pretrained", "labels", "random"], Option()],
@@ -82,6 +96,7 @@ def prompt_tune(
 ):
     from icft.scripts.prompt_tune import main
 
+    save_params(ctx.params, run_name)
     main(
         task=task,
         dataset=dataset,
