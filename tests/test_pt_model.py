@@ -1,11 +1,11 @@
-from pytest import fixture
 from typing import cast
 
+from pytest import fixture
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 from icft.common import init_collate_fn
 from icft.datasets.multinerd import Multinerd
-from icft.models.pt import PTModel, PTModelConfig
+from icft.models import PTModel, PTModelConfig
 from icft.models.gpt2 import PTGPT2Model
 from icft.models.t5 import PTT5Model
 from icft.scripts.prompt_tune import _init_pt_model

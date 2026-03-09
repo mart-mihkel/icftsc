@@ -14,7 +14,7 @@ from transformers import (
 
 from icft.common import init_collate_fn, init_data, init_metrics_fn
 from icft.logging import logger
-from icft.models.pt import PTModel, PTModelConfig
+from icft.models import PTModel, PTModelConfig
 
 
 def main(checkpoint: str, workers: int = 4):

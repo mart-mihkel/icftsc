@@ -13,8 +13,8 @@ from transformers import (
 from icft.common import freeze, init_collate_fn, init_data, init_metrics_fn, train
 from icft.datasets.multinerd import Multinerd
 from icft.logging import logger
+from icft.models import PTModel, PTModelConfig
 from icft.models.gpt2 import PTGPT2Model
-from icft.models.pt import PTModel, PTModelConfig
 from icft.models.t5 import PTT5Model
 from icft.types import ICFTDataset, ICFTTask, PrefixInit
 

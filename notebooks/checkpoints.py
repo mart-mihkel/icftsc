@@ -16,7 +16,7 @@ def _():
     )
 
     from icft.datasets.multinerd import Multinerd
-    from icft.models.pt import PTModelConfig, PTModel
+    from icft.models import PTModel, PTModelConfig
     from icft.scripts.prompt_tune import _init_pt_model as init_pt_model
 
     return (

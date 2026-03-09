@@ -6,7 +6,7 @@ from transformers.modeling_outputs import (
     SequenceClassifierOutput,
 )
 
-from icft.models.pt import PTModel
+from icft.models import PTModel
 
 
 class PTT5Model(PTModel):
