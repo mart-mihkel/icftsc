@@ -15,7 +15,7 @@ from transformers.modeling_outputs import (
     SequenceClassifierOutput,
 )
 
-from icft.types import ICFTTask
+from icft.types import Task
 
 
 class PTModelConfig(PretrainedConfig):
@@ -23,7 +23,7 @@ class PTModelConfig(PretrainedConfig):
 
     def __init__(
         self,
-        task: ICFTTask | None = None,
+        task: Task | None = None,
         num_virtual_tokens: int = 0,
         pretrained_model: str | None = None,
         num_labels: int = 1,

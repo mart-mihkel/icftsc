@@ -6,9 +6,9 @@ from transformers import (
 )
 
 from icft.common import (
-    ICFTDataset,
-    ICFTPrompt,
-    ICFTTask,
+    DatasetName,
+    PromptMode,
+    Task,
     init_collate_fn,
     init_data,
     init_metrics_fn,
@@ -19,9 +19,9 @@ from icft.logging import logger
 
 
 def main(
-    task: ICFTTask,
-    dataset: ICFTDataset,
-    system_prompt: ICFTPrompt,
+    task: Task,
+    dataset: DatasetName,
+    prompt_mode: PromptMode,
     head_only: bool,
     model_path: str,
     run_name: str,
@@ -41,7 +41,7 @@ def main(
         tokenizer=tokenizer,
         task=task,
         dataset=dataset,
-        system_prompt=system_prompt,
+        prompt_mode=prompt_mode,
         workers=workers,
     )
 
@@ -62,7 +62,7 @@ def main(
     logger.info("params                  | %-24d |", total)
     logger.info("trainable               | %-24d |", trainable)
     logger.info("task                    | %-24s |", task)
-    logger.info("prompt                  | %-24s |", system_prompt)
+    logger.info("prompt                  | %-24s |", prompt_mode)
     logger.info("dataset                 | %-24s |", dataset)
 
     train(

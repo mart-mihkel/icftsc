@@ -58,7 +58,7 @@ uv sync
 LR=5e-5
 
 uv run cli.py --log-level $LOG_LEVEL fine-tune \
-    --task $TASK --dataset $DATASET --system-prompt system --no-head-only \
+    --task $TASK --dataset $DATASET --prompt-mode system --no-head-only \
     --model $BASE --run-name $MODEL-ft-system-$DATASET --no-grad-chkpts \
     --epochs $EPOCHS --lr $LR --batch-size $BATCH_SIZE --workers $WORKERS
 

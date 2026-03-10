@@ -50,8 +50,8 @@ def callback(log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"):
 def fine_tune(
     ctx: Context,
     task: Annotated[Literal["seq2seq", "seq-cls", "causal-lm"], Option()],
-    dataset: Annotated[Literal["multinerd"], Option()],
-    system_prompt: Annotated[Literal["system", "random", "none"], Option()],
+    dataset: Annotated[Literal["multinerd", "estner"], Option()],
+    prompt_mode: Annotated[Literal["system", "random", "none"], Option()],
     head_only: Annotated[bool, Option()],
     model: Annotated[str, Option()],
     run_name: Annotated[str, Option()],
@@ -67,7 +67,7 @@ def fine_tune(
     main(
         task=task,
         dataset=dataset,
-        system_prompt=system_prompt,
+        prompt_mode=prompt_mode,
         head_only=head_only,
         model_path=model,
         run_name=run_name,
@@ -84,7 +84,7 @@ def fine_tune(
 def prompt_tune(
     ctx: Context,
     task: Annotated[Literal["seq2seq", "seq-cls", "causal-lm"], Option()],
-    dataset: Annotated[Literal["multinerd"], Option()],
+    dataset: Annotated[Literal["multinerd", "estner"], Option()],
     prefix_init: Annotated[Literal["pretrained", "labels", "random"], Option()],
     model: Annotated[str, Option()],
     run_name: Annotated[str, Option()],

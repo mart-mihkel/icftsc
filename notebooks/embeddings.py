@@ -17,13 +17,13 @@ def _():
         PreTrainedTokenizer,
     )
 
-    from icft.datasets.multinerd import SYSTEM_PROMPT
+    from icft.datasets.multinerd import system_prompt
 
     return (
         AutoModel,
         AutoTokenizer,
         BertModel,
-        SYSTEM_PROMPT,
+        system_prompt,
         PreTrainedTokenizer,
         Tensor,
         cast,
@@ -77,9 +77,9 @@ def _(mo):
 
 
 @app.cell
-def _(SYSTEM_PROMPT, decode_prefix, encode_prefix, model, tokenizer):
+def _(system_prompt, decode_prefix, encode_prefix, model, tokenizer):
     _prefix_embeddings = encode_prefix(
-        prefix=SYSTEM_PROMPT,
+        prefix=system_prompt,
         model=model,
         tokenizer=tokenizer,
     )

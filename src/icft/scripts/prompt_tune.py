@@ -13,12 +13,12 @@ from icft.common import (
     train,
 )
 from icft.logging import logger
-from icft.types import ICFTDataset, ICFTTask, PrefixInit
+from icft.types import DatasetName, PrefixInit, Task
 
 
 def main(
-    task: ICFTTask,
-    dataset: ICFTDataset,
+    task: Task,
+    dataset: DatasetName,
     prefix_init: PrefixInit,
     model_path: str,
     run_name: str,
@@ -38,7 +38,7 @@ def main(
         tokenizer=tokenizer,
         task=task,
         dataset=dataset,
-        system_prompt="none",
+        prompt_mode="none",
         workers=workers,
     )
 

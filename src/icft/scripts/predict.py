@@ -39,7 +39,7 @@ def main(checkpoint: str, workers: int = 4):
         tokenizer=tokenizer,
         task=params["task"],
         dataset=params["dataset"],
-        system_prompt=params["system_prompt"],
+        prompt_mode=params["prompt_mode"],
         workers=workers,
     )
 

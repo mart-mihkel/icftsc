@@ -33,7 +33,7 @@ def _(AutoTokenizer, init_multinerd, pretrained_model, task):
     enc_ner = init_multinerd(
         tokenizer=tokenizer,
         task=task,
-        system_prompt="system",
+        prompt_mode="system",
         filter_en=False,
         workers=0,
     ).train[0]
@@ -41,7 +41,7 @@ def _(AutoTokenizer, init_multinerd, pretrained_model, task):
     enc_random = init_multinerd(
         tokenizer=tokenizer,
         task=task,
-        system_prompt="random",
+        prompt_mode="random",
         filter_en=False,
         workers=0,
     ).train[0]
@@ -49,7 +49,7 @@ def _(AutoTokenizer, init_multinerd, pretrained_model, task):
     enc_none = init_multinerd(
         tokenizer=tokenizer,
         task=task,
-        system_prompt="none",
+        prompt_mode="none",
         filter_en=False,
         workers=0,
     ).train[0]

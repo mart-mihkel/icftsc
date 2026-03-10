@@ -19,6 +19,7 @@ from transformers import (
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
+from icft.datasets.estner import init_estner
 from icft.datasets.multinerd import DatasetInfo, init_multinerd
 from icft.logging import logger
 from icft.metrics import (
@@ -33,11 +34,11 @@ from icft.models import (
     PTModel,
     PTModelConfig,
 )
-from icft.types import ICFTDataset, ICFTPrompt, ICFTTask, PrefixInit
+from icft.types import DatasetName, PrefixInit, PromptMode, Task
 
 
 def init_model(
-    task: ICFTTask,
+    task: Task,
     head_only: bool,
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
@@ -73,7 +74,7 @@ def init_model(
 
 
 def init_pt_model(
-    task: ICFTTask,
+    task: Task,
     prefix_init: PrefixInit,
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
@@ -169,7 +170,7 @@ def init_pt_model(
     return model
 
 
-def init_collate_fn(tokenizer: PreTrainedTokenizerFast, task: ICFTTask) -> DataCollator:
+def init_collate_fn(tokenizer: PreTrainedTokenizerFast, task: Task) -> DataCollator:
     _padding_collate_fn = DataCollatorWithPadding(
         tokenizer=tokenizer,
         pad_to_multiple_of=8,
@@ -202,7 +203,7 @@ def init_collate_fn(tokenizer: PreTrainedTokenizerFast, task: ICFTTask) -> DataC
 
 
 def init_metrics_fn(
-    task: ICFTTask,
+    task: Task,
     tokenizer: PreTrainedTokenizerFast | None = None,
 ) -> Callable[[EvalPrediction], dict[str, int | float]]:
     if task == "seq2seq":
@@ -223,19 +224,26 @@ def init_metrics_fn(
 
 def init_data(
     tokenizer: PreTrainedTokenizerFast,
-    task: ICFTTask,
-    dataset: ICFTDataset,
-    system_prompt: ICFTPrompt,
+    task: Task,
+    dataset: DatasetName,
+    prompt_mode: PromptMode,
     workers: int,
 ) -> tuple[DatasetDict, DatasetInfo]:
     logger.debug("init %s dataset", dataset)
     if dataset == "multinerd":
         data, info = init_multinerd(
             tokenizer=tokenizer,
-            system_prompt=system_prompt,
+            prompt_mode=prompt_mode,
             task=task,
             workers=workers,
             filter_en=True,
+        )
+    elif dataset == "estner":
+        data, info = init_estner(
+            tokenizer=tokenizer,
+            prompt_mode=prompt_mode,
+            task=task,
+            workers=workers,
         )
     else:
         raise NotImplementedError(f"Dataset '{dataset}'")

@@ -45,7 +45,7 @@ def _(
     _data, _info = init_multinerd(
         tokenizer=tokenizer,
         task="seq-cls",
-        system_prompt="none",
+        prompt_mode="none",
         filter_en=True,
         workers=0,
     )
