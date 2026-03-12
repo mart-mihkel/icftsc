@@ -61,10 +61,10 @@ def fine_tune(
     batch_size: int = 8,
     workers: int = 4,
 ):
-    from icft.scripts.fine_tune import main
+    from icft.scripts.fine_tune import ft
 
     save_params(ctx.params, run_name)
-    main(
+    ft(
         task=task,
         dataset=dataset,
         prompt_mode=prompt_mode,
@@ -94,10 +94,10 @@ def prompt_tune(
     batch_size: int = 8,
     workers: int = 4,
 ):
-    from icft.scripts.prompt_tune import main
+    from icft.scripts.prompt_tune import pt
 
     save_params(ctx.params, run_name)
-    main(
+    pt(
         task=task,
         dataset=dataset,
         prefix_init=prefix_init,
@@ -114,9 +114,9 @@ def prompt_tune(
 @app.command()
 @timed
 def predict(checkpoint: Annotated[str, Option()], workers: int = 4):
-    from icft.scripts.predict import main
+    from icft.scripts.predict import pred
 
-    main(checkpoint=checkpoint, workers=workers)
+    pred(checkpoint=checkpoint, workers=workers)
 
 
 if __name__ == "__main__":

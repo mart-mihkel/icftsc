@@ -18,7 +18,7 @@ from icft.common import (
 from icft.logging import logger
 
 
-def main(
+def ft(
     task: Task,
     dataset: DatasetName,
     prompt_mode: PromptMode,

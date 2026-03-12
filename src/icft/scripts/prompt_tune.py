@@ -16,7 +16,7 @@ from icft.logging import logger
 from icft.types import DatasetName, PrefixInit, Task
 
 
-def main(
+def pt(
     task: Task,
     dataset: DatasetName,
     prefix_init: PrefixInit,

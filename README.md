@@ -11,5 +11,5 @@ Run `uv sync` to setup a local envrionment.
 The cli contains scripts for fine-tuning, prompt-tuning and utilities.
 
 ```bash
-uv run cli.py --help
+uv run cli --help
 ```

@@ -19,7 +19,7 @@ from icft.logging import logger
 from icft.models import PTModel, PTModelConfig
 
 
-def main(checkpoint: str, workers: int = 4):
+def pred(checkpoint: str, workers: int = 4):
     logger.debug("register pt model")
     AutoConfig.register("pt", PTModelConfig)
     AutoModel.register(PTModelConfig, PTModel)

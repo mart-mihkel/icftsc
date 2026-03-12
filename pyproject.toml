@@ -26,6 +26,9 @@ dev = [
     "ty>=0.0.21",
 ]
 
+[project.scripts]
+cli = "icft.scripts.cli:app"
+
 [build-system]
 requires = ["hatchling>=1.29"]
 build-backend = "hatchling.build"

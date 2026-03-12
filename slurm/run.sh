@@ -57,7 +57,7 @@ uv sync
 # fine-tune
 LR=5e-5
 
-uv run cli.py --log-level $LOG_LEVEL fine-tune \
+uv run cli --log-level $LOG_LEVEL fine-tune \
     --task $TASK --dataset $DATASET --prompt-mode system --no-head-only \
     --model $BASE --run-name $MODEL-ft-system-$DATASET --no-grad-chkpts \
     --epochs $EPOCHS --lr $LR --batch-size $BATCH_SIZE --workers $WORKERS
@@ -65,7 +65,7 @@ uv run cli.py --log-level $LOG_LEVEL fine-tune \
 # prompt-tune
 LR=1e-3
 
-uv run cli.py --log-level $LOG_LEVEL prompt-tune \
+uv run cli --log-level $LOG_LEVEL prompt-tune \
     --task $TASK --dataset $DATASET --prefix-init pretrained \
     --model $BASE --run-name $MODEL-pt-pretrained-$DATASET --no-grad-chkpts \
     --epochs $EPOCHS --lr $LR --batch-size $BATCH_SIZE --workers $WORKERS
