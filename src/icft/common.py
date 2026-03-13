@@ -1,13 +1,14 @@
 from collections.abc import Callable
 from functools import partial
 from math import ceil
-from typing import Any
+from typing import Any, cast
 
 import torch
 from datasets.dataset_dict import DatasetDict
 from mlflow import end_run, log_metrics, start_run
 from rich.table import Table
 from torch.nn import Module, Parameter
+from torch.utils.data import Dataset
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
@@ -23,6 +24,7 @@ from transformers.training_args import TrainingArguments
 
 from icft.datasets.estner import init_estner
 from icft.datasets.multinerd import DatasetInfo, init_multinerd
+from icft.datasets.superglue import init_superglue
 from icft.logging import console, logger
 from icft.metrics import (
     compute_metrics_causal_lm,
@@ -247,6 +249,13 @@ def init_data(
             task=task,
             workers=workers,
         )
+    elif dataset == "superglue":
+        data, info = init_superglue(
+            tokenizer=tokenizer,
+            prompt_mode=prompt_mode,
+            task=task,
+            workers=workers,
+        )
     else:
         raise NotImplementedError(f"Dataset '{dataset}'")
 
@@ -333,6 +342,6 @@ def train(
 
     start_run(run_name=run_name)
     trainer.train()
-    metrics = trainer.evaluate(data["test"], metric_key_prefix="test")  # type: ignore
+    metrics = trainer.evaluate(cast(Dataset, data["test"]), metric_key_prefix="test")
     log_metrics(metrics)
     end_run()

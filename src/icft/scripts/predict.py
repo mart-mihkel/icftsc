@@ -5,6 +5,7 @@ from typing import cast
 import torch
 from mlflow import end_run, log_metrics, search_runs, start_run
 from mlflow.entities import Run
+from torch.utils.data import Dataset
 from transformers import (
     AutoConfig,
     AutoModel,
@@ -77,6 +78,6 @@ def pred(checkpoint: str, workers: int = 4):
         run = runs[0]
 
     start_run(run_id=run.info.run_id)
-    metrics = trainer.evaluate(data["test"], metric_key_prefix="test")  # type: ignore
+    metrics = trainer.evaluate(cast(Dataset, data["test"]), metric_key_prefix="test")
     log_metrics(metrics)
     end_run()

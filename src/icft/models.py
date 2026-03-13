@@ -215,6 +215,9 @@ class PTEncoderDecoderModel(PTModel):
         dec_attention_mask = self._shift_attention(attention_mask)
         dec_inputs, dec_attn = self._get_prompt(dec_input_ids, dec_attention_mask)
 
+        if self.config.task == "causal-lm":
+            labels = self._get_causal_labels(labels)
+
         if self.config.task == "seq-cls":
             out = self.base.transformer(
                 inputs_embeds=enc_inputs,
