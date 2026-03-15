@@ -33,6 +33,7 @@ Answer: true
 
 
 class BoolqBatch(TypedDict):
+    idx: list[int]
     passage: list[str]
     question: list[str]
     label: list[int]
@@ -46,10 +47,10 @@ def _tokenize_seq_cls(
     labels: list[int] = []
 
     it = zip(batch["passage"], batch["question"], batch["label"], strict=True)
-    for passage, question, label in it:
+    for passage, question, label_id in it:
         prompt = _prompt_template(passage=passage, question=question)
         prompts.append(prompt)
-        labels.append(label)
+        labels.append(label_id)
 
     enc = tokenizer(prompts, add_special_tokens=False, truncation=True)
     enc["labels"] = labels
@@ -65,11 +66,10 @@ def _tokenize_seq2seq(
     labels: list[str] = []
 
     it = zip(batch["passage"], batch["question"], batch["label"], strict=True)
-    for passage, question, label in it:
+    for passage, question, label_id in it:
         prompt = _prompt_template(passage=passage, question=question)
         prompts.append(prompt)
-        label_str = "true" if label == 1 else "false"
-        labels.append(f"{label_str}{tokenizer.eos_token}")
+        labels.append(f"{id2label[label_id]}{tokenizer.eos_token}")
 
     enc = tokenizer(prompts, add_special_tokens=False, truncation=True)
     labels_enc = tokenizer(labels, add_special_tokens=False, truncation=True)
@@ -87,10 +87,9 @@ def _tokenize_causal_lm(
     labels: list[list[int]] = []
 
     it = zip(batch["passage"], batch["question"], batch["label"], strict=True)
-    for passage, question, label in it:
+    for passage, question, label_id in it:
         prompt = _prompt_template(passage=passage, question=question)
-        label_str = "true" if label == 1 else "false"
-        answer = f"{label_str}{tokenizer.eos_token}"
+        answer = f"{id2label[label_id]}{tokenizer.eos_token}"
 
         prompt_enc = tokenizer(prompt, add_special_tokens=False, truncation=True)
         answer_enc = tokenizer(answer, add_special_tokens=False, truncation=True)
@@ -118,15 +117,14 @@ def init_superglue(
     task: Task,
     prompt_mode: PromptMode,
     workers: int,
-    subset: str = "boolq",
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
-    data = cast(DatasetDict, load_dataset("aps/super_glue", subset, split=split))
+    data = cast(DatasetDict, load_dataset("aps/super_glue", "boolq", split=split))
 
     if "validation" in data:
         data["dev"] = data.pop("validation")
 
-    logger.debug("tokenize superglue (%s) for %s", subset, task)
+    logger.debug("tokenize superglue (boolq) for %s", task)
     if task == "seq2seq":
         tokenize_fn = _tokenize_seq2seq
     elif task == "seq-cls":
@@ -141,7 +139,7 @@ def init_superglue(
         batched=True,
         fn_kwargs={"tokenizer": tokenizer},
         num_proc=workers,
-        remove_columns=next(iter(data.values())).column_names,
+        remove_columns=["question", "passage", "label"],
     )
 
     sys = init_system_prompt(

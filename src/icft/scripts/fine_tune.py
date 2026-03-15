@@ -1,10 +1,4 @@
-from typing import cast
-
 from rich.table import Table
-from transformers import (
-    AutoTokenizer,
-    PreTrainedTokenizerFast,
-)
 
 from icft.common import (
     DatasetName,
@@ -14,9 +8,10 @@ from icft.common import (
     init_data,
     init_metrics_fn,
     init_model,
+    init_tokenizer,
     train,
 )
-from icft.logging import console
+from icft.logging import console, logger
 
 
 def fine_tune(
@@ -33,11 +28,7 @@ def fine_tune(
     grad_chkpts: bool,
     mlflow_tracking_uri: str | None,
 ):
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer = init_tokenizer(model_path=model_path)
 
     data, info = init_data(
         tokenizer=tokenizer,
@@ -46,6 +37,10 @@ def fine_tune(
         prompt_mode=prompt_mode,
         workers=workers,
     )
+
+    if dataset == "superglue":
+        logger.warning("drop superglue test data, labels are private")
+        data.pop("test")
 
     model = init_model(
         task=task,

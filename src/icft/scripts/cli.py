@@ -115,5 +115,13 @@ def prompt_tune(
     )
 
 
+@app.command()
+@timed
+def predict_superglue(checkpoint: Annotated[str, Option()]):
+    from icft.scripts.superglue import predict
+
+    predict(checkpoint=checkpoint)
+
+
 if __name__ == "__main__":
     app()

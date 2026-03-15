@@ -15,6 +15,7 @@ from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
+    AutoTokenizer,
     DataCollator,
     DataCollatorForSeq2Seq,
     DataCollatorWithPadding,
@@ -44,6 +45,17 @@ from icft.models import (
     PTModel,
 )
 from icft.types import DatasetName, PrefixInit, PromptMode, Task
+
+
+def init_tokenizer(model_path: str) -> PreTrainedTokenizerFast:
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
+
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    return tokenizer
 
 
 def init_model(
@@ -309,7 +321,10 @@ def train(
 
     logger.debug("%d train samples", len(data["train"]))
     logger.debug("%d dev samples", len(data["dev"]))
-    logger.debug("%d test samples", len(data["test"]))
+    if "test" in data:
+        logger.debug("%d test samples", len(data["test"]))
+    else:
+        logger.debug("no test samples")
 
     logger.debug("%d train steps", train_steps)
     logger.debug("%d eval steps", eval_steps)
@@ -345,13 +360,18 @@ def train(
     )
 
     if mlflow_tracking_uri is not None:
-        logger.debug("experiment tracking at '%s'", mlflow_tracking_uri)
+        logger.debug("tracking experiment at '%s'", mlflow_tracking_uri)
         set_tracking_uri(mlflow_tracking_uri)
         start_run(run_name=run_name)
 
     logger.debug("start trainer")
     trainer.train()
-    trainer.evaluate(cast(Dataset, data["test"]), metric_key_prefix="test")
+
+    if "test" in data:
+        test = cast(Dataset, data["test"])
+        trainer.evaluate(test, metric_key_prefix="test")
+    else:
+        logger.warning("skip evalatuaion, no test data")
 
     if mlflow_tracking_uri is not None:
         end_run()

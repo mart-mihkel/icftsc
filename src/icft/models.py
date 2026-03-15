@@ -143,10 +143,10 @@ class PTEncoderModel(PTModel):
         self,
         input_ids: Tensor,
         attention_mask: Tensor,
-        labels: Tensor,
+        labels: Tensor | None = None,
     ) -> SequenceClassifierOutput | Seq2SeqModelOutput | CausalLMOutput:
         inputs, attn = self._get_prompt(input_ids, attention_mask)
-        if self.config.task == "causal-lm":
+        if labels is not None and self.config.task == "causal-lm":
             labels = self._get_causal_labels(labels)
 
         return self.base(inputs_embeds=inputs, attention_mask=attn, labels=labels)
@@ -163,10 +163,10 @@ class PTDecoderModel(PTModel):
         self,
         input_ids: Tensor,
         attention_mask: Tensor,
-        labels: Tensor,
+        labels: Tensor | None = None,
     ) -> SequenceClassifierOutput | Seq2SeqModelOutput | CausalLMOutput:
         inputs, attn = self._get_prompt(input_ids, attention_mask)
-        if self.config.task == "causal-lm":
+        if labels is not None and self.config.task == "causal-lm":
             labels = self._get_causal_labels(labels)
 
         out = self.base(
@@ -179,8 +179,8 @@ class PTDecoderModel(PTModel):
         if self.config.task == "seq-cls":
             return self._post_forward_seq_cls(
                 input_ids=input_ids,
-                labels=labels,
                 last_hidden_state=out.hidden_states[-1],
+                labels=labels,
             )
 
         return out
@@ -188,8 +188,8 @@ class PTDecoderModel(PTModel):
     def _post_forward_seq_cls(
         self,
         input_ids: Tensor,
-        labels: Tensor,
         last_hidden_state: Tensor,
+        labels: Tensor | None = None,
     ) -> SequenceClassifierOutput:
         prompt_ids = self._get_prompt_ids(input_ids)
         batch_size, seq_len = prompt_ids.shape
@@ -206,11 +206,13 @@ class PTDecoderModel(PTModel):
             last_non_pad_token,
         ]
 
-        loss_fct = CrossEntropyLoss()
-        loss = loss_fct(
-            pooled_logits.view(-1, self.config.num_labels),
-            labels.view(-1),
-        )
+        loss = None
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(
+                pooled_logits.view(-1, self.config.num_labels),
+                labels.view(-1),
+            )
 
         return SequenceClassifierOutput(loss=loss, logits=pooled_logits)
 
@@ -226,7 +228,7 @@ class PTEncoderDecoderModel(PTModel):
         self,
         input_ids: Tensor,
         attention_mask: Tensor,
-        labels: Tensor,
+        labels: Tensor | None = None,
     ) -> SequenceClassifierOutput | Seq2SeqModelOutput | CausalLMOutput:
         enc_inputs, enc_attn = self._get_prompt(input_ids, attention_mask)
 
@@ -234,7 +236,7 @@ class PTEncoderDecoderModel(PTModel):
         dec_attention_mask = self._shift_attention(attention_mask)
         dec_inputs, dec_attn = self._get_prompt(dec_input_ids, dec_attention_mask)
 
-        if self.config.task == "causal-lm":
+        if labels is not None and self.config.task == "causal-lm":
             labels = self._get_causal_labels(labels)
 
         if self.config.task == "seq-cls":
@@ -284,17 +286,19 @@ class PTEncoderDecoderModel(PTModel):
 
     def _post_forward_seq_cls(
         self,
-        labels: Tensor,
         last_hidden_state: Tensor,
+        labels: Tensor | None = None,
     ) -> SequenceClassifierOutput:
         logits = self.base.classification_head(last_hidden_state)
         pooled_logits = logits[:, 0]
 
-        loss_fct = CrossEntropyLoss()
-        loss = loss_fct(
-            pooled_logits.view(-1, self.config.num_labels),
-            labels.view(-1),
-        )
+        loss = None
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(
+                pooled_logits.view(-1, self.config.num_labels),
+                labels.view(-1),
+            )
 
         return SequenceClassifierOutput(loss=loss, logits=pooled_logits)
 
