@@ -58,7 +58,7 @@ def fine_tune(
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    table = Table(caption="Task parameters", show_header=False)
+    table = Table(caption="Task parameters", show_header=False, width=80)
     table.add_row("model", model_path.split("/")[-1])
     table.add_row("params", str(total))
     table.add_row("trainable", str(trainable))

@@ -299,7 +299,7 @@ def train(
     eval_steps = max(1, train_steps // 5)
     logging_steps = max(1, train_steps // 100)
 
-    table = Table(caption="Training arguments", show_header=False)
+    table = Table(caption="Training arguments", show_header=False, width=80)
     table.add_row("CUDA", str(have_cuda))
     table.add_row("optimizer", optim)
     table.add_row("epochs", str(epochs))

@@ -56,7 +56,7 @@ def prompt_tune(
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     prefix = model.prefix.numel()
 
-    table = Table(caption="Task parameters", show_header=False)
+    table = Table(caption="Task parameters", show_header=False, width=80)
     table.add_row("model", model_path.split("/")[-1])
     table.add_row("params", str(total))
     table.add_row("trainable", str(trainable))
