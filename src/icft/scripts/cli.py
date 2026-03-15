@@ -58,9 +58,9 @@ def fine_tune(
     workers: int = 0,
     epochs: int = 1,
     batch_size: int = 8,
-    lr: float = 5e-5,
+    learning_rate: float = 5e-5,
     grad_chkpts: bool = False,
-    mlflow_tracking: bool = False,
+    mlflow_tracking_uri: str | None = None,
 ):
     from icft.scripts.fine_tune import fine_tune
 
@@ -75,9 +75,9 @@ def fine_tune(
         workers=workers,
         epochs=epochs,
         batch_size=batch_size,
-        lr=lr,
+        learning_rate=learning_rate,
         grad_chkpts=grad_chkpts,
-        mlflow_tracking=mlflow_tracking,
+        mlflow_tracking_uri=mlflow_tracking_uri,
     )
 
 
@@ -93,9 +93,9 @@ def prompt_tune(
     workers: int = 0,
     epochs: int = 1,
     batch_size: int = 8,
-    lr: float = 5e-5,
+    learning_rate: float = 5e-5,
     grad_chkpts: bool = False,
-    mlflow_tracking: bool = False,
+    mlflow_tracking_uri: str | None = None,
 ):
     from icft.scripts.prompt_tune import prompt_tune
 
@@ -109,9 +109,9 @@ def prompt_tune(
         workers=workers,
         epochs=epochs,
         batch_size=batch_size,
-        lr=lr,
+        learning_rate=learning_rate,
         grad_chkpts=grad_chkpts,
-        mlflow_tracking=mlflow_tracking,
+        mlflow_tracking_uri=mlflow_tracking_uri,
     )
 
 

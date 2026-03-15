@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #SBATCH --output=out/slurm/%x-%j.out
 #SBATCH --job-name="mmbert-small"
-#SBATCH --gres=gpu:tesla:1
 #SBATCH --cpus-per-task=4
 #SBATCH --time=120:00:00
 #SBATCH --partition=gpu
-#SBATCH --mem=64GB
+#SBATCH --gres=gpu:1
+#SBATCH --mem=8GB
 
 set -euo pipefail
 mkdir -p out
@@ -39,21 +39,22 @@ BASE=jhu-clsp/mmBERT-small
 # BASE=google/flan-t5-xl
 # BASE=google/flan-t5-xxl
 
-# export MLFLOW_TRACKING_URI=
-
-MODEL=$(echo $BASE | awk -F / '{print $2}')
-DATASET=multinerd
-LOG_LEVEL=DEBUG
+NAME=$(echo $BASE | awk -F / '{print $2}')
+DATASET=estner
 TASK=seq-cls
+
 BATCH_SIZE=64
-WORKERS=0
-EPOCHS=1
+WORKERS=4
+EPOCHS=3
+
+MLFLOW_TRACKING_URI=sqlite:///mlflow.db
+LOG_LEVEL=DEBUG
 
 uv sync
 
 uv run cli --log-level $LOG_LEVEL fine-tune \
     --model $BASE \
-    --run-name $MODEL-ft-system-$DATASET \
+    --run-name $NAME-ft-system-$DATASET \
     --task $TASK \
     --dataset $DATASET \
     --prompt-mode system \
@@ -61,19 +62,19 @@ uv run cli --log-level $LOG_LEVEL fine-tune \
     --workers $WORKERS \
     --epochs $EPOCHS \
     --batch-size $BATCH_SIZE \
-    --lr 5e-5 \
+    --learning-rate 5e-5 \
     --no-grad-chkpts \
-    --mlflow-tracking
+    --mlflow-tracking-uri $MLFLOW_TRACKING_URI
 
 uv run cli --log-level $LOG_LEVEL prompt-tune \
     --model $BASE \
-    --run-name $MODEL-pt-pretrained-$DATASET \
+    --run-name $NAME-pt-pretrained-$DATASET \
     --task $TASK \
     --dataset $DATASET \
     --prefix-init pretrained \
     --workers $WORKERS \
     --epochs $EPOCHS \
     --batch-size $BATCH_SIZE \
-    --lr 1e-3 \
+    --learning-rate 1e-3 \
     --no-grad-chkpts \
-    --mlflow-tracking
+    --mlflow-tracking-uri $MLFLOW_TRACKING_URI

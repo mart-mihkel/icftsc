@@ -29,9 +29,9 @@ def fine_tune(
     workers: int,
     epochs: int,
     batch_size: int,
-    lr: float,
+    learning_rate: float,
     grad_chkpts: bool,
-    mlflow_tracking: bool,
+    mlflow_tracking_uri: str | None,
 ):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
@@ -77,8 +77,8 @@ def fine_tune(
         metrics_fn=init_metrics_fn(tokenizer=tokenizer, task=task),
         run_name=run_name,
         epochs=epochs,
-        lr=lr,
+        learning_rate=learning_rate,
         batch_size=batch_size,
         grad_chkpts=grad_chkpts,
-        mlflow_tracking=mlflow_tracking,
+        mlflow_tracking_uri=mlflow_tracking_uri,
     )

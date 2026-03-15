@@ -6,7 +6,7 @@ from typing import Any, cast
 import torch
 from datasets.dataset_dict import DatasetDict
 from datasets.splits import Split
-from mlflow import start_run
+from mlflow import end_run, set_tracking_uri, start_run
 from torch.nn import Module, Parameter
 from torch.utils.data import Dataset
 from transformers import (
@@ -285,10 +285,10 @@ def train(
     metrics_fn: Callable[[EvalPrediction], dict[str, int | float]],
     run_name: str,
     epochs: int,
-    lr: float,
+    learning_rate: float,
     batch_size: int,
     grad_chkpts: bool,
-    mlflow_tracking: bool,
+    mlflow_tracking_uri: str | None,
 ):
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
@@ -298,7 +298,7 @@ def train(
     eval_steps = max(1, train_steps // 5)
     logging_steps = max(1, train_steps // 100)
 
-    logger.debug("%shave cuda", "" if have_cuda else "don't")
+    logger.debug("%shave cuda", "" if have_cuda else "don't ")
 
     logger.debug("batch size of %d", batch_size)
     logger.debug(
@@ -316,13 +316,13 @@ def train(
 
     args = TrainingArguments(
         run_name=run_name,
-        report_to="mlflow" if mlflow_tracking else "none",
+        report_to="mlflow" if mlflow_tracking_uri else "none",
         output_dir=f"out/{run_name}",
         save_strategy="epoch",
         eval_strategy="steps",
         eval_steps=eval_steps,
         logging_steps=logging_steps,
-        learning_rate=lr,
+        learning_rate=learning_rate,
         optim=optim,
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
@@ -344,6 +344,14 @@ def train(
         compute_metrics=metrics_fn,
     )
 
-    with start_run(run_name=run_name):
-        trainer.train()
-        trainer.evaluate(cast(Dataset, data["test"]), metric_key_prefix="test")
+    if mlflow_tracking_uri is not None:
+        logger.debug("experiment tracking at '%s'", mlflow_tracking_uri)
+        set_tracking_uri(mlflow_tracking_uri)
+        start_run(run_name=run_name)
+
+    logger.debug("start trainer")
+    trainer.train()
+    trainer.evaluate(cast(Dataset, data["test"]), metric_key_prefix="test")
+
+    if mlflow_tracking_uri is not None:
+        end_run()
