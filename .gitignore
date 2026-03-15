@@ -9,5 +9,4 @@ logs/
 typings/
 .venv/
 .envrc
-*.pdf
 *.db
