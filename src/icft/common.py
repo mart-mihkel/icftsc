@@ -64,14 +64,14 @@ def init_model(
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
     data_info: DatasetInfo,
-) -> PreTrainedModel:
-    model_info = {"missing_keys": set()}
+) -> tuple[PreTrainedModel, dict[str, set[str]]]:
+    loading_info = {"missing_keys": set()}
     if task == "seq2seq":
         logger.debug("load seq2seq pretrained model %s", model_path)
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
     elif task == "seq-cls":
         logger.debug("load seq-cls pretrained model %s", model_path)
-        model, model_info = AutoModelForSequenceClassification.from_pretrained(
+        model, loading_info = AutoModelForSequenceClassification.from_pretrained(
             model_path,
             output_loading_info=True,
             num_labels=len(data_info["id2label"]),
@@ -88,9 +88,9 @@ def init_model(
         model.config.pad_token_id = tokenizer.eos_token_id
 
     if head_only:
-        freeze(model=model, skip=model_info["missing_keys"])
+        freeze(model=model, skip=loading_info["missing_keys"])
 
-    return model
+    return model, loading_info
 
 
 def load_pt_model(checkpoint: str) -> PTModel:
@@ -121,9 +121,9 @@ def init_pt_model(
     system_ids = torch.tensor(sys["input_ids"])
     num_virtual_tokens = len(system_ids)
 
-    base = init_model(
+    base, loading_info = init_model(
         task=task,
-        head_only=True,
+        head_only=False,
         tokenizer=tokenizer,
         model_path=model_path,
         data_info=data_info,
@@ -171,6 +171,7 @@ def init_pt_model(
 
     logger.debug("load pretrained weights")
     model.base.load_state_dict(base.state_dict(), strict=False)
+    freeze(model=model.base, skip=loading_info["missing_keys"])
 
     emb = model.base.get_input_embeddings()
     if prefix_init == "random":

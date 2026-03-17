@@ -44,7 +44,7 @@ def fine_tune(
         logger.warning("drop superglue test data, labels are private")
         data.pop("test")
 
-    model = init_model(
+    model, _ = init_model(
         task=task,
         head_only=head_only,
         tokenizer=tokenizer,
