@@ -5,7 +5,7 @@ from typer import Context, Option, Typer
 
 from icft.types import DatasetName, PrefixInit, PromptMode, Task
 
-app = Typer(no_args_is_help=True, add_completion=False)
+app = Typer(no_args_is_help=True)
 
 
 def timed(func: Callable) -> Callable:

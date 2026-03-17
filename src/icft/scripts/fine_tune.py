@@ -1,7 +1,3 @@
-import os
-
-from rich.table import Table
-
 from icft.common import (
     DatasetName,
     PromptMode,
@@ -13,7 +9,7 @@ from icft.common import (
     init_tokenizer,
     train,
 )
-from icft.logging import console, logger
+from icft.logging import logger
 
 
 def fine_tune(
@@ -30,7 +26,6 @@ def fine_tune(
     grad_chkpts: bool,
     mlflow_tracking_uri: str | None,
 ):
-    os.makedirs("out", exist_ok=True)
     tokenizer = init_tokenizer(model_path=model_path)
     data, info = init_data(
         tokenizer=tokenizer,
@@ -55,17 +50,12 @@ def fine_tune(
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    table = Table("Task parameter", "Value")
-    table.add_row("Model", model_path)
-    table.add_row("Dataset", dataset)
-    table.add_row("Task", task)
-    table.add_section()
-    table.add_row("System prompt mode", prompt_mode)
-    table.add_row("Head only", str(head_only))
-    table.add_section()
-    table.add_row("Total parameters", str(total))
-    table.add_row("Trainable parameters", str(trainable))
-    console.print(table)
+    logger.debug("model '%s'", model_path)
+    logger.debug("dataset '%s'", dataset)
+    logger.debug("task '%s'", task)
+    logger.debug("system prompt mode '%s'", prompt_mode)
+    logger.debug("total parameters %d", total)
+    logger.debug("trainable parameters %d", trainable)
 
     train(
         model=model,

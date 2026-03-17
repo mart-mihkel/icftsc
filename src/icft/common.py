@@ -130,7 +130,7 @@ def init_pt_model(
     )
 
     model_type = base.config.model_type
-    if model_type in {"bert", "distilbert", "roberta", "modernbert"}:
+    if model_type in {"bert", "distilbert", "roberta", "eurobert", "modernbert"}:
         logger.debug("init pt encoder model")
         config = PTEncoderModelConfig(
             task=task,
@@ -305,7 +305,7 @@ def train(
 ):
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
-    grad_acc_steps = max(1, ceil(64 / batch_size))
+    grad_acc_steps = max(1, ceil(32 / batch_size))
     effective_batch_size = batch_size * grad_acc_steps
     train_steps = ceil(len(data["train"]) / effective_batch_size) * epochs
     eval_steps = max(1, train_steps // 5)
@@ -314,19 +314,16 @@ def train(
 
     logger.debug("%shave cuda", "" if have_cuda else "don't ")
 
-    logger.debug("batch size of %d", batch_size)
-    logger.debug(
-        "effective batch size of %d with %d gradient accumulation steps",
-        effective_batch_size,
-        grad_acc_steps,
-    )
+    logger.debug("batch size %d", batch_size)
+    logger.debug("effective batch size %d", effective_batch_size)
+    logger.debug("%d gradient accumulation steps", grad_acc_steps)
 
     logger.debug("%d train samples", len(data["train"]))
     logger.debug("%d dev samples", len(data["dev"]))
     if "test" in data:
         logger.debug("%d test samples", len(data["test"]))
     else:
-        logger.debug("no test samples")
+        logger.debug("0 test samples")
 
     logger.debug("%d train steps", train_steps)
     logger.debug("%d eval steps", eval_steps)
@@ -376,7 +373,7 @@ def train(
         test = cast(Dataset, data["test"])
         trainer.evaluate(test, metric_key_prefix="test")
     else:
-        logger.warning("skip evalatuaion, no test data")
+        logger.warning("skip test evalatuaion, no data")
 
     trainer.save_model(out_dir)
 

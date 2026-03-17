@@ -1,7 +1,3 @@
-import os
-
-from rich.table import Table
-
 from icft.common import (
     init_collate_fn,
     init_data,
@@ -10,7 +6,7 @@ from icft.common import (
     init_tokenizer,
     train,
 )
-from icft.logging import console, logger
+from icft.logging import logger
 from icft.types import DatasetName, PrefixInit, Task
 
 
@@ -27,7 +23,6 @@ def prompt_tune(
     grad_chkpts: bool,
     mlflow_tracking_uri: str | None,
 ):
-    os.makedirs("out", exist_ok=True)
     tokenizer = init_tokenizer(model_path=model_path)
     data, info = init_data(
         tokenizer=tokenizer,
@@ -53,19 +48,15 @@ def prompt_tune(
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     prefix = model.prefix.numel()
 
-    table = Table("Task parameter", "Value")
-    table.add_row("Model", model_path)
-    table.add_row("Dataset", dataset)
-    table.add_row("Task", task)
-    table.add_section()
-    table.add_row("Prefix initialization", prefix_init)
-    table.add_row("Virtual tokens", str(model.prefix.shape[0]))
-    table.add_section()
-    table.add_row("Total parameters", str(total))
-    table.add_row("Trainable parameters", str(trainable))
-    table.add_row("Head parameters", str(trainable - prefix))
-    table.add_row("Prefix parameters", str(prefix))
-    console.print(table)
+    logger.debug("base model '%s'", model_path)
+    logger.debug("dataset '%s'", dataset)
+    logger.debug("task '%s'", task)
+    logger.debug("prefix init '%s'", prefix_init)
+    logger.debug("virtual tokens %d", model.prefix.shape[0])
+    logger.debug("total parameters %d", total)
+    logger.debug("trainable parameters %d", trainable)
+    logger.debug("head parameters %d", trainable - prefix)
+    logger.debug("prefix parameters %d", prefix)
 
     train(
         model=model,
