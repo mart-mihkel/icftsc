@@ -1,4 +1,4 @@
-# In-Context Fine-Tuning
+# Prompt Tuning for Sequence Classification
 
 ## Development
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.20.1"
+__generated_with = "0.21.1"
 app = marimo.App()
 
 
@@ -8,89 +8,76 @@ app = marimo.App()
 def _():
     from typing import cast
 
-    import marimo as mo
     from torch import Tensor
     from transformers import (
         AutoModel,
         AutoTokenizer,
-        BertModel,
+        PreTrainedModel,
         PreTrainedTokenizer,
     )
-
-    from icft.datasets.multinerd import system_prompt  # type: ignore
 
     return (
         AutoModel,
         AutoTokenizer,
-        BertModel,
-        system_prompt,
+        PreTrainedModel,
         PreTrainedTokenizer,
         Tensor,
         cast,
-        mo,
     )
 
 
 @app.cell
-def _(BertModel, PreTrainedTokenizer, Tensor):
-    def encode_prefix(
-        prefix: str,
-        model: BertModel,
+def _(PreTrainedModel, PreTrainedTokenizer, Tensor):
+    def encode(
+        text: str,
+        model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
     ) -> Tensor:
-        prefix_tokenized = tokenizer(prefix, return_tensors="pt")
+        prefix_tokenized = tokenizer(text, return_tensors="pt")
         token_ids = prefix_tokenized["input_ids"][0]
         return model.get_input_embeddings().forward(token_ids)
 
-    return (encode_prefix,)
+    return (encode,)
 
 
 @app.cell
-def _(BertModel, PreTrainedTokenizer, Tensor, cast):
-    def decode_prefix(
-        prefix_embeddings: Tensor,
-        model: BertModel,
+def _(PreTrainedModel, PreTrainedTokenizer, Tensor, cast):
+    def decode(
+        embeddings: Tensor,
+        model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
     ) -> str | list[str]:
         voc_embeddings = cast(Tensor, model.get_input_embeddings().weight)
-        similarity = prefix_embeddings @ voc_embeddings.T
+        similarity = embeddings @ voc_embeddings.T
         token_ids = similarity.argmax(dim=1)
         return tokenizer.decode(token_ids=token_ids)
 
-    return (decode_prefix,)
+    return (decode,)
 
 
 @app.cell
 def _(AutoModel, AutoTokenizer):
-    _pretrained_model = "jhu-clsp/mmBERT-base"
-    tokenizer = AutoTokenizer.from_pretrained(_pretrained_model)
-    model = AutoModel.from_pretrained(_pretrained_model)
+    model_path = "hf-internal-testing/tiny-random-bert"
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model = AutoModel.from_pretrained(model_path)
     return model, tokenizer
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
-    Decode mmBERT system prompt embeddings using cosine similarity
-    """)
-    return
-
-
 @app.cell
-def _(system_prompt, decode_prefix, encode_prefix, model, tokenizer):
-    _prefix_embeddings = encode_prefix(
-        prefix=system_prompt,
+def _(decode, encode, model, tokenizer):
+    embeddings = encode(
+        text="I am a horse",
         model=model,
         tokenizer=tokenizer,
     )
 
-    _prefix_decoded = decode_prefix(
-        prefix_embeddings=_prefix_embeddings,
+    decoded = decode(
+        embeddings=embeddings,
         model=model,
         tokenizer=tokenizer,
     )
 
-    print(_prefix_decoded)
+    print(decoded)
     return
 
 

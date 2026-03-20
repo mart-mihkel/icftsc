@@ -3,7 +3,7 @@ from typing import cast
 from datasets.splits import Split
 from transformers import PreTrainedTokenizerFast
 
-from icft.datasets.multinerd import _join_spans, init_multinerd
+from pt4sc.datasets.multinerd import _join_spans, init_multinerd
 
 split = cast(
     Split,
@@ -21,7 +21,7 @@ def test_join_spans():
     jtokens, jtags = _join_spans(tokens=tokens, tag_ids=tag_ids)
 
     assert jtokens == ["Kuulus", "kohver", "Eston Kohver"]
-    assert jtags == [0, 0, 1]
+    assert jtags == [-1, -1, 0]
 
 
 def test_multinerd_mmbert(mmbert_tokenizer: PreTrainedTokenizerFast):

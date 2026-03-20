@@ -9,8 +9,8 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 
-from icft.datasets.multinerd import DatasetInfo
-from icft.models import (
+from pt4sc.datasets.multinerd import DatasetInfo
+from pt4sc.models import (
     PTDecoderModel,
     PTDecoderModelConfig,
     PTEncoderDecoderModel,
@@ -18,7 +18,7 @@ from icft.models import (
     PTEncoderModel,
     PTEncoderModelConfig,
 )
-from icft.scripts.prompt_tune import init_pt_model
+from pt4sc.scripts.prompt_tune import init_pt_model
 
 
 def test_init_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):

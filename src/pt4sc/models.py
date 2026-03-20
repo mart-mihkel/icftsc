@@ -14,7 +14,7 @@ from transformers.modeling_outputs import (
     SequenceClassifierOutput,
 )
 
-from icft.logging import logger
+from pt4sc.logging import logger
 
 
 class PTModelConfig(PretrainedConfig):

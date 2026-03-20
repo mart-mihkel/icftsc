@@ -1,21 +1,21 @@
 from transformers import AutoConfig, DataCollatorWithPadding
 
-from icft.logging import logger
-from icft.metrics import compute_metrics_seq_cls
-from icft.scripts.common import (
+from pt4sc.logging import logger
+from pt4sc.metrics import compute_metrics_seq_cls
+from pt4sc.scripts.common import (
+    DatasetName,
     init_data,
-    init_pt_model,
+    init_model,
     init_tokenizer,
     train,
 )
-from icft.types import DatasetName, PrefixInit
 
 
-def prompt_tune(
+def fine_tune(
     model_path: str,
     run_name: str,
     dataset: DatasetName,
-    prefix_init: PrefixInit,
+    head_only: bool,
     workers: int,
     epochs: int,
     batch_size: int,
@@ -36,37 +36,25 @@ def prompt_tune(
         workers=workers,
     )
 
-    logger.info("drop prompted test datasets for prompt tuning")
-    data.pop("test-system")
-    data.pop("test-random")
-
     if dataset == "superglue-boolq":
         logger.warning("drop superglue test data, labels are private")
         data.pop("test")
+        data.pop("test-system")
+        data.pop("test-random")
 
-    logger.info(
-        "init pt model for '%s' with %s prefix initialization",
-        model_path,
-        prefix_init,
-    )
-
-    model = init_pt_model(
-        prefix_init=prefix_init,
+    logger.info("init model '%s'", model_path)
+    model, _ = init_model(
+        head_only=head_only,
         tokenizer=tokenizer,
         model_path=model_path,
         data_info=info,
     )
 
-    logger.info("using prefix with %d virtual tokens", model.prefix.shape[0])
-
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    prefix = model.prefix.numel()
 
     logger.debug("total parameters %d", total)
     logger.debug("trainable parameters %d", trainable)
-    logger.debug("head parameters %d", trainable - prefix)
-    logger.debug("prefix parameters %d", prefix)
 
     train(
         model=model,

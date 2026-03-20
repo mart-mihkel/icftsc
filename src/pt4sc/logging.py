@@ -38,4 +38,4 @@ threading.excepthook = lambda args: _console.print(
 
 logging.basicConfig(format="%(message)s", handlers=[_handler])
 
-logger = logging.getLogger("icft")
+logger = logging.getLogger("pt4sc")

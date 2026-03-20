@@ -22,12 +22,12 @@ from transformers import (
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
-from icft.constants import bert_model_types, gpt_model_types, t5_model_types
-from icft.datasets.estner import init_estner
-from icft.datasets.multinerd import DatasetInfo, init_multinerd
-from icft.datasets.superglue import init_superglue
-from icft.logging import logger
-from icft.models import (
+from pt4sc.constants import bert_model_types, gpt_model_types, t5_model_types
+from pt4sc.datasets.estner import init_estner
+from pt4sc.datasets.multinerd import DatasetInfo, init_multinerd
+from pt4sc.datasets.superglue import init_superglue
+from pt4sc.logging import logger
+from pt4sc.models import (
     PTDecoderModel,
     PTDecoderModelConfig,
     PTEncoderDecoderModel,
@@ -36,7 +36,7 @@ from icft.models import (
     PTEncoderModelConfig,
     PTModel,
 )
-from icft.types import DatasetName, PrefixInit
+from pt4sc.types import DatasetName, PrefixInit
 
 
 def save_params(params: dict[str, Any], run_name: str):
@@ -170,7 +170,7 @@ def init_pt_model(
     emb = model.base.get_input_embeddings()
     if prefix_init == "random":
         logger.debug("init random prefix")
-        model.prefix = Parameter(torch.randn(1, num_virtual_tokens, emb.embedding_dim))
+        model.prefix = Parameter(torch.randn(num_virtual_tokens, emb.embedding_dim))
     elif prefix_init == "pretrained":
         logger.debug("init pretrained prefix")
         model.prefix = Parameter(emb(system_ids).detach())
@@ -290,13 +290,13 @@ def train(
 
     if mlflow_tracking_uri is not None:
         logger.info(
-            "tracking experiment 'icft' run '%s' at %s",
+            "tracking experiment 'pt4sc' run '%s' at %s",
             run_name,
             mlflow_tracking_uri,
         )
 
         set_tracking_uri(mlflow_tracking_uri)
-        set_experiment("icft")
+        set_experiment("pt4sc")
         start_run(run_name=run_name)
     else:
         logger.warning("no experiment tracking configured")

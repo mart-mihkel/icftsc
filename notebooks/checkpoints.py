@@ -1,25 +1,23 @@
 import marimo
 
-__generated_with = "0.20.4"
+__generated_with = "0.21.1"
 app = marimo.App()
 
 
 @app.cell
 def _():
-
     import torch
     from torch.nn import Parameter
-    from transformers import (
-        AutoTokenizer,
-    )
+    from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-    from icft.models import PTModel, PTModelConfig
-    from icft.scripts.prompt_tune import init_pt_model
+    from pt4sc.datasets.common import DatasetInfo
+    from pt4sc.scripts.common import init_pt_model
 
     return (
+        AutoConfig,
+        AutoModel,
         AutoTokenizer,
-        PTModel,
-        PTModelConfig,
+        DatasetInfo,
         Parameter,
         init_pt_model,
         torch,
@@ -28,53 +26,40 @@ def _():
 
 @app.cell
 def _():
-    task = "seq-cls"
+    path = "/tmp/pt4sc-test"
     prefix_init = "pretrained"
-    model_path = "jhu-clsp/mmBERT-base"
-    return model_path, prefix_init, task
+    model_path = "hf-internal-testing/tiny-random-bert"
+    return model_path, path, prefix_init
 
 
 @app.cell
-def _(AutoTokenizer, init_pt_model, model_path, prefix_init, task):
+def _(AutoTokenizer, DatasetInfo, init_pt_model, model_path, prefix_init):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
+    _data_info = DatasetInfo(
+        id2label={0: "0", 1: "1"}, label2id={"0": 0, "1": 1}, system_prompt="Test"
+    )
+
     model = init_pt_model(
-        task=task,
         model_path=model_path,
         tokenizer=tokenizer,
         prefix_init=prefix_init,
-        sys_enc=tokenizer("System prompt"),
-        id2label={0: "0"},
-        label2id={"0": 0},
+        data_info=_data_info,
     )
-
-    if model.base.config.pad_token_id is None:
-        model.base.config.pad_token_id = tokenizer.pad_token_id
     return (model,)
 
 
 @app.cell
-def _(PTModelConfig, Parameter, model, torch):
+def _(Parameter, model, path, torch):
     model.prefix = Parameter(torch.ones_like(model.prefix))
-    model.save_pretrained("/tmp/test")
-    config = PTModelConfig.from_pretrained("/tmp/test")
-    config
-    return (config,)
+    model.save_pretrained(path)
+    return
 
 
 @app.cell
-def _(PTModel, config):
-    loaded_model = PTModel.from_pretrained(
-        "/tmp/test",
-        config=config,
-    )
-
-    loaded_model
-    return (loaded_model,)
-
-
-@app.cell
-def _(loaded_model):
+def _(AutoConfig, AutoModel, path):
+    config = AutoConfig.from_pretrained(path)
+    loaded_model = AutoModel.from_pretrained(path, config=config)
     loaded_model.prefix
     return
 

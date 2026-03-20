@@ -6,13 +6,13 @@ from datasets.splits import Split
 from datasets.utils.info_utils import VerificationMode
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from icft.constants import bert_model_types, gpt_model_types, t5_model_types
-from icft.datasets.common import (
+from pt4sc.constants import bert_model_types, gpt_model_types, t5_model_types
+from pt4sc.datasets.common import (
     DatasetInfo,
     prepend_system_tokens,
     randomize_prompt,
 )
-from icft.logging import logger
+from pt4sc.logging import logger
 
 type MultinerdLang = Literal[
     "zh",
