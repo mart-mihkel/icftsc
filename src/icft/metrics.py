@@ -10,7 +10,10 @@ _bleu = evaluate.load("bleu")
 _rouge = evaluate.load("rouge")
 
 
-def _compute_simple_metrics(labels: np.ndarray, preds: np.ndarray) -> dict[str, float]:
+def _compute_classification_metrics(
+    labels: np.ndarray,
+    preds: np.ndarray,
+) -> dict[str, float]:
     accuracy = accuracy_score(labels, preds)
     precision = precision_score(labels, preds, average="macro", zero_division=0)
     recall = recall_score(labels, preds, average="macro", zero_division=0)
@@ -58,7 +61,7 @@ def _compute_rouge(
 def compute_metrics_seq_cls(eval_pred: EvalPrediction) -> dict[str, float]:
     logits, labels = eval_pred
     preds = np.argmax(logits, axis=-1)
-    return _compute_simple_metrics(labels, preds)
+    return _compute_classification_metrics(labels, preds)
 
 
 def compute_metrics_seq2seq(
@@ -69,7 +72,7 @@ def compute_metrics_seq2seq(
     preds = np.argmax(logits, axis=-1)
     mask = labels != -100
 
-    simple = _compute_simple_metrics(labels[mask], preds[mask])
+    simple = _compute_classification_metrics(labels[mask], preds[mask])
     bleu = _compute_bleu(labels[mask], preds[mask], tokenizer)
     rouge = _compute_rouge(labels[mask], preds[mask], tokenizer)
 
@@ -84,7 +87,7 @@ def compute_metrics_causal_lm(
     preds = np.argmax(logits, axis=-1)
     mask = labels != -100
 
-    simple = _compute_simple_metrics(labels[mask], preds[mask])
+    simple = _compute_classification_metrics(labels[mask], preds[mask])
     perplexity = _compute_perplexity(labels, logits)
     bleu = _compute_bleu(labels[mask], preds[mask], tokenizer)
     rouge = _compute_rouge(labels[mask], preds[mask], tokenizer)

@@ -17,7 +17,7 @@ def _():
         PreTrainedTokenizer,
     )
 
-    from icft.datasets.multinerd import system_prompt
+    from icft.datasets.multinerd import system_prompt  # type: ignore
 
     return (
         AutoModel,

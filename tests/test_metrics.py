@@ -1,16 +1,18 @@
 import numpy as np
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
-from icft.scripts.common import init_metrics_fn
+from icft.metrics import (
+    compute_metrics_causal_lm,
+    compute_metrics_seq2seq,
+    compute_metrics_seq_cls,
+)
 
 
 def test_seq_cls():
     logits = np.array([[2.0, 1.0, 0.0], [2.0, 1.0, 0.0]])
     labels = np.array([0, 0])
     eval_pred = EvalPrediction(logits, labels)
-
-    metrics_fn = init_metrics_fn(task="seq-cls")
-    metrics = metrics_fn(eval_pred)
+    metrics = compute_metrics_seq_cls(eval_pred)
 
     assert metrics["accuracy"] == 1.0
 
@@ -25,9 +27,7 @@ def test_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
 
     labels = np.array([[5, 5], [5, 5]])
     eval_pred = EvalPrediction(logits, labels)
-
-    metrics_fn = init_metrics_fn(task="seq2seq", tokenizer=t5_tokenizer)
-    metrics_fn(eval_pred)
+    compute_metrics_seq2seq(eval_pred, tokenizer=t5_tokenizer)
 
 
 def test_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast):
@@ -41,5 +41,4 @@ def test_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast):
     labels = np.array([[0, 1], [0, 1]])
     eval_pred = EvalPrediction(logits, labels)
 
-    metrics_fn = init_metrics_fn(task="causal-lm", tokenizer=gpt2_tokenizer)
-    metrics_fn(eval_pred)
+    compute_metrics_causal_lm(eval_pred, tokenizer=gpt2_tokenizer)

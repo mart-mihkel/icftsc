@@ -7,6 +7,3 @@ pre-commit:
 
 upload:
 	rsync -rv --exclude-from '.gitignore' . $(REMOTE)
-
-download-log:
-	rsync -rv $(REMOTE)/mlflow.db .

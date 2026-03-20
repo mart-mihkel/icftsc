@@ -5,9 +5,13 @@ from datasets.load import load_dataset
 from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from icft.datasets.common import DatasetInfo, init_system_prompt, prepend_system_tokens
+from icft.constants import bert_model_types, gpt_model_types, t5_model_types
+from icft.datasets.common import (
+    DatasetInfo,
+    prepend_system_tokens,
+    randomize_prompt,
+)
 from icft.logging import logger
-from icft.types import PromptMode, Task
 
 type EstnerTag = Literal[
     "O",
@@ -23,6 +27,16 @@ type EstnerTag = Literal[
     "MONEY",
     "PERCENT",
 ]
+
+
+class EstnerBatch(TypedDict):
+    doc_id: list[int]
+    sent_id: list[int]
+    tokens: list[list[str]]
+    ner_tags: list[list[str]]
+    ner_tags1: list[list[str]]
+    ner_tags2: list[list[str]]
+
 
 id2label: dict[int, EstnerTag] = {
     0: "O",
@@ -55,29 +69,86 @@ label2id: dict[EstnerTag, int] = {
 }
 
 
-system_prompt = """Ülesanne: Nimeüksuste tuvastamine (NER)
-
-Määra sõna NER-märgend antud lauses.
-
-Lause: Pariis on Prantusmaa pealinn.
-Sõna: Pariis
-Vastus: LOC
-
-"""
+def _bert_sys_prompt(bos: str, sep: str) -> str:
+    return f"{bos}Määra nimeüksuse NER märgen lauses.{sep}"
 
 
-class EstnerBatch(TypedDict):
-    doc_id: list[int]
-    sent_id: list[int]
-    tokens: list[list[str]]
-    ner_tags: list[list[str]]
-    ner_tags1: list[list[str]]
-    ner_tags2: list[list[str]]
+def _bert_prompt(sentence: str, entity: str, bos: str, sep: str, eos: str) -> str:
+    return f"{bos}{sentence}{sep}{entity}{eos}"
 
 
-def _tokenize_seq_cls(
+def _gpt_sys_prompt(bos: str | None) -> str:
+    _bos = bos if bos is not None else ""
+    return (
+        f"{_bos}"
+        "Sa oled nimeüksuste tuvastamise (NER) ekspert. Sulle antakse lause ja "
+        "sihtüksus ning pead tagastama õige märgendi. Kasuta täpselt ühte "
+        "järgmistest märgenditest: PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME "
+        "TITLE, MONEY, PERCENT, O. Vasta ainult märgendiga ilma selgituseta.\n\n"
+        "Lause: Pariis on Prantusmaa pealinn.\nSihtüksus: Pariis\nMärgend: "
+        "LOC\n\n"
+    )
+
+
+def _gpt_prompt(sentence: str, entity: str, bos: str | None) -> str:
+    _bos = bos if bos is not None else ""
+    return f"{_bos}Lause: {sentence}\nÜksus: {entity}\nVastus: "
+
+
+def _t5_sys_prompt() -> str:
+    return (
+        "Ülesanne: NER, tuvasta lauses oleva sihtüksuse NER-märgend.\nMärgendid: "
+        "PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME, TITLE, MONEY, PERCENT, "
+        "O.\n\nLause: Pariis on Prantusmaa pealinn.\nSihtüksus: Pariis\nMärgend: "
+        "LOC\n\n"
+    )
+
+
+def _t5_prompt(sentence: str, entity: str) -> str:
+    return f"Lause: {sentence}\nÜksus: {entity}\nVastus: "
+
+
+def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
+    if model_type in bert_model_types:
+        return _bert_sys_prompt(bos=tokenizer.bos_token, sep=tokenizer.sep_token)
+
+    if model_type in gpt_model_types:
+        return _gpt_sys_prompt(bos=tokenizer.bos_token)
+
+    if model_type in t5_model_types:
+        return _t5_sys_prompt()
+
+    raise NotImplementedError(f"Model type '{model_type}'")
+
+
+def _get_prompt(
+    tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
+    sentence: str,
+    entity: str,
+) -> str:
+    if model_type in bert_model_types:
+        return _bert_prompt(
+            sentence=sentence,
+            entity=entity,
+            bos=tokenizer.bos_token,
+            sep=tokenizer.sep_token,
+            eos=tokenizer.eos_token,
+        )
+
+    if model_type in gpt_model_types:
+        return _gpt_prompt(sentence=sentence, entity=entity, bos=tokenizer.bos_token)
+
+    if model_type in t5_model_types:
+        return _t5_prompt(sentence=sentence, entity=entity)
+
+    raise NotImplementedError(f"Model type '{model_type}'")
+
+
+def _tokenize(
     batch: EstnerBatch,
     tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
 ) -> BatchEncoding:
     prompts: list[str] = []
     labels: list[int] = []
@@ -87,70 +158,20 @@ def _tokenize_seq_cls(
         tokens, tags = _join_spans(tokens=tokens, tags=tags)
 
         for token, tag in zip(tokens, tags, strict=True):
-            prompt = _prompt_template(sentence=sentence, token=token)
+            prompt = _get_prompt(
+                model_type=model_type,
+                tokenizer=tokenizer,
+                sentence=sentence,
+                entity=token,
+            )
+
             prompts.append(prompt)
             labels.append(label2id[tag])
 
-    enc = tokenizer(prompts, add_special_tokens=False, truncation=True)
+    enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
     enc["labels"] = labels
 
     return enc
-
-
-def _tokenize_seq2seq(
-    batch: EstnerBatch,
-    tokenizer: PreTrainedTokenizerFast,
-) -> BatchEncoding:
-    prompts: list[str] = []
-    labels: list[str] = []
-
-    for tokens, tags in zip(batch["tokens"], batch["ner_tags"], strict=True):
-        sentence = " ".join(tokens)
-        tokens, tags = _join_spans(tokens=tokens, tags=tags)
-
-        for token, tag in zip(tokens, tags, strict=True):
-            prompt = _prompt_template(sentence=sentence, token=token)
-            prompts.append(prompt)
-            labels.append(f"{tag}{tokenizer.eos_token}")
-
-    enc = tokenizer(prompts, add_special_tokens=False, truncation=True)
-    labels_enc = tokenizer(labels, add_special_tokens=False, truncation=True)
-    enc["labels"] = labels_enc["input_ids"]
-
-    return enc
-
-
-def _tokenize_causal_lm(
-    batch: EstnerBatch,
-    tokenizer: PreTrainedTokenizerFast,
-) -> BatchEncoding:
-    ids: list[list[int]] = []
-    attn: list[list[int]] = []
-    labels: list[list[int]] = []
-
-    for tokens, tags in zip(batch["tokens"], batch["ner_tags"], strict=True):
-        sentence = " ".join(tokens)
-        tokens, tags = _join_spans(tokens=tokens, tags=tags)
-
-        for token, tag in zip(tokens, tags, strict=True):
-            prompt = _prompt_template(sentence=sentence, token=token)
-            answer = f"{tag}{tokenizer.eos_token}"
-
-            prompt_enc = tokenizer(prompt, add_special_tokens=False, truncation=True)
-            answer_enc = tokenizer(answer, add_special_tokens=False, truncation=True)
-
-            prompt_tokens = len(prompt_enc["input_ids"])
-
-            _ids = prompt_enc["input_ids"] + answer_enc["input_ids"]
-            _attn = prompt_enc["attention_mask"] + answer_enc["attention_mask"]
-            _labels = [-100] * prompt_tokens + answer_enc["input_ids"]
-
-            ids.append(_ids)
-            attn.append(_attn)
-            labels.append(_labels)
-
-    enc = {"input_ids": ids, "attention_mask": attn, "labels": labels}
-    return BatchEncoding(enc)
 
 
 def _join_spans(
@@ -174,57 +195,54 @@ def _join_spans(
     return out_tokens, out_tags
 
 
-def _prompt_template(sentence: str, token: str) -> str:
-    return f"Lause: {sentence}\nSõna: {token}\nVastus: "
-
-
 def init_estner(
     tokenizer: PreTrainedTokenizerFast,
-    task: Task,
-    prompt_mode: PromptMode,
+    model_type: str,
     workers: int,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
     data = cast(DatasetDict, load_dataset("tartuNLP/EstNER", split=split))
 
-    logger.debug("tokenize estner for %s", task)
-    if task == "seq2seq":
-        tokenize_fn = _tokenize_seq2seq
-    elif task == "seq-cls":
-        tokenize_fn = _tokenize_seq_cls
-    elif task == "causal-lm":
-        tokenize_fn = _tokenize_causal_lm
-    else:
-        raise NotImplementedError(f"Task '{task}'")
-
     data = data.map(
-        tokenize_fn,
+        _tokenize,
         batched=True,
-        fn_kwargs={"tokenizer": tokenizer},
         num_proc=workers,
-        remove_columns=next(iter(data.values())).column_names,
+        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type},
+        remove_columns=[
+            "doc_id",
+            "sent_id",
+            "tokens",
+            "ner_tags",
+            "ner_tags_2",
+            "ner_tags_3",
+        ],
     )
 
-    sys = init_system_prompt(
-        tokenizer=tokenizer,
-        task=task,
-        prompt_mode=prompt_mode,
-        system_prompt=system_prompt,
-    )
+    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
+    if "test" in data:
+        has_bos = tokenizer.bos_token is not None
+        sys = tokenizer(prompt, truncation=True, add_special_tokens=False)
+        rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
 
-    if len(cast(list[int], sys["input_ids"])) > 0:
-        logger.debug("prepend system tokens")
-        data = data.map(
+        logger.debug("prepare system propted test sets")
+        data["test-system"] = data["test"].map(
             prepend_system_tokens,
             batched=True,
-            fn_kwargs={"sys": sys},
             num_proc=workers,
+            fn_kwargs={"sys": sys, "has_bos": has_bos},
+        )
+
+        data["test-random"] = data["test"].map(
+            prepend_system_tokens,
+            batched=True,
+            num_proc=workers,
+            fn_kwargs={"sys": rand, "has_bos": has_bos},
         )
 
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=system_prompt,
+        system_prompt=prompt,
     )
 
     return data, info

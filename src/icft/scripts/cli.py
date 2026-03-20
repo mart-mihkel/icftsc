@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from typer import Context, Option, Typer
 
-from icft.types import DatasetName, PrefixInit, PromptMode, Task
+from icft.types import DatasetName, PrefixInit
 
 app = Typer(no_args_is_help=True)
 
@@ -42,9 +42,7 @@ def fine_tune(
     ctx: Context,
     model: Annotated[str, Option()],
     run_name: Annotated[str, Option()],
-    task: Annotated[Task.__value__, Option()],
     dataset: Annotated[DatasetName.__value__, Option()],
-    prompt_mode: Annotated[PromptMode.__value__, Option()],
     head_only: Annotated[bool, Option()],
     workers: int = 0,
     epochs: int = 1,
@@ -61,9 +59,7 @@ def fine_tune(
     fine_tune(
         model_path=model,
         run_name=run_name,
-        task=task,
         dataset=dataset,
-        prompt_mode=prompt_mode,
         head_only=head_only,
         workers=workers,
         epochs=epochs,
@@ -81,7 +77,6 @@ def prompt_tune(
     ctx: Context,
     model: Annotated[str, Option()],
     run_name: Annotated[str, Option()],
-    task: Annotated[Task.__value__, Option()],
     dataset: Annotated[DatasetName.__value__, Option()],
     prefix_init: Annotated[PrefixInit.__value__, Option()],
     workers: int = 0,
@@ -99,7 +94,6 @@ def prompt_tune(
     prompt_tune(
         model_path=model,
         run_name=run_name,
-        task=task,
         dataset=dataset,
         prefix_init=prefix_init,
         workers=workers,

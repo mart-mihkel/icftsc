@@ -3,7 +3,7 @@ from typing import cast
 from datasets.splits import Split
 from transformers import PreTrainedTokenizerFast
 
-from icft.datasets.multinerd import init_multinerd
+from icft.datasets.multinerd import _join_spans, init_multinerd
 
 split = cast(
     Split,
@@ -15,14 +15,22 @@ split = cast(
 )
 
 
+def test_join_spans():
+    tokens = ["Kuulus", "kohver", "Eston", "Kohver"]
+    tag_ids = [0, 0, 1, 2]
+    jtokens, jtags = _join_spans(tokens=tokens, tag_ids=tag_ids)
+
+    assert jtokens == ["Kuulus", "kohver", "Eston Kohver"]
+    assert jtags == [0, 0, 1]
+
+
 def test_multinerd_mmbert(mmbert_tokenizer: PreTrainedTokenizerFast):
     data, _ = init_multinerd(
         tokenizer=mmbert_tokenizer,
-        task="seq-cls",
-        prompt_mode="system",
+        model_type="modernbert",
         filter_en=False,
-        workers=0,
         split=split,
+        workers=0,
     )
 
     assert len(data["train"]) > 0
@@ -33,11 +41,10 @@ def test_multinerd_mmbert(mmbert_tokenizer: PreTrainedTokenizerFast):
 def test_multinerd_gpt2(gpt2_tokenizer):
     data, _ = init_multinerd(
         tokenizer=gpt2_tokenizer,
-        task="causal-lm",
-        prompt_mode="system",
+        model_type="gpt2",
         filter_en=False,
-        workers=0,
         split=split,
+        workers=0,
     )
 
     assert len(data["train"]) > 0
@@ -48,11 +55,10 @@ def test_multinerd_gpt2(gpt2_tokenizer):
 def test_multinerd_t5(t5_tokenizer):
     data, _ = init_multinerd(
         tokenizer=t5_tokenizer,
-        task="seq2seq",
-        prompt_mode="system",
+        model_type="t5",
         filter_en=False,
-        workers=0,
         split=split,
+        workers=0,
     )
 
     assert len(data["train"]) > 0

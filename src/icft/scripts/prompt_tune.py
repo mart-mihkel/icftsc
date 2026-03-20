@@ -1,19 +1,19 @@
+from transformers import AutoConfig, DataCollatorWithPadding
+
 from icft.logging import logger
+from icft.metrics import compute_metrics_seq_cls
 from icft.scripts.common import (
-    init_collate_fn,
     init_data,
-    init_metrics_fn,
     init_pt_model,
     init_tokenizer,
     train,
 )
-from icft.types import DatasetName, PrefixInit, Task
+from icft.types import DatasetName, PrefixInit
 
 
 def prompt_tune(
     model_path: str,
     run_name: str,
-    task: Task,
     dataset: DatasetName,
     prefix_init: PrefixInit,
     workers: int,
@@ -24,36 +24,45 @@ def prompt_tune(
     grad_chkpts: bool,
     mlflow_tracking_uri: str | None,
 ):
+    config = AutoConfig.from_pretrained(model_path)
     tokenizer = init_tokenizer(model_path=model_path)
+    collate_fn = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
+
+    logger.info("init dataset '%s'", dataset)
     data, info = init_data(
+        model_type=config.model_type,
         tokenizer=tokenizer,
-        task=task,
         dataset=dataset,
-        prompt_mode="none",
         workers=workers,
     )
 
-    if dataset == "superglue":
+    logger.info("drop prompted test datasets for prompt tuning")
+    data.pop("test-system")
+    data.pop("test-random")
+
+    if dataset == "superglue-boolq":
         logger.warning("drop superglue test data, labels are private")
         data.pop("test")
 
+    logger.info(
+        "init pt model for '%s' with %s prefix initialization",
+        model_path,
+        prefix_init,
+    )
+
     model = init_pt_model(
-        task=task,
         prefix_init=prefix_init,
         tokenizer=tokenizer,
         model_path=model_path,
         data_info=info,
     )
 
+    logger.info("using prefix with %d virtual tokens", model.prefix.shape[0])
+
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     prefix = model.prefix.numel()
 
-    logger.debug("base model '%s'", model_path)
-    logger.debug("dataset '%s'", dataset)
-    logger.debug("task '%s'", task)
-    logger.debug("prefix init '%s'", prefix_init)
-    logger.debug("virtual tokens %d", model.prefix.shape[0])
     logger.debug("total parameters %d", total)
     logger.debug("trainable parameters %d", trainable)
     logger.debug("head parameters %d", trainable - prefix)
@@ -62,8 +71,8 @@ def prompt_tune(
     train(
         model=model,
         data=data,
-        collate_fn=init_collate_fn(tokenizer=tokenizer, task=task),
-        metrics_fn=init_metrics_fn(tokenizer=tokenizer, task=task),
+        collate_fn=collate_fn,
+        metrics_fn=compute_metrics_seq_cls,
         run_name=run_name,
         epochs=epochs,
         learning_rate=learning_rate,

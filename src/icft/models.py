@@ -4,8 +4,6 @@ from torch.nn import CrossEntropyLoss, Parameter
 from transformers import (
     AutoConfig,
     AutoModel,
-    AutoModelForCausalLM,
-    AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
     PretrainedConfig,
     PreTrainedModel,
@@ -17,7 +15,6 @@ from transformers.modeling_outputs import (
 )
 
 from icft.logging import logger
-from icft.types import Task
 
 
 class PTModelConfig(PretrainedConfig):
@@ -25,7 +22,6 @@ class PTModelConfig(PretrainedConfig):
 
     def __init__(
         self,
-        task: Task | None = None,
         num_virtual_tokens: int = 0,
         pretrained_model: str | None = None,
         num_labels: int = 1,
@@ -34,7 +30,6 @@ class PTModelConfig(PretrainedConfig):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.task = task
         self.num_virtual_tokens = num_virtual_tokens
         self.pretrained_model = pretrained_model
         self.num_labels = num_labels
@@ -56,28 +51,20 @@ class PTModel(PreTrainedModel):
             label2id=config.label2id,
         )
 
-        if config.task is None:
-            raise ValueError("No task specified")
-        elif config.task == "seq2seq":
-            base = AutoModelForSeq2SeqLM.from_config(_config)
-        elif config.task == "seq-cls":
-            base = AutoModelForSequenceClassification.from_config(_config)
-        elif config.task == "causal-lm":
-            base = AutoModelForCausalLM.from_config(_config)
-        else:
-            raise NotImplementedError(f"Task '{config.task}'")
-
+        base = AutoModelForSequenceClassification.from_config(_config)
         emb_dim = base.get_input_embeddings().embedding_dim
         prefix = torch.randn(config.num_virtual_tokens, emb_dim)
 
+        if "n_positions" in _config:
+            self.max_pos = _config.n_positions
+        elif "max_position_embeddings" in _config:
+            self.max_pos = _config.max_position_embeddings
+        else:
+            logger.warning("not detecting maximum input sequence length")
+            self.max_pos = float("inf")
+
         self.base = base
         self.prefix = Parameter(prefix)
-
-        if _config.model_type == "t5":
-            self.max_pos = _config.n_positions
-        else:
-            self.max_pos = _config.max_position_embeddings
-
         self.post_init()
 
     def gradient_checkpointing_enable(self, **kwargs):
@@ -158,9 +145,6 @@ class PTEncoderModel(PTModel):
         labels: Tensor | None = None,
     ) -> SequenceClassifierOutput | Seq2SeqModelOutput | CausalLMOutput:
         inputs, attn = self._get_prompt(input_ids, attention_mask)
-        if labels is not None and self.config.task == "causal-lm":
-            labels = self._get_causal_labels(labels)
-
         return self.base(inputs_embeds=inputs, attention_mask=attn, labels=labels)
 
 
@@ -178,9 +162,6 @@ class PTDecoderModel(PTModel):
         labels: Tensor | None = None,
     ) -> SequenceClassifierOutput | Seq2SeqModelOutput | CausalLMOutput:
         inputs, attn = self._get_prompt(input_ids, attention_mask)
-        if labels is not None and self.config.task == "causal-lm":
-            labels = self._get_causal_labels(labels)
-
         out = self.base(
             inputs_embeds=inputs,
             attention_mask=attn,
@@ -188,16 +169,13 @@ class PTDecoderModel(PTModel):
             output_hidden_states=True,
         )
 
-        if self.config.task == "seq-cls":
-            return self._post_forward_seq_cls(
-                input_ids=input_ids,
-                last_hidden_state=out.hidden_states[-1],
-                labels=labels,
-            )
+        return self._post_forward(
+            input_ids=input_ids,
+            last_hidden_state=out.hidden_states[-1],
+            labels=labels,
+        )
 
-        return out
-
-    def _post_forward_seq_cls(
+    def _post_forward(
         self,
         input_ids: Tensor,
         last_hidden_state: Tensor,
@@ -248,27 +226,17 @@ class PTEncoderDecoderModel(PTModel):
         dec_attention_mask = self._shift_attention(attention_mask)
         dec_inputs, dec_attn = self._get_prompt(dec_input_ids, dec_attention_mask)
 
-        if labels is not None and self.config.task == "causal-lm":
-            labels = self._get_causal_labels(labels)
-
-        if self.config.task == "seq-cls":
-            out = self.base.transformer(
-                inputs_embeds=enc_inputs,
-                attention_mask=enc_attn,
-                decoder_inputs_embeds=dec_inputs,
-                decoder_attention_mask=dec_attn,
-                labels=labels,
-            )
-
-            return self._post_forward_seq_cls(
-                labels=labels,
-                last_hidden_state=out.last_hidden_state,
-            )
-
-        return self.base(
+        out = self.base.transformer(
             inputs_embeds=enc_inputs,
             attention_mask=enc_attn,
+            decoder_inputs_embeds=dec_inputs,
+            decoder_attention_mask=dec_attn,
             labels=labels,
+        )
+
+        return self._post_forward(
+            labels=labels,
+            last_hidden_state=out.last_hidden_state,
         )
 
     def _shift_inputs(self, input_ids: Tensor) -> Tensor:
@@ -296,7 +264,7 @@ class PTEncoderDecoderModel(PTModel):
 
         return attention_mask.clone().scatter_(1, lengths, 1)
 
-    def _post_forward_seq_cls(
+    def _post_forward(
         self,
         last_hidden_state: Tensor,
         labels: Tensor | None = None,

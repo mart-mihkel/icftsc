@@ -5,11 +5,23 @@ from datasets.load import load_dataset
 from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from icft.datasets.common import DatasetInfo, init_system_prompt, prepend_system_tokens
+from icft.constants import bert_model_types, gpt_model_types, t5_model_types
+from icft.datasets.common import (
+    DatasetInfo,
+    prepend_system_tokens,
+    randomize_prompt,
+)
 from icft.logging import logger
-from icft.types import PromptMode, Task
 
 type BoolQALabel = Literal["false", "true"]
+
+
+class BoolqBatch(TypedDict):
+    idx: list[int]
+    passage: list[str]
+    question: list[str]
+    label: list[int]
+
 
 id2label: dict[int, BoolQALabel] = {
     0: "false",
@@ -21,101 +33,111 @@ label2id: dict[BoolQALabel, int] = {
     "true": 1,
 }
 
-system_prompt = """Task: Boolean Question Answering
 
-Answer the question based on the given passage. Answer with "true" or "false".
-
-Passage: The Great Wall of China is a series of fortifications made of stone.
-Question: Is the Great Wall of China made of stone?
-Answer: true
-
-"""
+def _bert_sys_prompt(bos: str, sep: str) -> str:
+    return f"{bos}Identify the NER tag of the entity in the sentence.{sep}"
 
 
-class BoolqBatch(TypedDict):
-    idx: list[int]
-    passage: list[str]
-    question: list[str]
-    label: list[int]
+def _bert_prompt(question: str, passage: str, bos: str, sep: str, eos: str) -> str:
+    return f"{bos}{question}{sep}{passage}{eos}"
 
 
-def _tokenize_seq_cls(
+def _gpt_sys_prompt(bos: str | None) -> str:
+    _bos = bos if bos is not None else ""
+    return (
+        f"{_bos}"
+        "You are a Boolean Question Answering expert.Given a passage and a "
+        'question, answer with exactly one word: "true" or "false".\nDo '
+        "not provide any explanation.\n\nPassage: The Great Wall of China is a "
+        "series of fortifications made of stone.\nQuestion: Is the Great Wall "
+        "of China made of stone?\nAnswer: true\n\n"
+    )
+
+
+def _gpt_prompt(question: str, passage: str, bos: str | None) -> str:
+    _bos = bos if bos is not None else ""
+    return f"{_bos}Passage: {passage}\nQuestion: {question}\nAnswer: "
+
+
+def _t5_sys_prompt() -> str:
+    return (
+        "Task: Boolean Question Answering.\nGiven a passage and a question, "
+        'answer with "true" or "false".\n\nPassage: The Great Wall of '
+        "China is a series of fortifications made of stone.\nQuestion: Is the "
+        "Great Wall of China made of stone?\nAnswer: true\n\n"
+    )
+
+
+def _t5_prompt(question: str, passage: str) -> str:
+    return f"Passage: {passage}\nQuestion: {question}\nAnswer: "
+
+
+def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
+    if model_type in bert_model_types:
+        return _bert_sys_prompt(bos=tokenizer.bos_token, sep=tokenizer.sep_token)
+
+    if model_type in gpt_model_types:
+        return _gpt_sys_prompt(bos=tokenizer.bos_token)
+
+    if model_type in t5_model_types:
+        return _t5_sys_prompt()
+
+    raise NotImplementedError(f"Model type '{model_type}'")
+
+
+def _get_prompt(
+    tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
+    question: str,
+    passage: str,
+) -> str:
+    if model_type in bert_model_types:
+        return _bert_prompt(
+            question=question,
+            passage=passage,
+            bos=tokenizer.bos_token,
+            sep=tokenizer.sep_token,
+            eos=tokenizer.eos_token,
+        )
+
+    if model_type in gpt_model_types:
+        return _gpt_prompt(question=question, passage=passage, bos=tokenizer.bos_token)
+
+    if model_type in t5_model_types:
+        return _t5_prompt(question=question, passage=passage)
+
+    raise NotImplementedError(f"Model type '{model_type}'")
+
+
+def _tokenize(
     batch: BoolqBatch,
     tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
 ) -> BatchEncoding:
     prompts: list[str] = []
     labels: list[int] = []
 
     it = zip(batch["passage"], batch["question"], batch["label"], strict=True)
     for passage, question, label_id in it:
-        prompt = _prompt_template(passage=passage, question=question)
+        prompt = _get_prompt(
+            model_type=model_type,
+            tokenizer=tokenizer,
+            question=question,
+            passage=passage,
+        )
+
         prompts.append(prompt)
         labels.append(label_id)
 
-    enc = tokenizer(prompts, add_special_tokens=False, truncation=True)
+    enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
     enc["labels"] = labels
 
     return enc
 
 
-def _tokenize_seq2seq(
-    batch: BoolqBatch,
-    tokenizer: PreTrainedTokenizerFast,
-) -> BatchEncoding:
-    prompts: list[str] = []
-    labels: list[str] = []
-
-    it = zip(batch["passage"], batch["question"], batch["label"], strict=True)
-    for passage, question, label_id in it:
-        prompt = _prompt_template(passage=passage, question=question)
-        prompts.append(prompt)
-        labels.append(f"{id2label[label_id]}{tokenizer.eos_token}")
-
-    enc = tokenizer(prompts, add_special_tokens=False, truncation=True)
-    labels_enc = tokenizer(labels, add_special_tokens=False, truncation=True)
-    enc["labels"] = labels_enc["input_ids"]
-
-    return enc
-
-
-def _tokenize_causal_lm(
-    batch: BoolqBatch,
-    tokenizer: PreTrainedTokenizerFast,
-) -> BatchEncoding:
-    ids: list[list[int]] = []
-    attn: list[list[int]] = []
-    labels: list[list[int]] = []
-
-    it = zip(batch["passage"], batch["question"], batch["label"], strict=True)
-    for passage, question, label_id in it:
-        prompt = _prompt_template(passage=passage, question=question)
-        answer = f"{id2label[label_id]}{tokenizer.eos_token}"
-
-        prompt_enc = tokenizer(prompt, add_special_tokens=False, truncation=True)
-        answer_enc = tokenizer(answer, add_special_tokens=False, truncation=True)
-
-        prompt_tokens = len(prompt_enc["input_ids"])
-
-        _ids = prompt_enc["input_ids"] + answer_enc["input_ids"]
-        _attn = prompt_enc["attention_mask"] + answer_enc["attention_mask"]
-        _labels = [-100] * prompt_tokens + answer_enc["input_ids"]
-
-        ids.append(_ids)
-        attn.append(_attn)
-        labels.append(_labels)
-
-    enc = {"input_ids": ids, "attention_mask": attn, "labels": labels}
-    return BatchEncoding(enc)
-
-
-def _prompt_template(passage: str, question: str) -> str:
-    return f"Passage: {passage}\nQuestion: {question}\nAnswer: "
-
-
 def init_superglue(
     tokenizer: PreTrainedTokenizerFast,
-    task: Task,
-    prompt_mode: PromptMode,
+    model_type: str,
     workers: int,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
@@ -124,44 +146,39 @@ def init_superglue(
     if "validation" in data:
         data["dev"] = data.pop("validation")
 
-    logger.debug("tokenize superglue (boolq) for %s", task)
-    if task == "seq2seq":
-        tokenize_fn = _tokenize_seq2seq
-    elif task == "seq-cls":
-        tokenize_fn = _tokenize_seq_cls
-    elif task == "causal-lm":
-        tokenize_fn = _tokenize_causal_lm
-    else:
-        raise NotImplementedError(f"Task '{task}'")
-
     data = data.map(
-        tokenize_fn,
+        _tokenize,
         batched=True,
-        fn_kwargs={"tokenizer": tokenizer},
         num_proc=workers,
         remove_columns=["question", "passage", "label"],
+        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type},
     )
 
-    sys = init_system_prompt(
-        tokenizer=tokenizer,
-        task=task,
-        prompt_mode=prompt_mode,
-        system_prompt=system_prompt,
-    )
+    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
+    if "test" in data:
+        has_bos = tokenizer.bos_token is not None
+        sys = tokenizer(prompt, truncation=True, add_special_tokens=False)
+        rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
 
-    if len(cast(list[int], sys["input_ids"])) > 0:
-        logger.debug("prepend system tokens")
-        data = data.map(
+        logger.debug("prepare system propted test sets")
+        data["test-system"] = data["test"].map(
             prepend_system_tokens,
             batched=True,
-            fn_kwargs={"sys": sys},
             num_proc=workers,
+            fn_kwargs={"sys": sys, "has_bos": has_bos},
+        )
+
+        data["test-random"] = data["test"].map(
+            prepend_system_tokens,
+            batched=True,
+            num_proc=workers,
+            fn_kwargs={"sys": rand, "has_bos": has_bos},
         )
 
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=system_prompt,
+        system_prompt=prompt,
     )
 
     return data, info

@@ -3,7 +3,7 @@ from typing import cast
 from datasets.splits import Split
 from transformers import PreTrainedTokenizerFast
 
-from icft.datasets.estner import init_estner
+from icft.datasets.estner import _join_spans, init_estner
 
 split = cast(
     Split,
@@ -15,13 +15,21 @@ split = cast(
 )
 
 
+def test_join_spans():
+    tokens = ["Kuulus", "kohver", "Eston", "Kohver"]
+    tags = ["O", "O", "B-PER", "I-PER"]
+    jtokens, jtags = _join_spans(tokens=tokens, tags=tags)
+
+    assert jtokens == ["Kuulus", "kohver", "Eston Kohver"]
+    assert jtags == ["O", "O", "PER"]
+
+
 def test_estner_mmbert(mmbert_tokenizer: PreTrainedTokenizerFast):
     data, _ = init_estner(
         tokenizer=mmbert_tokenizer,
-        task="seq-cls",
-        prompt_mode="system",
-        workers=0,
+        model_type="modernbert",
         split=split,
+        workers=0,
     )
 
     assert len(data["train"]) > 0
@@ -32,10 +40,9 @@ def test_estner_mmbert(mmbert_tokenizer: PreTrainedTokenizerFast):
 def test_estner_gpt2(gpt2_tokenizer: PreTrainedTokenizerFast):
     data, _ = init_estner(
         tokenizer=gpt2_tokenizer,
-        task="causal-lm",
-        prompt_mode="system",
-        workers=0,
+        model_type="gpt2",
         split=split,
+        workers=0,
     )
 
     assert len(data["train"]) > 0
@@ -46,10 +53,9 @@ def test_estner_gpt2(gpt2_tokenizer: PreTrainedTokenizerFast):
 def test_estner_t5(t5_tokenizer: PreTrainedTokenizerFast):
     data, _ = init_estner(
         tokenizer=t5_tokenizer,
-        task="seq2seq",
-        prompt_mode="system",
-        workers=0,
+        model_type="t5",
         split=split,
+        workers=0,
     )
 
     assert len(data["train"]) > 0
