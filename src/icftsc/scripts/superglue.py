@@ -8,9 +8,9 @@ from datasets.splits import Split
 from torch.utils.data import Dataset
 from transformers import AutoConfig, AutoModel, DataCollatorWithPadding, Trainer
 
-from pt4sc.datasets.superglue import id2label
-from pt4sc.logging import logger
-from pt4sc.scripts.common import init_data, init_tokenizer
+from icftsc.datasets.superglue import id2label
+from icftsc.logging import logger
+from icftsc.scripts.common import init_data, init_tokenizer
 
 
 def _run_predict(trainer: Trainer, data: Dataset, out: Path):

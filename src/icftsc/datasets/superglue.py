@@ -5,14 +5,14 @@ from datasets.load import load_dataset
 from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from pt4sc.constants import bert_model_types, gpt_model_types, t5_model_types
-from pt4sc.datasets.common import (
+from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.datasets.common import (
     DatasetInfo,
     prepend_system_tokens,
     randomize_prompt,
 )
-from pt4sc.logging import logger
-from pt4sc.types import Task
+from icftsc.logging import logger
+from icftsc.types import Task
 
 type BoolQALabel = Literal["false", "true"]
 

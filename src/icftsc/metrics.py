@@ -4,7 +4,7 @@ from scipy.special import log_softmax
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
-from pt4sc.logging import logger
+from icftsc.logging import logger
 
 _bleu = evaluate.load("bleu")
 _rouge = evaluate.load("rouge")

@@ -1,7 +1,7 @@
 import numpy as np
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
-from pt4sc.metrics import (
+from icftsc.metrics import (
     compute_metrics_causal_lm,
     compute_metrics_seq2seq,
     compute_metrics_seq_cls,

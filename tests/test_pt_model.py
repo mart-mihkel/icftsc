@@ -8,14 +8,14 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 
-from pt4sc.datasets.multinerd import DatasetInfo
-from pt4sc.modeling.common import PTModelConfig
-from pt4sc.modeling.seqcls import (
+from icftsc.datasets.multinerd import DatasetInfo
+from icftsc.modeling.common import PTModelConfig
+from icftsc.modeling.seqcls import (
     PTBertForSequenceClassification,
     PTGPTForSequenceClassification,
     PTT5ForSequenceClassification,
 )
-from pt4sc.scripts.prompt_tune import init_pt_model
+from icftsc.scripts.prompt_tune import init_pt_model
 
 
 def test_init_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):

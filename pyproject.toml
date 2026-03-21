@@ -1,7 +1,7 @@
 [project]
-name = "pt4sc"
+name = "icftsc"
 version = "0.1.0"
-description = "Prompt Tuning for Sequence Classification"
+description = "In-Context Fine-Tuning for Sequence Classification"
 readme = "README.md"
 requires-python = "~=3.13.11"
 dependencies = [
@@ -28,7 +28,7 @@ dev = [
 ]
 
 [project.scripts]
-cli = "pt4sc.scripts.cli:app"
+cli = "icftsc.scripts.cli:app"
 
 [build-system]
 requires = ["hatchling~=1.29"]

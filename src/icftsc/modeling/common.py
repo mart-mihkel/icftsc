@@ -9,7 +9,7 @@ from transformers import (
 )
 from transformers.utils.generic import ModelOutput
 
-from pt4sc.logging import logger
+from icftsc.logging import logger
 
 
 class PTModelConfig(PretrainedConfig):

@@ -3,129 +3,75 @@ from typing import Literal, TypedDict, cast
 from datasets.dataset_dict import DatasetDict
 from datasets.load import load_dataset
 from datasets.splits import Split
-from datasets.utils.info_utils import VerificationMode
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from pt4sc.constants import bert_model_types, gpt_model_types, t5_model_types
-from pt4sc.datasets.common import (
+from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.datasets.common import (
     DatasetInfo,
     prepend_system_tokens,
     randomize_prompt,
 )
-from pt4sc.logging import logger
-from pt4sc.types import Task
+from icftsc.logging import logger
+from icftsc.types import Task
 
-type MultinerdLang = Literal[
-    "zh",
-    "nl",
-    "en",
-    "fr",
-    "de",
-    "it",
-    "pl",
-    "pt",
-    "ru",
-    "es",
-]
-
-type MultinerdTag = Literal[
+type EstnerTag = Literal[
+    "O",
     "PER",
-    "ORG",
+    "GPE",
     "LOC",
-    "ANIM",
-    "BIO",
-    "CEL",
-    "DIS",
-    "EVE",
-    "FOOD",
-    "INST",
-    "MEDIA",
-    "MYTH",
-    "PLANT",
+    "ORG",
+    "PROD",
+    "EVENT",
+    "DATE",
     "TIME",
-    "VEHI",
+    "TITLE",
+    "MONEY",
+    "PERCENT",
 ]
 
 
-class MultinerdBatch(TypedDict):
+class EstnerBatch(TypedDict):
+    doc_id: list[int]
+    sent_id: list[int]
     tokens: list[list[str]]
     ner_tags: list[list[str]]
-    lang: list[MultinerdLang]
+    ner_tags1: list[list[str]]
+    ner_tags2: list[list[str]]
 
 
-_id2label_full: dict[int, str] = {
+id2label: dict[int, EstnerTag] = {
     0: "O",
-    1: "B-PER",
-    2: "I-PER",
-    3: "B-ORG",
-    4: "I-ORG",
-    5: "B-LOC",
-    6: "I-LOC",
-    7: "B-ANIM",
-    8: "I-ANIM",
-    9: "B-BIO",
-    10: "I-BIO",
-    11: "B-CEL",
-    12: "I-CEL",
-    13: "B-DIS",
-    14: "I-DIS",
-    15: "B-EVE",
-    16: "I-EVE",
-    17: "B-FOOD",
-    18: "I-FOOD",
-    19: "B-INST",
-    20: "I-INST",
-    21: "B-MEDIA",
-    22: "I-MEDIA",
-    23: "B-MYTH",
-    24: "I-MYTH",
-    25: "B-PLANT",
-    26: "I-PLANT",
-    27: "B-TIME",
-    28: "I-TIME",
-    29: "B-VEHI",
-    30: "I-VEHI",
+    1: "PER",
+    2: "GPE",
+    3: "LOC",
+    4: "ORG",
+    5: "PROD",
+    6: "EVENT",
+    7: "DATE",
+    8: "TIME",
+    9: "TITLE",
+    10: "MONEY",
+    11: "PERCENT",
 }
 
-id2label: dict[int, MultinerdTag] = {
-    0: "PER",
-    1: "ORG",
-    2: "LOC",
-    3: "ANIM",
-    4: "BIO",
-    5: "CEL",
-    6: "DIS",
-    7: "EVE",
-    8: "FOOD",
-    9: "INST",
-    10: "MEDIA",
-    11: "MYTH",
-    12: "PLANT",
-    13: "TIME",
-    14: "VEHI",
-}
-
-label2id: dict[MultinerdTag, int] = {
-    "PER": 0,
-    "ORG": 1,
-    "LOC": 2,
-    "ANIM": 3,
-    "BIO": 4,
-    "CEL": 5,
-    "DIS": 6,
-    "EVE": 7,
-    "FOOD": 8,
-    "INST": 9,
-    "MEDIA": 10,
-    "MYTH": 11,
-    "PLANT": 12,
-    "TIME": 13,
-    "VEHI": 14,
+label2id: dict[EstnerTag, int] = {
+    "O": 0,
+    "PER": 1,
+    "GPE": 2,
+    "LOC": 3,
+    "ORG": 4,
+    "PROD": 5,
+    "EVENT": 6,
+    "DATE": 7,
+    "TIME": 8,
+    "TITLE": 9,
+    "MONEY": 10,
+    "PERCENT": 11,
 }
 
 
 def _bert_sys_prompt(bos: str, sep: str) -> str:
-    return f"{bos}Identify the NER tag of the entity in the sentence.{sep}"
+    return f"{bos}Määra nimeüksuse NER märgen lauses.{sep}"
 
 
 def _bert_prompt(sentence: str, entity: str, bos: str, sep: str, eos: str) -> str:
@@ -136,31 +82,31 @@ def _gpt_sys_prompt(bos: str | None) -> str:
     _bos = bos if bos is not None else ""
     return (
         f"{_bos}"
-        "You are a Named Entity Recognition (NER) expert. Given a sentence and "
-        "a target entity, output the correct entity label. Use exactly one of "
-        "the following labels: PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, "
-        "INST, MEDIA, MYTH, PLANT, TIME, VEHI. Respond with only the label and "
-        "no explanation.\n\nSentence: Paris is the capital of France.\nEntity: "
-        "Paris\nAnswer: LOC\n\n"
+        "Sa oled nimeüksuste tuvastamise (NER) ekspert. Sulle antakse lause ja "
+        "sihtüksus ning pead tagastama õige märgendi. Kasuta täpselt ühte "
+        "järgmistest märgenditest: PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME "
+        "TITLE, MONEY, PERCENT, O. Vasta ainult märgendiga ilma selgituseta.\n\n"
+        "Lause: Pariis on Prantusmaa pealinn.\nSihtüksus: Pariis\nMärgend: "
+        "LOC\n\n"
     )
 
 
 def _gpt_prompt(sentence: str, entity: str, bos: str | None) -> str:
     _bos = bos if bos is not None else ""
-    return f"{_bos}Sentence: {sentence}\nEntity: {entity}\nAnswer: "
+    return f"{_bos}Lause: {sentence}\nÜksus: {entity}\nVastus: "
 
 
 def _t5_sys_prompt() -> str:
     return (
-        "Task: NER, identify the NER tag of the entity in the sentence span.\n"
-        "Labels: PER ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, "
-        "MYTH, PLANT, TIME, VEHI.\n\nSentence: Paris is the capital of France.\n"
-        "Entity: Paris\nAnswer: LOC\n\n"
+        "Ülesanne: NER, tuvasta lauses oleva sihtüksuse NER-märgend.\nMärgendid: "
+        "PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME, TITLE, MONEY, PERCENT, "
+        "O.\n\nLause: Pariis on Prantusmaa pealinn.\nSihtüksus: Pariis\nMärgend: "
+        "LOC\n\n"
     )
 
 
 def _t5_prompt(sentence: str, entity: str) -> str:
-    return f"Sentence: {sentence}\nEntity: {entity}\nAnswer: "
+    return f"Lause: {sentence}\nÜksus: {entity}\nVastus: "
 
 
 def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
@@ -201,7 +147,7 @@ def _get_prompt(
 
 
 def _tokenize(
-    batch: MultinerdBatch,
+    batch: EstnerBatch,
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
@@ -209,14 +155,11 @@ def _tokenize(
     prompts: list[str] = []
     labels: list[int] = []
 
-    for tokens, tag_ids in zip(batch["tokens"], batch["ner_tags"], strict=True):
+    for tokens, tags in zip(batch["tokens"], batch["ner_tags"], strict=True):
         sentence = " ".join(tokens)
-        tokens, tag_ids = _join_spans(tokens=tokens, tag_ids=tag_ids)
+        tokens, tags = _join_spans(tokens=tokens, tags=tags)
 
-        for token, tag_id in zip(tokens, tag_ids, strict=True):
-            if tag_id == -1:
-                continue
-
+        for token, tag in zip(tokens, tags, strict=True):
             prompt = _get_prompt(
                 model_type=model_type,
                 tokenizer=tokenizer,
@@ -225,7 +168,7 @@ def _tokenize(
             )
 
             prompts.append(prompt)
-            labels.append(tag_id)
+            labels.append(label2id[tag])
 
     enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
     if task == "seqcls":
@@ -250,83 +193,50 @@ def _tokenize(
 
 def _join_spans(
     tokens: list[str],
-    tag_ids: list[int],
-) -> tuple[list[MultinerdTag], list[int]]:
-    out_ids = []
+    tags: list[str],
+) -> tuple[list[str], list[EstnerTag]]:
+    out_tags = []
     out_tokens = []
-    for token, tag_id in zip(tokens, tag_ids, strict=True):
-        tag = _id2label_full[tag_id]
-
+    for token, tag in zip(tokens, tags, strict=True):
         if tag.startswith("B-"):
-            tag = cast(MultinerdTag, tag[2:])
-            out_ids.append(label2id[tag])
+            tag = cast(EstnerTag, tag[2:])
+            out_tags.append(tag)
             out_tokens.append(token)
         elif tag.startswith("I-"):
             out_tokens[-1] = f"{out_tokens[-1]} {token}"
-        elif tag == "O":
-            out_ids.append(-1)
-            out_tokens.append(token)
         else:
-            tag = cast(MultinerdTag, tag)
-            out_ids.append(label2id[tag])
+            tag = cast(EstnerTag, tag)
+            out_tags.append(tag)
             out_tokens.append(token)
 
-    return out_tokens, out_ids
+    return out_tokens, out_tags
 
 
-def _filter_english(batch: MultinerdBatch) -> list[bool]:
-    return [lang == "en" for lang in batch["lang"]]
-
-
-def init_multinerd(
+def init_estner(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
     workers: int = 0,
-    filter_en: bool = True,
-    train_subset: float = 0.1,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
     """
-    Initialize a modified subset of the MultiNERD dataset.
+    Initialize a modified version of the EstNER dataset.
 
     The BIO tagging task is converted to a regular NER tagging task by joining
-    tokens with B- and I- prefixes into a single span. O tags are dropped
-    entirely.
+    tokens with B- and I- prefixes into a single span.
 
     Each token is split into a separate sample containing the entire context
     sentence and the target token. The task is to classify the tag of the token
     in the entire sequence.
     """
-    data = load_dataset(
-        "Babelscape/multinerd",
-        split=split,
-        verification_mode=VerificationMode.NO_CHECKS,
-    )
+    data = cast(DatasetDict, load_dataset("tartuNLP/EstNER", split=split))
 
-    data = cast(DatasetDict, data)
-
-    if "validation" in data:
-        data["dev"] = data.pop("validation")
-
-    if filter_en:
-        logger.info("using english only subset")
-        data = data.filter(_filter_english, batched=True)
-
-    if "train" in data:
-        logger.info("using %d%% of train and dev data", int(train_subset * 100))
-
-        idx_train = range(int(train_subset * len(data["train"])))
-        data["train"] = data["train"].select(idx_train)
-
-        idx_dev = range(int(train_subset * len(data["dev"])))
-        data["dev"] = data["dev"].select(idx_dev)
-
+    cols = ["doc_id", "sent_id", "tokens", "ner_tags", "ner_tags_2", "ner_tags_3"]
     data = data.map(
         _tokenize,
         batched=True,
         num_proc=workers,
-        remove_columns=["tokens", "ner_tags", "lang"],
+        remove_columns=cols,
         fn_kwargs={"tokenizer": tokenizer, "model_type": model_type, "task": task},
     )
 
@@ -336,7 +246,7 @@ def init_multinerd(
         sys = tokenizer(sys_prompt, truncation=True, add_special_tokens=False)
         rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
 
-        logger.info("prepare system propted test sets")
+        logger.debug("prepare system propted test sets")
         data["test-system"] = data["test"].map(
             prepend_system_tokens,
             batched=True,

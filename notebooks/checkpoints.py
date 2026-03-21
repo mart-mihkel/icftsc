@@ -10,8 +10,8 @@ def _():
     from torch.nn import Parameter
     from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-    from pt4sc.datasets.common import DatasetInfo
-    from pt4sc.scripts.common import init_pt_model
+    from icftsc.datasets.common import DatasetInfo
+    from icftsc.scripts.common import init_pt_model
 
     return (
         AutoConfig,
@@ -26,7 +26,7 @@ def _():
 
 @app.cell
 def _():
-    path = "/tmp/pt4sc-test"
+    path = "/tmp/icftsc-test"
     prefix_init = "pretrained"
     model_path = "hf-internal-testing/tiny-random-bert"
     return model_path, path, prefix_init

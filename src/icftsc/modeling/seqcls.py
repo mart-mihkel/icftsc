@@ -7,7 +7,7 @@ from transformers.modeling_outputs import (
 )
 from transformers.utils.generic import ModelOutput
 
-from pt4sc.modeling.common import PTModel
+from icftsc.modeling.common import PTModel
 
 
 class PTBertForSequenceClassification(PTModel):

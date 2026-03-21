@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from typer import Context, Option, Typer
 
-from pt4sc.types import DatasetName, PrefixInit, Task
+from icftsc.types import DatasetName, PrefixInit, Task
 
 app = Typer(no_args_is_help=True)
 
@@ -14,7 +14,7 @@ def timed(func: Callable) -> Callable:
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        from pt4sc.logging import logger
+        from icftsc.logging import logger
 
         start = time.time()
         result = func(*args, **kwargs)
@@ -31,7 +31,7 @@ def timed(func: Callable) -> Callable:
 
 @app.callback()
 def callback(log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"):
-    from pt4sc.logging import logger
+    from icftsc.logging import logger
 
     logger.setLevel(log_level)
 
@@ -53,8 +53,8 @@ def fine_tune(
     grad_chkpts: bool = False,
     mlflow_tracking_uri: str | None = None,
 ):
-    from pt4sc.scripts.common import save_params
-    from pt4sc.scripts.fine_tune import fine_tune
+    from icftsc.scripts.common import save_params
+    from icftsc.scripts.fine_tune import fine_tune
 
     save_params(ctx.params, run_name)
     fine_tune(
@@ -90,8 +90,8 @@ def prompt_tune(
     grad_chkpts: bool = False,
     mlflow_tracking_uri: str | None = None,
 ):
-    from pt4sc.scripts.common import save_params
-    from pt4sc.scripts.prompt_tune import prompt_tune
+    from icftsc.scripts.common import save_params
+    from icftsc.scripts.prompt_tune import prompt_tune
 
     save_params(ctx.params, run_name)
     prompt_tune(
@@ -113,7 +113,7 @@ def prompt_tune(
 @app.command()
 @timed
 def predict_superglue(checkpoint: Annotated[str, Option()]):
-    from pt4sc.scripts.superglue import predict
+    from icftsc.scripts.superglue import predict
 
     predict(checkpoint=checkpoint)
 

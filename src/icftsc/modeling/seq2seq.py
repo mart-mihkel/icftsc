@@ -1,7 +1,7 @@
 from torch import Tensor
 from transformers.modeling_outputs import Seq2SeqModelOutput
 
-from pt4sc.modeling.common import PTModel
+from icftsc.modeling.common import PTModel
 
 
 class PTT5ForSeq2SeqLM(PTModel):

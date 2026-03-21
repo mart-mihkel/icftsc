@@ -3,7 +3,7 @@ from typing import cast
 from datasets.splits import Split
 from transformers import PreTrainedTokenizerFast
 
-from pt4sc.datasets.multinerd import _join_spans, init_multinerd
+from icftsc.datasets.multinerd import _join_spans, init_multinerd
 
 split = cast(
     Split,

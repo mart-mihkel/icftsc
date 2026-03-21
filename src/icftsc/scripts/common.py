@@ -24,20 +24,20 @@ from transformers import (
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
-from pt4sc.constants import bert_model_types, gpt_model_types, t5_model_types
-from pt4sc.datasets.estner import init_estner
-from pt4sc.datasets.multinerd import DatasetInfo, init_multinerd
-from pt4sc.datasets.superglue import init_superglue
-from pt4sc.logging import logger
-from pt4sc.modeling.causal import PTGPTForCausalLM
-from pt4sc.modeling.common import PTModel, PTModelConfig
-from pt4sc.modeling.seq2seq import PTT5ForSeq2SeqLM
-from pt4sc.modeling.seqcls import (
+from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.datasets.estner import init_estner
+from icftsc.datasets.multinerd import DatasetInfo, init_multinerd
+from icftsc.datasets.superglue import init_superglue
+from icftsc.logging import logger
+from icftsc.modeling.causal import PTGPTForCausalLM
+from icftsc.modeling.common import PTModel, PTModelConfig
+from icftsc.modeling.seq2seq import PTT5ForSeq2SeqLM
+from icftsc.modeling.seqcls import (
     PTBertForSequenceClassification,
     PTGPTForSequenceClassification,
     PTT5ForSequenceClassification,
 )
-from pt4sc.types import DatasetName, PrefixInit, Task
+from icftsc.types import DatasetName, PrefixInit, Task
 
 
 def save_params(params: dict[str, Any], run_name: str):
@@ -315,13 +315,13 @@ def train(
 
     if mlflow_tracking_uri is not None:
         logger.info(
-            "tracking experiment 'pt4sc' run '%s' at %s",
+            "tracking experiment 'icftsc' run '%s' at %s",
             run_name,
             mlflow_tracking_uri,
         )
 
         set_tracking_uri(mlflow_tracking_uri)
-        set_experiment("pt4sc")
+        set_experiment("icftsc")
         start_run(run_name=run_name)
     else:
         logger.warning("no experiment tracking configured")
