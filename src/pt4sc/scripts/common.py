@@ -255,8 +255,6 @@ def train(
     logger.debug("%d dev samples", len(data["dev"]))
     if "test" in data:
         logger.debug("%d test samples", len(data["test"]))
-    else:
-        logger.debug("0 test samples")
 
     args = TrainingArguments(
         run_name=run_name,

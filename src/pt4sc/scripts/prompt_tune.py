@@ -57,16 +57,15 @@ def prompt_tune(
         data_info=info,
     )
 
-    logger.info("using prefix with %d virtual tokens", model.prefix.shape[0])
-
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     prefix = model.prefix.numel()
 
-    logger.debug("total parameters %d", total)
-    logger.debug("trainable parameters %d", trainable)
-    logger.debug("head parameters %d", trainable - prefix)
-    logger.debug("prefix parameters %d", prefix)
+    logger.info("total parameters %d", total)
+    logger.info("trainable parameters %d", trainable)
+    logger.info("head parameters %d", trainable - prefix)
+    logger.info("prefix parameters %d", prefix)
+    logger.info("prefix with %d virtual tokens", model.prefix.shape[0])
 
     train(
         model=model,

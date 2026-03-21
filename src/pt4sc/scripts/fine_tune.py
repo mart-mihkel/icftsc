@@ -53,8 +53,8 @@ def fine_tune(
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    logger.debug("total parameters %d", total)
-    logger.debug("trainable parameters %d", trainable)
+    logger.info("total parameters %d", total)
+    logger.info("trainable parameters %d", trainable)
 
     train(
         model=model,

@@ -292,14 +292,11 @@ def init_multinerd(
         data["dev"] = data.pop("validation")
 
     if filter_en:
-        logger.debug("filter english")
+        logger.info("using english only subset")
         data = data.filter(_filter_english, batched=True)
 
     if "train" in data:
-        logger.info(
-            "using %d%% of multinerd train and dev data",
-            int(train_subset * 100),
-        )
+        logger.info("using %d%% of train and dev data", int(train_subset * 100))
 
         idx_train = range(int(train_subset * len(data["train"])))
         data["train"] = data["train"].select(idx_train)
@@ -321,7 +318,7 @@ def init_multinerd(
         sys = tokenizer(prompt, truncation=True, add_special_tokens=False)
         rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
 
-        logger.debug("prepare system propted test sets")
+        logger.info("prepare system propted test sets")
         data["test-system"] = data["test"].map(
             prepend_system_tokens,
             batched=True,

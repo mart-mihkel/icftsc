@@ -42,31 +42,31 @@ def predict(checkpoint: str):
         split=cast(Split, {"test": "test"}),
     )
 
-    logger.debug("load model from checkpoint")
+    logger.info("load model from checkpoint")
     model = AutoModel.from_pretrained(checkpoint)
 
-    logger.debug("load trainer from checkpoint")
+    logger.info("load trainer from checkpoint")
     args = torch.load(path / "training_args.bin", weights_only=False)
     args.eval_strategy = "no"
 
     collate_fn = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
     trainer = Trainer(args=args, model=model, data_collator=collate_fn)
 
-    logger.debug("run no prompt predictions")
+    logger.info("run no prompt predictions")
     _run_predict(
         trainer=trainer,
         data=cast(Dataset, data["test"].remove_columns("labels")),
         out=path / "boolq.jsonl",
     )
 
-    logger.debug("run system prompt predictions")
+    logger.info("run system prompt predictions")
     _run_predict(
         trainer=trainer,
         data=cast(Dataset, data["test-system"].remove_columns("labels")),
         out=path / "boolq-system.jsonl",
     )
 
-    logger.debug("run random system prompt predictions")
+    logger.info("run random system prompt predictions")
     _run_predict(
         trainer=trainer,
         data=cast(Dataset, data["test-random"].remove_columns("labels")),
