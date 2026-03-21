@@ -13,6 +13,7 @@ from pt4sc.datasets.common import (
     randomize_prompt,
 )
 from pt4sc.logging import logger
+from pt4sc.types import Task
 
 type MultinerdLang = Literal[
     "zh",
@@ -203,6 +204,7 @@ def _tokenize(
     batch: MultinerdBatch,
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
+    task: Task,
 ) -> BatchEncoding:
     prompts: list[str] = []
     labels: list[int] = []
@@ -226,7 +228,22 @@ def _tokenize(
             labels.append(tag_id)
 
     enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
-    enc["labels"] = labels
+    if task == "seqcls":
+        enc["labels"] = labels
+    elif task == "causal":
+        enc["labels"] = [
+            [-100] * len(prompt_ids)
+            + tokenizer.encode(id2label[tag_id])
+            + [tokenizer.eos_token_id]
+            for prompt_ids, tag_id in zip(enc["input_ids"], labels, strict=True)
+        ]
+    elif task == "seq2seq":
+        enc["labels"] = [
+            [*tokenizer.encode(id2label[tag_id]), tokenizer.eos_token_id]
+            for tag_id in labels
+        ]
+    else:
+        raise NotImplementedError(f"Task '{task}'")
 
     return enc
 
@@ -264,6 +281,7 @@ def _filter_english(batch: MultinerdBatch) -> list[bool]:
 def init_multinerd(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
+    task: Task,
     workers: int = 0,
     filter_en: bool = True,
     train_subset: float = 0.1,
@@ -309,13 +327,13 @@ def init_multinerd(
         batched=True,
         num_proc=workers,
         remove_columns=["tokens", "ner_tags", "lang"],
-        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type},
+        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type, "task": task},
     )
 
-    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
+    sys_prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
     if "test" in data:
         has_bos = tokenizer.bos_token is not None
-        sys = tokenizer(prompt, truncation=True, add_special_tokens=False)
+        sys = tokenizer(sys_prompt, truncation=True, add_special_tokens=False)
         rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
 
         logger.info("prepare system propted test sets")
@@ -336,7 +354,7 @@ def init_multinerd(
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=prompt,
+        system_prompt=sys_prompt,
     )
 
     return data, info

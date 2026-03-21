@@ -12,6 +12,8 @@ from torch.utils.data import Dataset
 from transformers import (
     AutoConfig,
     AutoModel,
+    AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     DataCollator,
@@ -27,16 +29,15 @@ from pt4sc.datasets.estner import init_estner
 from pt4sc.datasets.multinerd import DatasetInfo, init_multinerd
 from pt4sc.datasets.superglue import init_superglue
 from pt4sc.logging import logger
-from pt4sc.models import (
-    PTDecoderModel,
-    PTDecoderModelConfig,
-    PTEncoderDecoderModel,
-    PTEncoderDecoderModelConfig,
-    PTEncoderModel,
-    PTEncoderModelConfig,
-    PTModel,
+from pt4sc.modeling.causal import PTGPTForCausalLM
+from pt4sc.modeling.common import PTModel, PTModelConfig
+from pt4sc.modeling.seq2seq import PTT5ForSeq2SeqLM
+from pt4sc.modeling.seqcls import (
+    PTBertForSequenceClassification,
+    PTGPTForSequenceClassification,
+    PTT5ForSequenceClassification,
 )
-from pt4sc.types import DatasetName, PrefixInit
+from pt4sc.types import DatasetName, PrefixInit, Task
 
 
 def save_params(params: dict[str, Any], run_name: str):
@@ -66,14 +67,24 @@ def init_model(
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
     data_info: DatasetInfo,
+    task: Task,
 ) -> tuple[PreTrainedModel, dict[str, set[str]]]:
-    model, loading_info = AutoModelForSequenceClassification.from_pretrained(
-        model_path,
-        output_loading_info=True,
-        num_labels=len(data_info["id2label"]),
-        id2label=data_info["id2label"],
-        label2id=data_info["label2id"],
-    )
+    if task == "seqcls":
+        model, loading_info = AutoModelForSequenceClassification.from_pretrained(
+            model_path,
+            output_loading_info=True,
+            num_labels=len(data_info["id2label"]),
+            id2label=data_info["id2label"],
+            label2id=data_info["label2id"],
+        )
+    elif task == "causal":
+        loading_info = {"missing_keys": set()}
+        model = AutoModelForCausalLM.from_pretrained(model_path)
+    elif task == "seq2seq":
+        loading_info = {"missing_keys": set()}
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
+    else:
+        raise NotImplementedError(f"Task '{task}'")
 
     if model.config.pad_token_id is None:
         logger.warning("model doesn't have a padding token, using eos")
@@ -95,10 +106,40 @@ def load_pt_model(checkpoint: str) -> PTModel:
     )
 
 
+def init_seqcls_pt_model(config: PTModelConfig, model_type: str) -> PTModel:
+    if model_type in bert_model_types:
+        return PTBertForSequenceClassification(config=config)
+
+    if model_type in gpt_model_types:
+        return PTGPTForSequenceClassification(config=config)
+
+    if model_type in t5_model_types:
+        return PTT5ForSequenceClassification(config=config)
+
+    raise NotImplementedError(
+        f"PTModelForSequenceClassification for '{model_type}' base model"
+    )
+
+
+def init_causal_pt_model(config: PTModelConfig, model_type: str) -> PTModel:
+    if model_type in gpt_model_types:
+        return PTGPTForCausalLM(config=config)
+
+    raise NotImplementedError(f"PTModelForCausalLM for '{model_type}' base model")
+
+
+def init_seq2seq_pt_model(config: PTModelConfig, model_type: str) -> PTModel:
+    if model_type in t5_model_types:
+        return PTT5ForSeq2SeqLM(config=config)
+
+    raise NotImplementedError(f"PTModelForSeq2SeqLM for '{model_type}' base model")
+
+
 def init_pt_model(
     prefix_init: PrefixInit,
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
+    task: Task,
     data_info: DatasetInfo,
 ) -> PTModel:
     if "checkpoint" in model_path:
@@ -119,44 +160,26 @@ def init_pt_model(
         tokenizer=tokenizer,
         model_path=model_path,
         data_info=data_info,
+        task=task,
+    )
+
+    config = PTModelConfig(
+        pretrained_model=model_path,
+        num_virtual_tokens=num_virtual_tokens,
+        num_labels=len(data_info["id2label"]),
+        id2label=data_info["id2label"],
+        label2id=data_info["label2id"],
     )
 
     model_type = base.config.model_type
-    if model_type in bert_model_types:
-        logger.debug("init pt encoder model")
-        config = PTEncoderModelConfig(
-            pretrained_model=model_path,
-            num_virtual_tokens=num_virtual_tokens,
-            num_labels=len(data_info["id2label"]),
-            id2label=data_info["id2label"],
-            label2id=data_info["label2id"],
-        )
-
-        model = PTEncoderModel(config=config)
-    elif model_type in gpt_model_types:
-        logger.debug("init pt decoder model")
-        config = PTDecoderModelConfig(
-            pretrained_model=model_path,
-            num_virtual_tokens=num_virtual_tokens,
-            num_labels=len(data_info["id2label"]),
-            id2label=data_info["id2label"],
-            label2id=data_info["label2id"],
-        )
-
-        model = PTDecoderModel(config=config)
-    elif model_type in t5_model_types:
-        logger.debug("init pt encoder-decoder model")
-        config = PTEncoderDecoderModelConfig(
-            pretrained_model=model_path,
-            num_virtual_tokens=num_virtual_tokens,
-            num_labels=len(data_info["id2label"]),
-            id2label=data_info["id2label"],
-            label2id=data_info["label2id"],
-        )
-
-        model = PTEncoderDecoderModel(config=config)
+    if task == "seqcls":
+        model = init_seqcls_pt_model(config=config, model_type=model_type)
+    elif task == "causal":
+        model = init_causal_pt_model(config=config, model_type=model_type)
+    elif task == "seq2seq":
+        model = init_seq2seq_pt_model(config=config, model_type=model_type)
     else:
-        raise NotImplementedError(f"PT model for base '{model_type}'")
+        raise NotImplementedError(f"Task '{task}'")
 
     if model.base.config.pad_token_id is None:
         model.base.config.pad_token_id = tokenizer.eos_token_id
@@ -184,6 +207,7 @@ def init_data(
     tokenizer: PreTrainedTokenizerFast,
     dataset: DatasetName,
     model_type: str,
+    task: Task,
     workers: int,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
@@ -193,6 +217,7 @@ def init_data(
             tokenizer=tokenizer,
             workers=workers,
             split=split,
+            task=task,
         )
 
     if dataset == "estner":
@@ -201,6 +226,7 @@ def init_data(
             tokenizer=tokenizer,
             workers=workers,
             split=split,
+            task=task,
         )
 
     if dataset == "superglue-boolq":
@@ -209,6 +235,7 @@ def init_data(
             tokenizer=tokenizer,
             workers=workers,
             split=split,
+            task=task,
         )
 
     raise NotImplementedError(f"Dataset '{dataset}'")

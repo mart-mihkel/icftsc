@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from typer import Context, Option, Typer
 
-from pt4sc.types import DatasetName, PrefixInit
+from pt4sc.types import DatasetName, PrefixInit, Task
 
 app = Typer(no_args_is_help=True)
 
@@ -43,6 +43,7 @@ def fine_tune(
     model: Annotated[str, Option()],
     run_name: Annotated[str, Option()],
     dataset: Annotated[DatasetName.__value__, Option()],
+    task: Annotated[Task.__value__, Option()],
     head_only: Annotated[bool, Option()],
     workers: int = 0,
     epochs: int = 1,
@@ -60,6 +61,7 @@ def fine_tune(
         model_path=model,
         run_name=run_name,
         dataset=dataset,
+        task=task,
         head_only=head_only,
         workers=workers,
         epochs=epochs,
@@ -78,6 +80,7 @@ def prompt_tune(
     model: Annotated[str, Option()],
     run_name: Annotated[str, Option()],
     dataset: Annotated[DatasetName.__value__, Option()],
+    task: Annotated[Task.__value__, Option()],
     prefix_init: Annotated[PrefixInit.__value__, Option()],
     workers: int = 0,
     epochs: int = 1,
@@ -95,6 +98,7 @@ def prompt_tune(
         model_path=model,
         run_name=run_name,
         dataset=dataset,
+        task=task,
         prefix_init=prefix_init,
         workers=workers,
         epochs=epochs,

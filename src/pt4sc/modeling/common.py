@@ -1,14 +1,13 @@
 import torch
 from torch import Tensor
-from torch.nn import CrossEntropyLoss, Parameter
+from torch.nn import Parameter
 from transformers import (
     AutoConfig,
-    AutoModel,
     AutoModelForSequenceClassification,
     PretrainedConfig,
     PreTrainedModel,
 )
-from transformers.modeling_outputs import SequenceClassifierOutput
+from transformers.utils.generic import ModelOutput
 
 from pt4sc.logging import logger
 
@@ -63,6 +62,14 @@ class PTModel(PreTrainedModel):
         self.prefix = Parameter(prefix)
         self.post_init()
 
+    def forward(
+        self,
+        input_ids: Tensor,
+        attention_mask: Tensor,
+        labels: Tensor | None = None,
+    ) -> ModelOutput:
+        raise NotImplementedError("Forward pass of abstract model")
+
     def gradient_checkpointing_enable(self, **kwargs):
         if hasattr(self.base, "gradient_checkpointing_enable"):
             self.base.gradient_checkpointing_enable(**kwargs)
@@ -106,7 +113,6 @@ class PTModel(PreTrainedModel):
 
     def _get_prompt_ids(self, input_ids: Tensor) -> Tensor:
         batch_size = input_ids.shape[0]
-
         prefix_ids = torch.full(
             (batch_size, self.config.num_virtual_tokens),
             100,
@@ -117,123 +123,15 @@ class PTModel(PreTrainedModel):
         return torch.cat([prefix_ids, input_ids], dim=1)
 
     def _get_causal_labels(self, labels: Tensor) -> Tensor:
+        batch_size = labels.shape[0]
         prefix_labels = torch.full(
-            (labels.shape[0], self.config.num_virtual_tokens),
+            (batch_size, self.config.num_virtual_tokens),
             -100,
             device=labels.device,
             dtype=labels.dtype,
         )
 
         return torch.cat([prefix_labels, labels], dim=1)
-
-
-class PTEncoderModelConfig(PTModelConfig):
-    model_type = "pt_encoder"
-
-
-class PTEncoderModel(PTModel):
-    config_class = PTEncoderModelConfig
-
-    def forward(
-        self,
-        input_ids: Tensor,
-        attention_mask: Tensor,
-        labels: Tensor | None = None,
-    ) -> SequenceClassifierOutput:
-        inputs, attn = self._get_prompt(input_ids, attention_mask)
-        return self.base(inputs_embeds=inputs, attention_mask=attn, labels=labels)
-
-
-class PTDecoderModelConfig(PTModelConfig):
-    model_type = "pt_decoder"
-
-
-class PTDecoderModel(PTModel):
-    config_class = PTDecoderModelConfig
-
-    def forward(
-        self,
-        input_ids: Tensor,
-        attention_mask: Tensor,
-        labels: Tensor | None = None,
-    ) -> SequenceClassifierOutput:
-        inputs, attn = self._get_prompt(input_ids, attention_mask)
-        out = self.base(
-            inputs_embeds=inputs,
-            attention_mask=attn,
-            labels=labels,
-            output_hidden_states=True,
-        )
-
-        return self._post_forward(
-            input_ids=input_ids,
-            last_hidden_state=out.hidden_states[-1],
-            labels=labels,
-        )
-
-    def _post_forward(
-        self,
-        input_ids: Tensor,
-        last_hidden_state: Tensor,
-        labels: Tensor | None = None,
-    ) -> SequenceClassifierOutput:
-        prompt_ids = self._get_prompt_ids(input_ids)
-        batch_size, seq_len = prompt_ids.shape
-        device = input_ids.device
-
-        pad_token_id = self.base.config.pad_token_id
-        non_pad_mask = (prompt_ids != pad_token_id).to(device, torch.int32)
-        token_indices = torch.arange(seq_len, device=device, dtype=torch.int32)
-        last_non_pad_token = (token_indices * non_pad_mask).argmax(-1)
-
-        logits = self.base.score(last_hidden_state)
-        pooled_logits = logits[
-            torch.arange(batch_size, device=device),
-            last_non_pad_token,
-        ]
-
-        loss = None
-        if labels is not None:
-            loss_fct = CrossEntropyLoss()
-            loss = loss_fct(
-                pooled_logits.view(-1, self.config.num_labels),
-                labels.view(-1),
-            )
-
-        return SequenceClassifierOutput(loss=loss, logits=pooled_logits)
-
-
-class PTEncoderDecoderModelConfig(PTModelConfig):
-    model_type = "pt_encoder_decoder"
-
-
-class PTEncoderDecoderModel(PTModel):
-    config_class = PTEncoderDecoderModelConfig
-
-    def forward(
-        self,
-        input_ids: Tensor,
-        attention_mask: Tensor,
-        labels: Tensor | None = None,
-    ) -> SequenceClassifierOutput:
-        enc_inputs, enc_attn = self._get_prompt(input_ids, attention_mask)
-
-        dec_input_ids = self._shift_inputs(input_ids)
-        dec_attention_mask = self._shift_attention(attention_mask)
-        dec_inputs, dec_attn = self._get_prompt(dec_input_ids, dec_attention_mask)
-
-        out = self.base.transformer(
-            inputs_embeds=enc_inputs,
-            attention_mask=enc_attn,
-            decoder_inputs_embeds=dec_inputs,
-            decoder_attention_mask=dec_attn,
-            labels=labels,
-        )
-
-        return self._post_forward(
-            labels=labels,
-            last_hidden_state=out.last_hidden_state,
-        )
 
     def _shift_inputs(self, input_ids: Tensor) -> Tensor:
         decoder_start_token_id = self.base.config.decoder_start_token_id
@@ -254,35 +152,9 @@ class PTEncoderDecoderModel(PTModel):
         return shifted_input_ids
 
     def _shift_attention(self, attention_mask: Tensor) -> Tensor:
-        lengths = attention_mask.sum(dim=1, keepdim=True).clamp(
-            max=attention_mask.size(1) - 1
-        )
-
+        maxlen = attention_mask.size(1) - 1
+        lengths = attention_mask.sum(dim=1, keepdim=True).clamp(max=maxlen)
         return attention_mask.clone().scatter_(1, lengths, 1)
 
-    def _post_forward(
-        self,
-        last_hidden_state: Tensor,
-        labels: Tensor | None = None,
-    ) -> SequenceClassifierOutput:
-        logits = self.base.classification_head(last_hidden_state)
-        pooled_logits = logits[:, 0]
 
-        loss = None
-        if labels is not None:
-            loss_fct = CrossEntropyLoss()
-            loss = loss_fct(
-                pooled_logits.view(-1, self.config.num_labels),
-                labels.view(-1),
-            )
-
-        return SequenceClassifierOutput(loss=loss, logits=pooled_logits)
-
-
-AutoConfig.register(PTEncoderModelConfig.model_type, PTEncoderModelConfig)
-AutoConfig.register(PTDecoderModelConfig.model_type, PTDecoderModelConfig)
-AutoConfig.register(PTEncoderDecoderModelConfig.model_type, PTEncoderDecoderModelConfig)
-
-AutoModel.register(PTEncoderModelConfig, PTEncoderModel)
-AutoModel.register(PTDecoderModelConfig, PTDecoderModel)
-AutoModel.register(PTEncoderDecoderModelConfig, PTEncoderDecoderModel)
+AutoConfig.register(PTModelConfig.model_type, PTModelConfig)

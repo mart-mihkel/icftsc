@@ -37,6 +37,7 @@ def predict(checkpoint: str):
     data, _ = init_data(
         model_type=config.model_type,
         tokenizer=tokenizer,
+        task=params["task"],
         dataset="superglue-boolq",
         workers=params["workers"],
         split=cast(Split, {"test": "test"}),

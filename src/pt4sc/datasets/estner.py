@@ -12,6 +12,7 @@ from pt4sc.datasets.common import (
     randomize_prompt,
 )
 from pt4sc.logging import logger
+from pt4sc.types import Task
 
 type EstnerTag = Literal[
     "O",
@@ -149,6 +150,7 @@ def _tokenize(
     batch: EstnerBatch,
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
+    task: Task,
 ) -> BatchEncoding:
     prompts: list[str] = []
     labels: list[int] = []
@@ -169,7 +171,22 @@ def _tokenize(
             labels.append(label2id[tag])
 
     enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
-    enc["labels"] = labels
+    if task == "seqcls":
+        enc["labels"] = labels
+    elif task == "causal":
+        enc["labels"] = [
+            [-100] * len(prompt_ids)
+            + tokenizer.encode(id2label[tag_id])
+            + [tokenizer.eos_token_id]
+            for prompt_ids, tag_id in zip(enc["input_ids"], labels, strict=True)
+        ]
+    elif task == "seq2seq":
+        enc["labels"] = [
+            [*tokenizer.encode(id2label[tag_id]), tokenizer.eos_token_id]
+            for tag_id in labels
+        ]
+    else:
+        raise NotImplementedError(f"Task '{task}'")
 
     return enc
 
@@ -198,6 +215,7 @@ def _join_spans(
 def init_estner(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
+    task: Task,
     workers: int = 0,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
@@ -219,13 +237,13 @@ def init_estner(
         batched=True,
         num_proc=workers,
         remove_columns=cols,
-        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type},
+        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type, "task": task},
     )
 
-    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
+    sys_prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
     if "test" in data:
         has_bos = tokenizer.bos_token is not None
-        sys = tokenizer(prompt, truncation=True, add_special_tokens=False)
+        sys = tokenizer(sys_prompt, truncation=True, add_special_tokens=False)
         rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
 
         logger.debug("prepare system propted test sets")
@@ -246,7 +264,7 @@ def init_estner(
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=prompt,
+        system_prompt=sys_prompt,
     )
 
     return data, info

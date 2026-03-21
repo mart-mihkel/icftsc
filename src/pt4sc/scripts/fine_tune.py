@@ -2,19 +2,15 @@ from transformers import AutoConfig, DataCollatorWithPadding
 
 from pt4sc.logging import logger
 from pt4sc.metrics import compute_metrics_seq_cls
-from pt4sc.scripts.common import (
-    DatasetName,
-    init_data,
-    init_model,
-    init_tokenizer,
-    train,
-)
+from pt4sc.scripts.common import init_data, init_model, init_tokenizer, train
+from pt4sc.types import DatasetName, Task
 
 
 def fine_tune(
     model_path: str,
     run_name: str,
     dataset: DatasetName,
+    task: Task,
     head_only: bool,
     workers: int,
     epochs: int,
@@ -34,6 +30,7 @@ def fine_tune(
         tokenizer=tokenizer,
         dataset=dataset,
         workers=workers,
+        task=task,
     )
 
     if dataset == "superglue-boolq":
@@ -48,6 +45,7 @@ def fine_tune(
         tokenizer=tokenizer,
         model_path=model_path,
         data_info=info,
+        task=task,
     )
 
     total = sum(p.numel() for p in model.parameters())
