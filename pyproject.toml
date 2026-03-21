@@ -23,8 +23,8 @@ dev = [
     "ipython~=9.11.0",
     "marimo~=0.21.1",
     "pytest~=9.0.2",
-    "ruff~=0.15.6",
-    "ty~=0.0.23",
+    "ruff~=0.15.7",
+    "ty~=0.0.24",
 ]
 
 [project.scripts]
