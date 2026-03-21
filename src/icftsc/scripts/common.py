@@ -17,7 +17,6 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     DataCollator,
-    DataCollatorForSeq2Seq,
     DataCollatorWithPadding,
     EvalPrediction,
     PreTrainedModel,
@@ -27,6 +26,7 @@ from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.datasets.common import DataCollatorWithPaddingAndLabels
 from icftsc.datasets.estner import init_estner
 from icftsc.datasets.multinerd import DatasetInfo, init_multinerd
 from icftsc.datasets.superglue import init_superglue
@@ -68,7 +68,10 @@ def init_collator(tokenizer: PreTrainedTokenizerFast, task: Task) -> DataCollato
         return DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
 
     if task == "causal" or task == "seq2seq":
-        return DataCollatorForSeq2Seq(tokenizer=tokenizer, pad_to_multiple_of=8)
+        return DataCollatorWithPaddingAndLabels(
+            tokenizer=tokenizer,
+            pad_to_multiple_of=8,
+        )
 
     raise NotImplementedError(f"Task '{task}'")
 
@@ -149,7 +152,7 @@ def init_causal_pt_model(config: PTModelConfig, model_type: str) -> PTModel:
 
 def init_seq2seq_pt_model(config: PTModelConfig, model_type: str) -> PTModel:
     if model_type in t5_model_types:
-        logger.debug("init pt-t5 for sequence to sequence language modeling")
+        logger.debug("init pt-t5 for sequence to sequence")
         return PTT5ForSeq2SeqLM(config=config)
 
     raise NotImplementedError(f"PTModelForSeq2SeqLM for '{model_type}' base model")
@@ -314,7 +317,7 @@ def train(
         optim=optim,
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size * 2,
+        per_device_eval_batch_size=batch_size,
         gradient_accumulation_steps=grad_acc_steps,
         gradient_checkpointing=grad_chkpts,
         bf16_full_eval=have_cuda,
