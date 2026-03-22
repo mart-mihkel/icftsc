@@ -55,6 +55,7 @@ def _compute_classification_metrics(
     labels: np.ndarray,
     preds: np.ndarray,
 ) -> dict[str, float]:
+    logger.debug("compute classification metrics")
     accuracy = accuracy_score(labels, preds)
     precision = precision_score(labels, preds, average="macro", zero_division=0)
     recall = recall_score(labels, preds, average="macro", zero_division=0)
@@ -63,6 +64,7 @@ def _compute_classification_metrics(
 
 
 def _compute_perplexity(labels: np.ndarray, logits: np.ndarray) -> dict[str, float]:
+    logger.debug("compute perplexity")
     idx = np.arange(labels.shape[0])
     log_probs = log_softmax(logits, axis=-1)[idx, labels]
     perplexity = np.exp(-log_probs.mean())
@@ -74,6 +76,7 @@ def _compute_bleu(
     preds: np.ndarray,
     tokenizer: PreTrainedTokenizerFast,
 ) -> dict[str, float]:
+    logger.debug("compute BLEU")
     predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
     references = tokenizer.batch_decode(labels, skip_special_tokens=True)
     res = _bleu.compute(predictions=predictions, references=references)  # type: ignore
@@ -89,9 +92,15 @@ def _compute_rouge(
     preds: np.ndarray,
     tokenizer: PreTrainedTokenizerFast,
 ) -> dict[str, float]:
+    logger.debug("compute ROUGE")
     predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
     references = tokenizer.batch_decode(labels, skip_special_tokens=True)
-    res = _rouge.compute(predictions=predictions, references=references)  # type: ignore
+    res = _rouge.compute(  # type: ignore
+        predictions=predictions,
+        references=references,
+        rouge_types=["rouge1", "rouge2"],
+    )
+
     if res is None:
         logger.warning("ROUGE evaluation was run in a child process")
         return {}

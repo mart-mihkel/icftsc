@@ -1,5 +1,6 @@
 from transformers import AutoConfig
 
+from icftsc.datasets.common import prepend_system_tokens, randomize_prompt
 from icftsc.logging import logger
 from icftsc.scripts.common import (
     init_collator,
@@ -9,21 +10,18 @@ from icftsc.scripts.common import (
     init_tokenizer,
     train,
 )
-from icftsc.types import DatasetName, Task
+from icftsc.types import DatasetName, PromptMode, Task
 
 
-def fine_tune(
+def few_shot(
     model_path: str,
     run_name: str,
     dataset: DatasetName,
     task: Task,
-    head_only: bool,
+    prompt_mode: PromptMode,
+    n_shot: int,
     workers: int,
-    epochs: int,
     batch_size: int,
-    effective_batch_size: int,
-    learning_rate: float,
-    grad_chkpts: bool,
     mlflow_tracking_uri: str | None,
 ):
     logger.info("load model config")
@@ -40,27 +38,38 @@ def fine_tune(
         tokenizer=tokenizer,
         dataset=dataset,
         workers=workers,
+        n_shot=n_shot,
         task=task,
     )
 
     if dataset == "superglue-boolq":
-        logger.warning("drop superglue test data, labels are private")
-        data.pop("test")
+        logger.warning("using superglue dev data, test labels are private")
+        data["test"] = data["dev"]
+
+    has_bos = tokenizer.bos_token is not None
+    sys = tokenizer(info["system_prompt"], truncation=True, add_special_tokens=False)
+    logger.info("prepare system prompt with %d tokens", len(sys["input_ids"]))
+    if prompt_mode == "random":
+        logger.info("randomize system prompt")
+        sys = randomize_prompt(tokenizer=tokenizer, enc=sys)
+    elif prompt_mode != "system":
+        raise NotImplementedError(f"Prompt mode '{prompt_mode}'")
+
+    data["test"] = data["test"].map(
+        prepend_system_tokens,
+        batched=True,
+        num_proc=workers,
+        fn_kwargs={"sys": sys, "has_bos": has_bos},
+    )
 
     logger.info("load pretrained '%s' for '%s'", model_path, task)
     model, _ = init_model(
-        head_only=head_only,
-        tokenizer=tokenizer,
         model_path=model_path,
+        tokenizer=tokenizer,
+        head_only=False,
         data_info=info,
         task=task,
     )
-
-    total = sum(p.numel() for p in model.parameters())
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    logger.info("total parameters %d", total)
-    logger.info("trainable parameters %d", trainable)
 
     train(
         model=model,
@@ -68,10 +77,10 @@ def fine_tune(
         collate_fn=collate_fn,
         metrics_fn=metrics_fn,
         run_name=run_name,
-        epochs=epochs,
-        learning_rate=learning_rate,
+        epochs=0,
+        learning_rate=5e-5,
         batch_size=batch_size,
-        effective_batch_size=effective_batch_size,
-        grad_chkpts=grad_chkpts,
+        effective_batch_size=batch_size,
+        grad_chkpts=False,
         mlflow_tracking_uri=mlflow_tracking_uri,
     )

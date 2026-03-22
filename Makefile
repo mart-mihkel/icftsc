@@ -6,4 +6,4 @@ pre-commit:
 	uv run ty check
 
 upload:
-	rsync -rv --exclude-from '.gitignore' . $(REMOTE)
+	rsync -rv --exclude-from .gitignore --exclude .git . $(REMOTE)

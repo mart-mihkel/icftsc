@@ -43,10 +43,6 @@ def prompt_tune(
         task=task,
     )
 
-    logger.info("drop prompted test datasets for prompt tuning")
-    data.pop("test-system")
-    data.pop("test-random")
-
     if dataset == "superglue-boolq":
         logger.warning("drop superglue test data, labels are private")
         data.pop("test")

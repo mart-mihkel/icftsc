@@ -6,11 +6,7 @@ from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import (
-    DatasetInfo,
-    prepend_system_tokens,
-    randomize_prompt,
-)
+from icftsc.datasets.common import DatasetInfo
 from icftsc.logging import logger
 from icftsc.types import Task
 
@@ -69,6 +65,29 @@ label2id: dict[EstnerTag, int] = {
     "PERCENT": 11,
 }
 
+examples = [
+    ("lause: Mari töötab Google'is Californias.\nnimeüksus: Mari\nmärgend: PER\n"),
+    ("lause: Koosolek toimus ÜRO peakorteris.\nnimeüksus: ÜRO\nmärgend: ORG\n"),
+    ("lause: Tallinn on Eesti pealinn.\nnimeüksus: Tallinn\nmärgend: LOC\n"),
+    ("lause: Eesti asub Põhja-Euroopas.\nnimeüksus: Eesti\nmärgend: GPE\n"),
+    ("lause: Ta jõi hommikul kuuma kohvi.\nnimeüksus: kohvi\nmärgend: PROD\n"),
+    ("lause: Võidupüha tähistatakse juunis.\nnimeüksus: Võidupüha\nmärgend: EVENT\n"),
+    ("lause: Ta sündis 1990. aastal.\nnimeüksus: 1990. aastal\nmärgend: DATE\n"),
+    (
+        "lause: Koosolek algab kell kolm pärastlõunal.\n"
+        "nimeüksus: kell kolm\nmärgend: TIME\n"
+    ),
+    (
+        "lause: Ta kirjutas raamatu pealkirjaga 'Tarkus'.\n"
+        "nimeüksus: Tarkus\nmärgend: TITLE\n"
+    ),
+    (
+        "lause: Ta ostis uue auto 25000 euro eest.\n"
+        "nimeüksus: 25000 euro\nmärgend: MONEY\n"
+    ),
+    ("lause: Tulemus näitab 75% kasvu.\nnimeüksus: 75%\nmärgend: PERCENT\n"),
+]
+
 
 def _bert_sys_prompt(bos: str, sep: str) -> str:
     return f"{bos}Määra nimeüksuse NER märgen lauses.{sep}"
@@ -85,28 +104,25 @@ def _gpt_sys_prompt(bos: str | None) -> str:
         "Sa oled nimeüksuste tuvastamise (NER) ekspert. Sulle antakse lause ja "
         "sihtüksus ning pead tagastama õige märgendi. Kasuta täpselt ühte "
         "järgmistest märgenditest: PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME "
-        "TITLE, MONEY, PERCENT, O. Vasta ainult märgendiga ilma selgituseta.\n\n"
-        "Lause: Pariis on Prantusmaa pealinn.\nSihtüksus: Pariis\nMärgend: "
-        "LOC\n\n"
+        "TITLE, MONEY, PERCENT, O. Vasta ainult märgendiga ilma selgituseta.\n"
     )
 
 
 def _gpt_prompt(sentence: str, entity: str, bos: str | None) -> str:
     _bos = bos if bos is not None else ""
-    return f"{_bos}lause: {sentence}\nüksus: {entity}\nvastus: "
+    return f"{_bos}lause: {sentence}\nnimeüksus: {entity}\nmärgend: "
 
 
 def _t5_sys_prompt() -> str:
     return (
-        "ner: tuvasta lauses oleva sihtüksuse NER-märgend.\nmärgendid: "
+        "ner: tuvasta lauses oleva nimeüksuse NER-märgend.\nmärgendid: "
         "PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME, TITLE, MONEY, PERCENT, "
-        "O.\nlause: Pariis on Prantusmaa pealinn.\nsihtüksus: Pariis\nmärgend: "
-        "LOC\n"
+        "O.\n"
     )
 
 
 def _t5_prompt(sentence: str, entity: str) -> str:
-    return f"Lause: {sentence}\nÜksus: {entity}\nVastus: "
+    return f"lause: {sentence}\nimeüksus: {entity}\nmärgend: "
 
 
 def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
@@ -218,7 +234,7 @@ def init_estner(
     task: Task,
     workers: int = 0,
     split: Split | None = None,
-) -> tuple[DatasetDict, DatasetInfo]:
+) -> DatasetDict:
     """
     Initialize a modified version of the EstNER dataset.
 
@@ -232,39 +248,13 @@ def init_estner(
     data = cast(DatasetDict, load_dataset("tartuNLP/EstNER", split=split))
 
     cols = ["doc_id", "sent_id", "tokens", "ner_tags", "ner_tags_2", "ner_tags_3"]
+    fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
     data = data.map(
         _tokenize,
         batched=True,
         num_proc=workers,
         remove_columns=cols,
-        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type, "task": task},
-    )
-
-    sys_prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
-    if "test" in data:
-        has_bos = tokenizer.bos_token is not None
-        sys = tokenizer(sys_prompt, truncation=True, add_special_tokens=False)
-        rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
-
-        logger.debug("prepare system propted test sets")
-        data["test-system"] = data["test"].map(
-            prepend_system_tokens,
-            batched=True,
-            num_proc=workers,
-            fn_kwargs={"sys": sys, "has_bos": has_bos},
-        )
-
-        data["test-random"] = data["test"].map(
-            prepend_system_tokens,
-            batched=True,
-            num_proc=workers,
-            fn_kwargs={"sys": rand, "has_bos": has_bos},
-        )
-
-    info = DatasetInfo(
-        id2label=cast(dict[int, str], id2label),
-        label2id=cast(dict[str, int], label2id),
-        system_prompt=sys_prompt,
+        fn_kwargs=fn_kwargs,
     )
 
     if "train" in data:
@@ -276,4 +266,24 @@ def init_estner(
     if "test" in data:
         logger.info("%d test samples", len(data["test"]))
 
-    return data, info
+    return data
+
+
+def init_estner_info(
+    tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
+    n_shot: int = 0,
+) -> DatasetInfo:
+    if n_shot > len(examples):
+        raise ValueError("Requested more examples than exist")
+
+    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
+
+    shots = "".join(examples[:n_shot])
+    prompt = f"{prompt}{shots}"
+
+    return DatasetInfo(
+        id2label=cast(dict[int, str], id2label),
+        label2id=cast(dict[str, int], label2id),
+        system_prompt=prompt,
+    )

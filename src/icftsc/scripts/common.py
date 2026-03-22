@@ -28,9 +28,9 @@ from transformers.training_args import TrainingArguments
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
 from icftsc.datasets.common import DataCollatorWithPaddingAndLabels
-from icftsc.datasets.estner import init_estner
-from icftsc.datasets.multinerd import DatasetInfo, init_multinerd
-from icftsc.datasets.superglue import init_superglue
+from icftsc.datasets.estner import init_estner, init_estner_info
+from icftsc.datasets.multinerd import DatasetInfo, init_multinerd, init_multinerd_info
+from icftsc.datasets.superglue import init_superglue, init_superglue_info
 from icftsc.logging import logger
 from icftsc.metrics import (
     compute_metrics_causal_lm,
@@ -261,35 +261,54 @@ def init_data(
     task: Task,
     workers: int,
     split: Split | None = None,
+    n_shot: int = 0,
 ) -> tuple[DatasetDict, DatasetInfo]:
     if dataset == "multinerd":
-        return init_multinerd(
+        info = init_multinerd_info(
+            model_type=model_type,
+            tokenizer=tokenizer,
+            n_shot=n_shot,
+        )
+
+        data = init_multinerd(
             model_type=model_type,
             tokenizer=tokenizer,
             workers=workers,
             split=split,
             task=task,
         )
+    elif dataset == "estner":
+        info = init_estner_info(
+            model_type=model_type,
+            tokenizer=tokenizer,
+            n_shot=n_shot,
+        )
 
-    if dataset == "estner":
-        return init_estner(
+        data = init_estner(
             model_type=model_type,
             tokenizer=tokenizer,
             workers=workers,
             split=split,
             task=task,
         )
+    elif dataset == "superglue-boolq":
+        info = init_superglue_info(
+            model_type=model_type,
+            tokenizer=tokenizer,
+            n_shot=n_shot,
+        )
 
-    if dataset == "superglue-boolq":
-        return init_superglue(
+        data = init_superglue(
             model_type=model_type,
             tokenizer=tokenizer,
             workers=workers,
             split=split,
             task=task,
         )
+    else:
+        raise NotImplementedError(f"Dataset '{dataset}'")
 
-    raise NotImplementedError(f"Dataset '{dataset}'")
+    return data, info
 
 
 def freeze(model: Module, skip: set[str]):
@@ -383,25 +402,12 @@ def train(
     trainer.train()
 
     if "test" in data:
+        logger.info("run test evaluation")
         test = cast(Dataset, data["test"])
         metrics = trainer.evaluate(test, metric_key_prefix="test")
         logger.info(json.dumps(metrics, indent=4))
     else:
-        logger.warning("skip test evalatuaion, no data")
-
-    if "test-system" in data:
-        test_system = cast(Dataset, data["test-system"])
-        metrics = trainer.evaluate(test_system, metric_key_prefix="test_system")
-        logger.info(json.dumps(metrics, indent=4))
-    else:
-        logger.warning("skip system prompted test evalatuaion, no data")
-
-    if "test-random" in data:
-        test_random = cast(Dataset, data["test-random"])
-        metrics = trainer.evaluate(test_random, metric_key_prefix="test_random")
-        logger.info(json.dumps(metrics, indent=4))
-    else:
-        logger.warning("skip random prompt test evalatuaion, no data")
+        logger.warning("skip test evalatuaion")
 
     logger.info("save checkpoint to %s", out_dir)
     trainer.save_model(out_dir)

@@ -7,11 +7,7 @@ from datasets.utils.info_utils import VerificationMode
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import (
-    DatasetInfo,
-    prepend_system_tokens,
-    randomize_prompt,
-)
+from icftsc.datasets.common import DatasetInfo
 from icftsc.logging import logger
 from icftsc.types import Task
 
@@ -123,6 +119,60 @@ label2id: dict[MultinerdTag, int] = {
     "VEHI": 14,
 }
 
+examples = [
+    ("sentence: John works at Google in California.\nentity: John\nner tag: PER\n"),
+    (
+        "sentence: The meeting was held at the United Nations headquarters.\n"
+        "entity: United Nations\nner tag: ORG\n"
+    ),
+    ("sentence: Paris is the capital of France.\nentity: Paris\nner tag: LOC\n"),
+    (
+        "sentence: The dog chased the cat across the garden.\n"
+        "entity: dog\nner tag: ANIM\n"
+    ),
+    (
+        "sentence: Evolution shaped the diversity of life on Earth.\n"
+        "entity: Evolution\nner tag: BIO\n"
+    ),
+    (
+        "sentence: Einstein developed the theory of relativity.\n"
+        "entity: Einstein\nner tag: CEL\n"
+    ),
+    (
+        "sentence: The patient was diagnosed with diabetes last year.\n"
+        "entity: diabetes\nner tag: DIS\n"
+    ),
+    (
+        "sentence: The Olympics will be held in Tokyo next summer.\n"
+        "entity: Olympics\nner tag: EVE\n"
+    ),
+    (
+        "sentence: I love eating sushi and pasta for dinner.\n"
+        "entity: sushi\nner tag: FOOD\n"
+    ),
+    (
+        "sentence: The telescope was invented several centuries ago.\n"
+        "entity: telescope\nner tag: INST\n"
+    ),
+    (
+        "sentence: I watched an interesting movie on Netflix last night.\n"
+        "entity: Netflix\nner tag: MEDIA\n"
+    ),
+    (
+        "sentence: The dragon guarded the ancient treasure in the cave.\n"
+        "entity: dragon\nner tag: MYTH\n"
+    ),
+    (
+        "sentence: Roses bloom beautifully in the garden during spring.\n"
+        "entity: Roses\nner tag: PLANT\n"
+    ),
+    (
+        "sentence: The meeting is scheduled for Monday morning.\n"
+        "entity: Monday\nner tag: TIME\n"
+    ),
+    ("sentence: The car drove quickly down the highway.\nentity: car\nner tag: VEHI\n"),
+]
+
 
 def _bert_sys_prompt(bos: str, sep: str) -> str:
     return f"{bos}Identify the NER tag of the entity in the sentence.{sep}"
@@ -138,29 +188,27 @@ def _gpt_sys_prompt(bos: str | None) -> str:
         f"{_bos}"
         "You are a Named Entity Recognition (NER) expert. Given a sentence and "
         "a target entity, output the correct entity label. Use exactly one of "
-        "the following labels: PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, "
-        "INST, MEDIA, MYTH, PLANT, TIME, VEHI. Respond with only the label and "
-        "no explanation.\n\nSentence: Paris is the capital of France.\nEntity: "
-        "Paris\nAnswer: LOC\n\n"
+        "the following tags: PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, "
+        "INST, MEDIA, MYTH, PLANT, TIME, VEHI. Respond with only the NER tag "
+        "and no explanation.\n"
     )
 
 
 def _gpt_prompt(sentence: str, entity: str, bos: str | None) -> str:
     _bos = bos if bos is not None else ""
-    return f"{_bos}Sentence: {sentence}\nEntity: {entity}\nAnswer: "
+    return f"{_bos}sentence: {sentence}\nentity: {entity}\nner tag: "
 
 
 def _t5_sys_prompt() -> str:
     return (
-        "ner: identify the NER tag of the entity in the sentence span.\n"
-        "tags: PER ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, "
-        "MYTH, PLANT, TIME, VEHI.\nsentence: Paris is the capital of France.\n"
-        "entity: Paris\nanswer: LOC\n"
+        "ner: identify the ner tag of the entity in the sentence.\ntags: PER "
+        "ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, MYTH, PLANT, "
+        "TIME, VEHI.\n"
     )
 
 
 def _t5_prompt(sentence: str, entity: str) -> str:
-    return f"sentence: {sentence}\nentity: {entity}\nanswer: "
+    return f"sentence: {sentence}\nentity: {entity}\nner tag: "
 
 
 def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
@@ -286,7 +334,7 @@ def init_multinerd(
     filter_en: bool = True,
     subset: float = 0.1,
     split: Split | None = None,
-) -> tuple[DatasetDict, DatasetInfo]:
+) -> DatasetDict:
     """
     Initialize a modified subset of the MultiNERD dataset.
 
@@ -322,39 +370,14 @@ def init_multinerd(
         idx_dev = range(int(subset * len(data["dev"])))
         data["dev"] = data["dev"].select(idx_dev)
 
+    cols = ["tokens", "ner_tags", "lang"]
+    fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
     data = data.map(
         _tokenize,
         batched=True,
         num_proc=workers,
-        remove_columns=["tokens", "ner_tags", "lang"],
-        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type, "task": task},
-    )
-
-    sys_prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
-    if "test" in data:
-        has_bos = tokenizer.bos_token is not None
-        sys = tokenizer(sys_prompt, truncation=True, add_special_tokens=False)
-        rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
-
-        logger.info("prepare system propted test sets")
-        data["test-system"] = data["test"].map(
-            prepend_system_tokens,
-            batched=True,
-            num_proc=workers,
-            fn_kwargs={"sys": sys, "has_bos": has_bos},
-        )
-
-        data["test-random"] = data["test"].map(
-            prepend_system_tokens,
-            batched=True,
-            num_proc=workers,
-            fn_kwargs={"sys": rand, "has_bos": has_bos},
-        )
-
-    info = DatasetInfo(
-        id2label=cast(dict[int, str], id2label),
-        label2id=cast(dict[str, int], label2id),
-        system_prompt=sys_prompt,
+        remove_columns=cols,
+        fn_kwargs=fn_kwargs,
     )
 
     if "train" in data:
@@ -366,4 +389,24 @@ def init_multinerd(
     if "test" in data:
         logger.info("%d test samples", len(data["test"]))
 
-    return data, info
+    return data
+
+
+def init_multinerd_info(
+    tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
+    n_shot: int = 0,
+) -> DatasetInfo:
+    if n_shot > len(examples):
+        raise ValueError("Requested more examples than exist")
+
+    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
+
+    shots = "".join(examples[:n_shot])
+    prompt = f"{prompt}{shots}"
+
+    return DatasetInfo(
+        id2label=cast(dict[int, str], id2label),
+        label2id=cast(dict[str, int], label2id),
+        system_prompt=prompt,
+    )

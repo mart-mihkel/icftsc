@@ -6,11 +6,7 @@ from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import (
-    DatasetInfo,
-    prepend_system_tokens,
-    randomize_prompt,
-)
+from icftsc.datasets.common import DatasetInfo
 from icftsc.logging import logger
 from icftsc.types import Task
 
@@ -34,6 +30,45 @@ label2id: dict[BoolQALabel, int] = {
     "true": 1,
 }
 
+examples = [
+    (
+        "Passage: The sky appears blue during the day due to Rayleigh "
+        "scattering.\nQuestion: Is the sky blue?\nAnswer: true\n"
+    ),
+    (
+        "Passage: Fish are animals that live exclusively underwater and "
+        "breathe using gills.\nQuestion: Can fish breathe on land?\nAnswer: false\n"
+    ),
+    (
+        "Passage: Water freezes at 0 degrees Celsius and boils at 100 "
+        "degrees Celsius at sea level.\n"
+        "Question: Does water freeze at room temperature?\nAnswer: false\n"
+    ),
+    (
+        "Passage: The Earth orbits around the Sun in approximately 365 "
+        "days.\nQuestion: Does the Earth orbit the Sun?\nAnswer: true\n"
+    ),
+    (
+        "Passage: Photosynthesis is the process by which plants convert "
+        "sunlight into energy.\nQuestion: Do plants produce their own food?"
+        "\nAnswer: true\n"
+    ),
+    (
+        "Passage: The Great Wall of China is visible from space with "
+        "naked eye.\nQuestion: Is the Great Wall visible from space?"
+        "\nAnswer: false\n"
+    ),
+    (
+        "Passage: Lightning is a discharge of electricity that occurs "
+        "during thunderstorms.\nQuestion: Is lightning caused by electricity?"
+        "\nAnswer: true\n"
+    ),
+    (
+        "Passage: The human body contains 206 bones in adulthood.\n"
+        "Question: Do adults have more than 300 bones?\nAnswer: false\n"
+    ),
+]
+
 
 def _bert_sys_prompt(bos: str, sep: str) -> str:
     return f"{bos}Identify the NER tag of the entity in the sentence.{sep}"
@@ -49,28 +84,24 @@ def _gpt_sys_prompt(bos: str | None) -> str:
         f"{_bos}"
         "You are a Boolean Question Answering expert.Given a passage and a "
         'question, answer with exactly one word: "true" or "false".\nDo '
-        "not provide any explanation.\n\nPassage: The Great Wall of China is a "
-        "series of fortifications made of stone.\nQuestion: Is the Great Wall "
-        "of China made of stone?\nAnswer: true\n\n"
+        "not provide any explanation.\n"
     )
 
 
 def _gpt_prompt(question: str, passage: str, bos: str | None) -> str:
     _bos = bos if bos is not None else ""
-    return f"{_bos}passage: {passage}\nquestion: {question}\nanswer: "
+    return f"{_bos}Passage: {passage}\nQuestion: {question}\nAnswer: "
 
 
 def _t5_sys_prompt() -> str:
     return (
         "boolean question answering: given a passage and a question, "
-        'answer with "true" or "false".\npassage: The Great Wall of '
-        "China is a series of fortifications made of stone.\nquestion: Is the "
-        "Great Wall of China made of stone?\nanswer: true\n"
+        'answer with "true" or "false".\n'
     )
 
 
 def _t5_prompt(question: str, passage: str) -> str:
-    return f"Passage: {passage}\nQuestion: {question}\nAnswer: "
+    return f"passage: {passage}\nquestion: {question}\nanswer: "
 
 
 def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
@@ -158,45 +189,20 @@ def init_superglue(
     task: Task,
     workers: int = 0,
     split: Split | None = None,
-) -> tuple[DatasetDict, DatasetInfo]:
+) -> DatasetDict:
     data = cast(DatasetDict, load_dataset("aps/super_glue", "boolq", split=split))
 
     if "validation" in data:
         data["dev"] = data.pop("validation")
 
+    cols = ["question", "passage", "label"]
+    fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
     data = data.map(
         _tokenize,
         batched=True,
         num_proc=workers,
-        remove_columns=["question", "passage", "label"],
-        fn_kwargs={"tokenizer": tokenizer, "model_type": model_type, "task": task},
-    )
-
-    sys_prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
-    if "test" in data:
-        has_bos = tokenizer.bos_token is not None
-        sys = tokenizer(sys_prompt, truncation=True, add_special_tokens=False)
-        rand = randomize_prompt(tokenizer=tokenizer, enc=sys)
-
-        logger.debug("prepare system propted test sets")
-        data["test-system"] = data["test"].map(
-            prepend_system_tokens,
-            batched=True,
-            num_proc=workers,
-            fn_kwargs={"sys": sys, "has_bos": has_bos},
-        )
-
-        data["test-random"] = data["test"].map(
-            prepend_system_tokens,
-            batched=True,
-            num_proc=workers,
-            fn_kwargs={"sys": rand, "has_bos": has_bos},
-        )
-
-    info = DatasetInfo(
-        id2label=cast(dict[int, str], id2label),
-        label2id=cast(dict[str, int], label2id),
-        system_prompt=sys_prompt,
+        remove_columns=cols,
+        fn_kwargs=fn_kwargs,
     )
 
     if "train" in data:
@@ -208,4 +214,24 @@ def init_superglue(
     if "test" in data:
         logger.info("%d test samples", len(data["test"]))
 
-    return data, info
+    return data
+
+
+def init_superglue_info(
+    tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
+    n_shot: int = 0,
+) -> DatasetInfo:
+    if n_shot > len(examples):
+        raise ValueError("Requested more examples than exist")
+
+    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
+
+    shots = "".join(examples[:n_shot])
+    prompt = f"{prompt}{shots}"
+
+    return DatasetInfo(
+        id2label=cast(dict[int, str], id2label),
+        label2id=cast(dict[str, int], label2id),
+        system_prompt=prompt,
+    )

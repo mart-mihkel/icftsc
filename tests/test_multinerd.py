@@ -25,7 +25,7 @@ def test_join_spans():
 
 
 def test_multinerd_mmbert(mmbert_tokenizer: PreTrainedTokenizerFast):
-    data, _ = init_multinerd(
+    data = init_multinerd(
         tokenizer=mmbert_tokenizer,
         model_type="modernbert",
         subset=1.0,
@@ -41,7 +41,7 @@ def test_multinerd_mmbert(mmbert_tokenizer: PreTrainedTokenizerFast):
 
 
 def test_multinerd_gpt2(gpt2_tokenizer):
-    data, _ = init_multinerd(
+    data = init_multinerd(
         tokenizer=gpt2_tokenizer,
         model_type="gpt2",
         subset=1.0,
@@ -57,7 +57,7 @@ def test_multinerd_gpt2(gpt2_tokenizer):
 
 
 def test_multinerd_t5(t5_tokenizer):
-    data, _ = init_multinerd(
+    data = init_multinerd(
         tokenizer=t5_tokenizer,
         model_type="t5",
         filter_en=False,
