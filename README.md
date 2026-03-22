@@ -8,7 +8,8 @@ Run `uv sync` to setup a local envrionment.
 
 ## Usage
 
-The cli contains scripts for fine-tuning, prompt-tuning and utilities.
+The cli contains scripts for fine-tuning, prefix-tuning, few-shot learning and
+utilities.
 
 ```bash
 uv run cli --help

@@ -17,35 +17,34 @@ class DatasetInfo(TypedDict):
 @dataclass
 class DataCollatorWithPaddingAndLabels:
     tokenizer: PreTrainedTokenizerFast
-    pad_to_multiple_of: int = 8
+    pad_to_multiple_of: int
 
     def __call__(self, features: list[dict[str, Any]]) -> dict[str, Tensor]:
-        labels = [feature.pop("labels") for feature in features if "labels" in feature]
-        batch = self.tokenizer.pad(
-            features,
-            return_tensors="pt",
-            pad_to_multiple_of=self.pad_to_multiple_of,
-        )
+        pad = self.tokenizer.pad_token_id
+        mul = self.pad_to_multiple_of
 
-        if not labels:
-            return cast(dict, batch)
+        max_len = max(len(feature["input_ids"]) for feature in features)
+        max_len = (max_len + mul - 1) // mul * mul
 
-        max_label_length = max(len(label) for label in labels)
-        max_label_length = (
-            (max_label_length + self.pad_to_multiple_of - 1)
-            // self.pad_to_multiple_of
-            * self.pad_to_multiple_of
-        )
+        labels = []
+        inputs = []
+        attn = []
+        for feature in features:
+            _labels = feature["labels"]
+            _inputs = feature["input_ids"]
+            _attn = feature["attention_mask"]
 
-        padded_labels = []
-        for label in labels:
-            remainder = max_label_length - len(label)
-            padded = label + [-100] * remainder
-            padded_labels.append(padded)
+            labels.append(_labels + [-100] * (max_len - len(_labels)))
+            inputs.append(_inputs + [pad] * (max_len - len(_inputs)))
+            attn.append(_attn + [1] * (max_len - len(_attn)))
 
-        batch["labels"] = torch.tensor(padded_labels, dtype=torch.long)
+            self.tokenizer.pad
 
-        return cast(dict, batch)
+        return {
+            "labels": torch.tensor(labels),
+            "input_ids": torch.tensor(inputs),
+            "attention_mask": torch.tensor(attn),
+        }
 
 
 def prepend_system_tokens(
