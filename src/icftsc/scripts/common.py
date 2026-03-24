@@ -27,10 +27,10 @@ from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.datasets.boolq import init_boolq, init_boolq_info
 from icftsc.datasets.common import DataCollatorWithPaddingAndLabels
 from icftsc.datasets.estner import init_estner, init_estner_info
 from icftsc.datasets.multinerd import DatasetInfo, init_multinerd, init_multinerd_info
-from icftsc.datasets.superglue import init_superglue, init_superglue_info
 from icftsc.logging import logger
 from icftsc.metrics import (
     compute_metrics_causal_lm,
@@ -291,14 +291,14 @@ def init_data(
             split=split,
             task=task,
         )
-    elif dataset == "superglue-boolq":
-        info = init_superglue_info(
+    elif dataset == "boolq":
+        info = init_boolq_info(
             model_type=model_type,
             tokenizer=tokenizer,
             n_shot=n_shot,
         )
 
-        data = init_superglue(
+        data = init_boolq(
             model_type=model_type,
             tokenizer=tokenizer,
             workers=workers,

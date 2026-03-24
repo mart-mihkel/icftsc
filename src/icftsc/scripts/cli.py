@@ -144,9 +144,9 @@ def few_shot(
 @app.command()
 @timed
 def predict_superglue(checkpoint: Annotated[str, Option()]):
-    from icftsc.scripts.superglue import predict
+    from icftsc.scripts.superglue import predict_boolq
 
-    predict(checkpoint=checkpoint)
+    predict_boolq(checkpoint=checkpoint)
 
 
 @app.command()

@@ -8,26 +8,12 @@ from datasets.splits import Split
 from torch.utils.data import Dataset
 from transformers import AutoConfig, AutoModel, DataCollatorWithPadding, Trainer
 
-from icftsc.datasets.superglue import id2label
+from icftsc.datasets.boolq import id2label
 from icftsc.logging import logger
 from icftsc.scripts.common import init_data, init_tokenizer
 
 
-def _run_predict(trainer: Trainer, data: Dataset, out: Path):
-    res = trainer.predict(data)
-    preds = np.argmax(res.predictions, axis=-1)
-
-    jsonl = [
-        json.dumps({"idx": idx, "label": id2label[pred]}) + "\n"
-        for idx, pred in zip(data["idx"], preds, strict=True)
-    ]
-
-    logger.info("save predictions to %s", out)
-    with open(out, "w") as f:
-        f.writelines(jsonl)
-
-
-def predict(checkpoint: str):
+def predict_boolq(checkpoint: str):
     path = Path(checkpoint)
     with open(path / "cli_params.json") as f:
         params = json.load(f)
@@ -38,7 +24,7 @@ def predict(checkpoint: str):
         model_type=config.model_type,
         tokenizer=tokenizer,
         task=params["task"],
-        dataset="superglue-boolq",
+        dataset="boolq",
         workers=params["workers"],
         split=cast(Split, {"test": "test"}),
     )
@@ -53,23 +39,15 @@ def predict(checkpoint: str):
     collate_fn = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
     trainer = Trainer(args=args, model=model, data_collator=collate_fn)
 
-    logger.info("run no prompt predictions")
-    _run_predict(
-        trainer=trainer,
-        data=cast(Dataset, data["test"].remove_columns("labels")),
-        out=path / "boolq.jsonl",
-    )
+    logger.info("run predictions")
+    res = trainer.predict(cast(Dataset, data["test"].remove_columns("labels")))
+    preds = np.argmax(res.predictions, axis=-1)
 
-    logger.info("run system prompt predictions")
-    _run_predict(
-        trainer=trainer,
-        data=cast(Dataset, data["test-system"].remove_columns("labels")),
-        out=path / "boolq-system.jsonl",
-    )
+    jsonl = [
+        json.dumps({"idx": idx, "label": id2label[pred]}) + "\n"
+        for idx, pred in zip(data["idx"], preds, strict=True)
+    ]
 
-    logger.info("run random system prompt predictions")
-    _run_predict(
-        trainer=trainer,
-        data=cast(Dataset, data["test-random"].remove_columns("labels")),
-        out=path / "boolq-random.jsonl",
-    )
+    logger.info("save predictions to %s", path)
+    with open(path, "w") as f:
+        f.writelines(jsonl)

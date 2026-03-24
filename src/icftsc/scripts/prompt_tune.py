@@ -43,8 +43,8 @@ def prompt_tune(
         task=task,
     )
 
-    if dataset == "superglue-boolq":
-        logger.warning("drop superglue test data, labels are private")
+    if dataset == "boolq":
+        logger.warning("drop boolq test data, labels are private")
         data.pop("test")
 
     logger.info(

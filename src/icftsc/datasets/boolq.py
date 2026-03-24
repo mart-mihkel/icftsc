@@ -1,4 +1,3 @@
-import random
 from typing import Literal, TypedDict, cast
 
 from datasets.dataset_dict import DatasetDict
@@ -185,7 +184,7 @@ def _tokenize(
     raise NotImplementedError(f"Task '{task}'")
 
 
-def init_superglue(
+def init_boolq(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
@@ -219,7 +218,7 @@ def init_superglue(
     return data
 
 
-def init_superglue_info(
+def init_boolq_info(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     n_shot: int = 0,
