@@ -15,9 +15,13 @@ class PTGPTForCausalLM(PTModel):
         if labels is not None:
             labels = self._get_causal_labels(labels)
 
-        return self.base(
+        out = self.base(
             labels=labels,
             attention_mask=attn,
             inputs_embeds=inputs,
             output_hidden_states=True,
         )
+
+        out.logits = out.logits[:, self.config.num_virtual_tokens :]
+
+        return out

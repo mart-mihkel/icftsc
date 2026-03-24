@@ -7,7 +7,7 @@ from datasets.utils.info_utils import VerificationMode
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import DatasetInfo
+from icftsc.datasets.common import DatasetInfo, get_causal_batch
 from icftsc.logging import logger
 from icftsc.types import Task
 
@@ -259,9 +259,9 @@ def _tokenize(
 
     for tokens, tag_ids in zip(batch["tokens"], batch["ner_tags"], strict=True):
         sentence = " ".join(tokens)
-        tokens, tag_ids = _join_spans(tokens=tokens, tag_ids=tag_ids)
+        entities, tag_ids = _join_spans(tokens=tokens, tag_ids=tag_ids)
 
-        for token, tag_id in zip(tokens, tag_ids, strict=True):
+        for entity, tag_id in zip(entities, tag_ids, strict=True):
             if tag_id == -1:
                 continue
 
@@ -269,31 +269,29 @@ def _tokenize(
                 model_type=model_type,
                 tokenizer=tokenizer,
                 sentence=sentence,
-                entity=token,
+                entity=entity,
             )
 
             prompts.append(prompt)
             labels.append(tag_id)
 
     enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
-    if task == "seqcls":
-        enc["labels"] = labels
-    elif task == "causal":
-        enc["labels"] = [
-            [-100] * len(prompt_ids)
-            + tokenizer.encode(id2label[tag_id])
-            + [tokenizer.eos_token_id]
-            for prompt_ids, tag_id in zip(enc["input_ids"], labels, strict=True)
-        ]
-    elif task == "seq2seq":
-        enc["labels"] = [
-            [*tokenizer.encode(id2label[tag_id]), tokenizer.eos_token_id]
-            for tag_id in labels
-        ]
-    else:
-        raise NotImplementedError(f"Task '{task}'")
+    enc["labels"] = labels
 
-    return enc
+    if task == "seqcls":
+        return enc
+
+    if task == "causal":
+        _id2label = cast(dict[int, str], id2label)
+        return get_causal_batch(tokenizer=tokenizer, enc=enc, id2label=_id2label)
+
+    if task == "seq2seq":
+        _eos = tokenizer.eos_token_id
+        _labels = [[*tokenizer.encode(id2label[tag_id]), _eos] for tag_id in labels]
+        enc["labels"] = _labels
+        return enc
+
+    raise NotImplementedError(f"Task '{task}'")
 
 
 def _join_spans(

@@ -341,7 +341,7 @@ def train(
     actual_effective_batch_size = batch_size * grad_acc_steps
 
     train_steps = ceil(len(data["train"]) / actual_effective_batch_size) * epochs
-    eval_steps = max(1, train_steps // 5)
+    eval_steps = max(1, train_steps // 3)
     logging_steps = max(1, train_steps // 100)
 
     out_dir = f"out/{run_name}"

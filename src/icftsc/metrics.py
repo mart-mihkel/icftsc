@@ -6,6 +6,7 @@ from torch.fft import Tensor
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
 from icftsc.logging import logger
+from icftsc.types import Task
 
 _bleu = evaluate.load("bleu")
 _rouge = evaluate.load("rouge")
@@ -38,10 +39,26 @@ def _update_state(eval_pred: EvalPrediction):
     _preds.append(batch_preds)
 
 
-def _collect_state() -> tuple[np.ndarray, np.ndarray]:
+def _collect_state(task: Task) -> tuple[np.ndarray, np.ndarray]:
     global _labels, _preds
 
-    return np.concat(_labels, axis=0), np.concat(_preds, axis=0)
+    if task == "seqcls":
+        return np.concat(_labels), np.concat(_preds)
+
+    max_labels_len = max(arr.shape[1] for arr in _labels)
+    max_preds_len = max(arr.shape[1] for arr in _preds)
+    max_len = max(max_labels_len, max_preds_len)
+
+    labs = [np.pad(a, (0, max_len - a.shape[1]), constant_values=-100) for a in _labels]
+    preds = [np.pad(a, (0, max_len - a.shape[1]), constant_values=0) for a in _preds]
+
+    labs = np.concat(labs)
+    preds = np.concat(preds)
+
+    if task == "causal":
+        preds = np.roll(preds, -1)
+
+    return labs, preds
 
 
 def _reset_state():
@@ -117,11 +134,10 @@ def compute_metrics_seq_cls(
     if not compute_result:
         return {}
 
-    labels, preds = _collect_state()
+    labels, preds = _collect_state(task="seqcls")
     mask = labels != -100
 
     metrics = _compute_classification_metrics(labels[mask], preds[mask])
-
     _reset_state()
 
     return metrics
@@ -137,13 +153,12 @@ def compute_metrics_seq2seq(
     if not compute_result:
         return {}
 
-    labels, preds = _collect_state()
+    labels, preds = _collect_state(task="seq2seq")
     mask = labels != -100
 
     simple = _compute_classification_metrics(labels[mask], preds[mask])
     bleu = _compute_bleu(labels[mask], preds[mask], tokenizer)
     rouge = _compute_rouge(labels[mask], preds[mask], tokenizer)
-
     _reset_state()
 
     return simple | bleu | rouge
@@ -159,14 +174,12 @@ def compute_metrics_causal_lm(
     if not compute_result:
         return {}
 
-    # TODO: accumulate logits for perplexity
-    labels, preds = _collect_state()
+    labels, preds = _collect_state(task="causal")
     mask = labels != -100
 
     simple = _compute_classification_metrics(labels[mask], preds[mask])
     bleu = _compute_bleu(labels[mask], preds[mask], tokenizer)
     rouge = _compute_rouge(labels[mask], preds[mask], tokenizer)
-
     _reset_state()
 
     return simple | bleu | rouge

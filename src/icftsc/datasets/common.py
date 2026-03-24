@@ -36,7 +36,7 @@ class DataCollatorWithPaddingAndLabels:
 
             labels.append(_labels + [-100] * (max_len - len(_labels)))
             inputs.append(_inputs + [pad] * (max_len - len(_inputs)))
-            attn.append(_attn + [1] * (max_len - len(_attn)))
+            attn.append(_attn + [0] * (max_len - len(_attn)))
 
             self.tokenizer.pad
 
@@ -92,4 +92,36 @@ def randomize_prompt(
         random_ids.append(rand_id)
 
     out = {"input_ids": random_ids, "attention_mask": enc["attention_mask"]}
+    return BatchEncoding(out)
+
+
+def get_causal_batch(
+    tokenizer: PreTrainedTokenizerFast,
+    enc: BatchEncoding,
+    id2label: dict[int, str],
+) -> BatchEncoding:
+    out_inputs = []
+    out_attn = []
+    out_labels = []
+
+    it = zip(
+        cast(Iterable, enc["input_ids"]),
+        cast(Iterable, enc["attention_mask"]),
+        cast(Iterable, enc["labels"]),
+        strict=True,
+    )
+
+    for _input, _attn, _label in it:
+        label_end = [*tokenizer.encode(id2label[_label]), tokenizer.eos_token_id]
+        label_padding = [-100] * len(_input)
+
+        full_input = _input + label_end
+        full_attn = _attn + [0] * len(label_end)
+        full_label = [*label_padding, *label_end]
+
+        out_inputs.append(full_input)
+        out_attn.append(full_attn)
+        out_labels.append(full_label)
+
+    out = {"input_ids": out_inputs, "attention_mask": out_attn, "labels": out_labels}
     return BatchEncoding(out)

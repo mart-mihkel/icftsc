@@ -14,8 +14,11 @@ gpt_model_types = frozenset(
         "gpt_neox",
         "gemma",
         "gemma2",
+        "gemma3_text",
         "qwen2",
+        "qwen2_5",
         "qwen3",
+        "qwen3_5",
         "llama",
     )
 )

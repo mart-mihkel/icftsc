@@ -149,5 +149,13 @@ def predict_superglue(checkpoint: Annotated[str, Option()]):
     predict(checkpoint=checkpoint)
 
 
+@app.command()
+@timed
+def collect_metrics(mlflow_tracking_uri: Annotated[str, Option()]):
+    from icftsc.scripts.tracking import collect_metrics
+
+    collect_metrics(mlflow_tracking_uri=mlflow_tracking_uri)
+
+
 if __name__ == "__main__":
     app()

@@ -29,7 +29,11 @@ def test_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
 
     labels = np.array([[5, 5], [5, 5]])
     eval_pred = EvalPrediction(logits, labels)
-    compute_metrics_seq2seq(eval_pred, tokenizer=t5_tokenizer)
+    metrics = compute_metrics_seq2seq(eval_pred, tokenizer=t5_tokenizer)
+
+    assert "bleu" in metrics
+    assert "rouge1" in metrics
+    assert "rouge2" in metrics
 
 
 def test_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast):
@@ -43,7 +47,11 @@ def test_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast):
     labels = np.array([[0, 1], [0, 1]])
     eval_pred = EvalPrediction(logits, labels)
 
-    compute_metrics_causal_lm(eval_pred, tokenizer=gpt2_tokenizer)
+    metrics = compute_metrics_causal_lm(eval_pred, tokenizer=gpt2_tokenizer)
+
+    assert "bleu" in metrics
+    assert "rouge1" in metrics
+    assert "rouge2" in metrics
 
 
 def test_init_metrics_fn(gpt2_tokenizer: PreTrainedTokenizerFast):

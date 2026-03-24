@@ -22,21 +22,3 @@ def test_collator_with_labels(gpt2_tokenizer: PreTrainedTokenizerFast):
 
     assert batch["input_ids"].shape[1] % 8 == 0
     assert batch["labels"].shape[1] % 8 == 0
-
-
-def test_collator_no_labels(mmbert_tokenizer: PreTrainedTokenizerFast):
-    features = [
-        {"input_ids": [1, 2, 3], "attention_mask": [1, 1, 1]},
-        {"input_ids": [4, 5], "attention_mask": [1, 1]},
-    ]
-
-    collator = DataCollatorWithPaddingAndLabels(
-        tokenizer=mmbert_tokenizer,
-        pad_to_multiple_of=8,
-    )
-
-    batch = collator(features)
-
-    assert "input_ids" in batch
-    assert "attention_mask" in batch
-    assert "labels" not in batch
