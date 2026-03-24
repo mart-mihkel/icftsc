@@ -30,7 +30,6 @@ def test_estner_mmbert(mmbert_tokenizer: PreTrainedTokenizerFast):
         model_type="modernbert",
         task="seqcls",
         split=split,
-        workers=0,
     )
 
     assert len(data["train"]) > 0
@@ -44,7 +43,6 @@ def test_estner_gpt2(gpt2_tokenizer: PreTrainedTokenizerFast):
         model_type="gpt2",
         task="causal",
         split=split,
-        workers=0,
     )
 
     assert len(data["train"]) > 0
@@ -58,7 +56,6 @@ def test_estner_t5(t5_tokenizer: PreTrainedTokenizerFast):
         model_type="t5",
         task="seq2seq",
         split=split,
-        workers=0,
     )
 
     assert len(data["train"]) > 0

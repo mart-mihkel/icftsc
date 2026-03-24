@@ -31,6 +31,7 @@ from icftsc.datasets.boolq import init_boolq, init_boolq_info
 from icftsc.datasets.common import DataCollatorWithPaddingAndLabels
 from icftsc.datasets.estner import init_estner, init_estner_info
 from icftsc.datasets.multinerd import DatasetInfo, init_multinerd, init_multinerd_info
+from icftsc.datasets.wic import init_wic, init_wic_info
 from icftsc.logging import logger
 from icftsc.metrics import (
     compute_metrics_causal_lm,
@@ -299,6 +300,20 @@ def init_data(
         )
 
         data = init_boolq(
+            model_type=model_type,
+            tokenizer=tokenizer,
+            workers=workers,
+            split=split,
+            task=task,
+        )
+    elif dataset == "wic":
+        info = init_wic_info(
+            model_type=model_type,
+            tokenizer=tokenizer,
+            n_shot=n_shot,
+        )
+
+        data = init_wic(
             model_type=model_type,
             tokenizer=tokenizer,
             workers=workers,

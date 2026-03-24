@@ -10,98 +10,124 @@ from icftsc.datasets.common import DatasetInfo, get_causal_batch
 from icftsc.logging import logger
 from icftsc.types import Task
 
-type BoolQALabel = Literal["false", "true"]
+type WiCLabel = Literal["false", "true"]
 
 
-class BoolqBatch(TypedDict):
+class WiCBatch(TypedDict):
     idx: list[int]
-    passage: list[str]
-    question: list[str]
+    sentence1: list[str]
+    sentence2: list[str]
+    start1: list[int]
+    start2: list[int]
+    end1: list[int]
+    end2: list[int]
+    word: list[str]
     label: list[int]
 
 
-id2label: dict[int, BoolQALabel] = {
+id2label: dict[int, WiCLabel] = {
     0: "false",
     1: "true",
 }
 
-label2id: dict[BoolQALabel, int] = {
+label2id: dict[WiCLabel, int] = {
     "false": 0,
     "true": 1,
 }
 
 examples = [
     (
-        "Passage: The sky appears blue during the day due to Rayleigh "
-        "scattering.\nQuestion: Is the sky blue?\nAnswer: true\n"
+        "Sentence 1: The bank closed at 5 PM.\n"
+        "Sentence 2: They sat by the river bank.\n"
+        "Word: bank\n"
+        "Answer: false\n"
     ),
     (
-        "Passage: Fish are animals that live exclusively underwater and "
-        "breathe using gills.\nQuestion: Can fish breathe on land?\nAnswer: false\n"
+        "Sentence 1: I need to book a hotel room.\n"
+        "Sentence 2: The book on the table is mine.\n"
+        "Word: book\n"
+        "Answer: false\n"
     ),
     (
-        "Passage: Water freezes at 0 degrees Celsius and boils at 100 "
-        "degrees Celsius at sea level.\n"
-        "Question: Does water freeze at room temperature?\nAnswer: false\n"
+        "Sentence 1: The mouse is near the computer.\n"
+        "Sentence 2: The mouse ran across the floor.\n"
+        "Word: mouse\n"
+        "Answer: false\n"
     ),
     (
-        "Passage: The Earth orbits around the Sun in approximately 365 "
-        "days.\nQuestion: Does the Earth orbit the Sun?\nAnswer: true\n"
+        "Sentence 1: He plays the guitar very well.\n"
+        "Sentence 2: She works as a guitar instructor.\n"
+        "Word: guitar\n"
+        "Answer: true\n"
     ),
     (
-        "Passage: Photosynthesis is the process by which plants convert "
-        "sunlight into energy.\nQuestion: Do plants produce their own food?"
-        "\nAnswer: true\n"
+        "Sentence 1: The temperature dropped significantly.\n"
+        "Sentence 2: Please drop me a line when you can.\n"
+        "Word: drop\n"
+        "Answer: false\n"
     ),
     (
-        "Passage: The Great Wall of China is visible from space with "
-        "naked eye.\nQuestion: Is the Great Wall visible from space?"
-        "\nAnswer: false\n"
+        "Sentence 1: I like to read books.\n"
+        "Sentence 2: The book club meets weekly.\n"
+        "Word: book\n"
+        "Answer: true\n"
     ),
     (
-        "Passage: Lightning is a discharge of electricity that occurs "
-        "during thunderstorms.\nQuestion: Is lightning caused by electricity?"
-        "\nAnswer: true\n"
+        "Sentence 1: Time to get up and face the day.\n"
+        "Sentence 2: The face of the mountain was steep.\n"
+        "Word: face\n"
+        "Answer: false\n"
     ),
     (
-        "Passage: The human body contains 206 bones in adulthood.\n"
-        "Question: Do adults have more than 300 bones?\nAnswer: false\n"
+        "Sentence 1: She has a kind heart.\n"
+        "Sentence 2: They were very kind to help.\n"
+        "Word: kind\n"
+        "Answer: true\n"
     ),
 ]
 
 
 def _bert_sys_prompt(bos: str, sep: str) -> str:
-    return f"{bos}Answer the question based on the passage.{sep}"
+    return f"{bos}Determine if the word has the same meaning in both sentences.{sep}"
 
 
-def _bert_prompt(question: str, passage: str, bos: str, sep: str, eos: str) -> str:
-    return f"{bos}{question}{sep}{passage}{eos}"
+def _bert_prompt(
+    word: str, sentence1: str, sentence2: str, bos: str, sep: str, eos: str
+) -> str:
+    return f"{bos}{word}{sep}{sentence1}{sep}{sentence2}{eos}"
 
 
 def _gpt_sys_prompt(bos: str | None) -> str:
     _bos = bos if bos is not None else ""
     return (
         f"{_bos}"
-        "You are a Boolean Question Answering expert.Given a passage and a "
-        'question, answer with exactly one word: "true" or "false".\nDo '
-        "not provide any explanation.\n"
+        "You are a Word-in-Context expert. Given two sentences and a word, "
+        "determine if the word has the same meaning in both sentences. "
+        'Answer with exactly one word: "true" or "false".\n'
+        "Do not provide any explanation.\n"
     )
 
 
-def _gpt_prompt(question: str, passage: str, bos: str | None) -> str:
+def _gpt_prompt(word: str, sentence1: str, sentence2: str, bos: str | None) -> str:
     _bos = bos if bos is not None else ""
-    return f"{_bos}Passage: {passage}\nQuestion: {question}\nAnswer: "
+    return (
+        f"{_bos}"
+        f"Sentence 1: {sentence1}\n"
+        f"Sentence 2: {sentence2}\n"
+        f"Word: {word}\n"
+        "Answer: "
+    )
 
 
 def _t5_sys_prompt() -> str:
     return (
-        "boolean question answering: given a passage and a question, "
-        'answer with "true" or "false".\n'
+        "word in context: given two sentences and a word, determine if the "
+        'word has the same meaning in both sentences. answer with "true" or "false".\n'
     )
 
 
-def _t5_prompt(question: str, passage: str) -> str:
-    return f"passage: {passage}\nquestion: {question}\nanswer: "
+def _t5_prompt(word: str, sentence1: str, sentence2: str) -> str:
+    return f"sentence1: {sentence1}\nsentence2: {sentence2}\nword: {word}\nanswer: "
 
 
 def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
@@ -120,29 +146,36 @@ def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
 def _get_prompt(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
-    question: str,
-    passage: str,
+    word: str,
+    sentence1: str,
+    sentence2: str,
 ) -> str:
     if model_type in bert_model_types:
         return _bert_prompt(
-            question=question,
-            passage=passage,
+            word=word,
+            sentence1=sentence1,
+            sentence2=sentence2,
             bos=tokenizer.bos_token,
             sep=tokenizer.sep_token,
             eos=tokenizer.eos_token,
         )
 
     if model_type in gpt_model_types:
-        return _gpt_prompt(question=question, passage=passage, bos=tokenizer.bos_token)
+        return _gpt_prompt(
+            word=word,
+            sentence1=sentence1,
+            sentence2=sentence2,
+            bos=tokenizer.bos_token,
+        )
 
     if model_type in t5_model_types:
-        return _t5_prompt(question=question, passage=passage)
+        return _t5_prompt(word=word, sentence1=sentence1, sentence2=sentence2)
 
     raise NotImplementedError(f"Model type '{model_type}'")
 
 
 def _tokenize(
-    batch: BoolqBatch,
+    batch: WiCBatch,
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
@@ -150,13 +183,20 @@ def _tokenize(
     prompts: list[str] = []
     labels: list[int] = []
 
-    it = zip(batch["passage"], batch["question"], batch["label"], strict=True)
-    for passage, question, label_id in it:
+    it = zip(
+        batch["word"],
+        batch["sentence1"],
+        batch["sentence2"],
+        batch["label"],
+        strict=True,
+    )
+    for word, sentence1, sentence2, label_id in it:
         prompt = _get_prompt(
             model_type=model_type,
             tokenizer=tokenizer,
-            question=question,
-            passage=passage,
+            word=word,
+            sentence1=sentence1,
+            sentence2=sentence2,
         )
 
         prompts.append(prompt)
@@ -184,19 +224,30 @@ def _tokenize(
     raise NotImplementedError(f"Task '{task}'")
 
 
-def init_boolq(
+def init_wic(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
     workers: int = 0,
     split: Split | None = None,
 ) -> DatasetDict:
-    data = cast(DatasetDict, load_dataset("aps/super_glue", "boolq", split=split))
+    data = cast(DatasetDict, load_dataset("aps/super_glue", "wic", split=split))
 
     if "validation" in data:
         data["dev"] = data.pop("validation")
 
-    cols = ["question", "passage", "label"]
+    cols = [
+        "idx",
+        "sentence1",
+        "sentence2",
+        "start1",
+        "start2",
+        "end1",
+        "end2",
+        "word",
+        "label",
+    ]
+
     fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
     data = data.map(
         _tokenize,
@@ -218,7 +269,7 @@ def init_boolq(
     return data
 
 
-def init_boolq_info(
+def init_wic_info(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     n_shot: int = 0,
