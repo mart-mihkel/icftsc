@@ -6,7 +6,6 @@ from torch.fft import Tensor
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
 from icftsc.logging import logger
-from icftsc.types import Task
 
 _bleu = evaluate.load("bleu")
 _rouge = evaluate.load("rouge")
@@ -16,9 +15,7 @@ _labels: list[np.ndarray] = []
 _preds: list[np.ndarray] = []
 
 
-def _update_state(eval_pred: EvalPrediction):
-    global _labels, _preds
-
+def _batch_to_numpy(eval_pred: EvalPrediction) -> tuple[np.ndarray, np.ndarray]:
     batch_labels = eval_pred.label_ids
     if isinstance(batch_labels, tuple):
         batch_labels = batch_labels[0]
@@ -35,44 +32,15 @@ def _update_state(eval_pred: EvalPrediction):
 
     batch_preds = np.argmax(batch_logits, axis=-1)
 
-    _labels.append(batch_labels)
-    _preds.append(batch_preds)
-
-
-def _collect_state(task: Task) -> tuple[np.ndarray, np.ndarray]:
-    global _labels, _preds
-
-    if task == "seqcls":
-        return np.concat(_labels), np.concat(_preds)
-
-    max_labels_len = max(arr.shape[1] for arr in _labels)
-    max_preds_len = max(arr.shape[1] for arr in _preds)
-    max_len = max(max_labels_len, max_preds_len)
-
-    labs = [np.pad(a, (0, max_len - a.shape[1]), constant_values=-100) for a in _labels]
-    preds = [np.pad(a, (0, max_len - a.shape[1]), constant_values=0) for a in _preds]
-
-    labs = np.concat(labs)
-    preds = np.concat(preds)
-
-    if task == "causal":
-        preds = np.roll(preds, -1)
-
-    return labs, preds
-
-
-def _reset_state():
-    global _labels, _preds
-
-    _labels = []
-    _preds = []
+    return batch_labels, batch_preds
 
 
 def _compute_classification_metrics(
-    labels: np.ndarray,
-    preds: np.ndarray,
+    labels: np.ndarray | list,
+    preds: np.ndarray | list,
 ) -> dict[str, float]:
     logger.debug("compute classification metrics")
+
     accuracy = accuracy_score(labels, preds)
     precision = precision_score(labels, preds, average="macro", zero_division=0)
     recall = recall_score(labels, preds, average="macro", zero_division=0)
@@ -82,6 +50,7 @@ def _compute_classification_metrics(
 
 def _compute_perplexity(labels: np.ndarray, logits: np.ndarray) -> dict[str, float]:
     logger.debug("compute perplexity")
+
     idx = np.arange(labels.shape[0])
     log_probs = log_softmax(logits, axis=-1)[idx, labels]
     perplexity = np.exp(-log_probs.mean())
@@ -89,13 +58,11 @@ def _compute_perplexity(labels: np.ndarray, logits: np.ndarray) -> dict[str, flo
 
 
 def _compute_bleu(
-    labels: np.ndarray,
-    preds: np.ndarray,
-    tokenizer: PreTrainedTokenizerFast,
+    references: list[str],
+    predictions: list[str],
 ) -> dict[str, float]:
     logger.debug("compute BLEU")
-    predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
-    references = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
     res = _bleu.compute(predictions=predictions, references=references)  # type: ignore
     if res is None:
         logger.warning("BLEU evaluation was run in a child process")
@@ -105,13 +72,11 @@ def _compute_bleu(
 
 
 def _compute_rouge(
-    labels: np.ndarray,
-    preds: np.ndarray,
-    tokenizer: PreTrainedTokenizerFast,
+    references: list[str],
+    predictions: list[str],
 ) -> dict[str, float]:
     logger.debug("compute ROUGE")
-    predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
-    references = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
     res = _rouge.compute(  # type: ignore
         predictions=predictions,
         references=references,
@@ -129,18 +94,23 @@ def compute_metrics_seq_cls(
     eval_pred: EvalPrediction,
     compute_result: bool = True,
 ) -> dict[str, float]:
-    _update_state(eval_pred)
+    global _labels, _preds
+
+    labels, preds = _batch_to_numpy(eval_pred)
+    _labels.extend(labels)
+    _preds.extend(preds)
 
     if not compute_result:
         return {}
 
-    labels, preds = _collect_state(task="seqcls")
-    mask = labels != -100
+    all_labels = np.array(_labels)
+    all_preds = np.array(_preds)
+    mask = all_labels != -100
 
-    metrics = _compute_classification_metrics(labels[mask], preds[mask])
-    _reset_state()
+    _labels = []
+    _preds = []
 
-    return metrics
+    return _compute_classification_metrics(all_labels[mask], all_preds[mask])
 
 
 def compute_metrics_seq2seq(
@@ -148,20 +118,31 @@ def compute_metrics_seq2seq(
     tokenizer: PreTrainedTokenizerFast,
     compute_result: bool = True,
 ) -> dict[str, float]:
-    _update_state(eval_pred)
+    global _labels, _preds
+
+    labels, preds = _batch_to_numpy(eval_pred)
+    _labels.extend(labels)
+    _preds.extend(preds)
 
     if not compute_result:
         return {}
 
-    labels, preds = _collect_state(task="seq2seq")
-    mask = labels != -100
+    labels = []
+    preds = []
+    for label, pred in zip(_labels, _preds, strict=True):
+        mask = label != -100
+        labels.append(label[mask])
+        preds.append(pred[mask])
 
-    simple = _compute_classification_metrics(labels[mask], preds[mask])
-    bleu = _compute_bleu(labels[mask], preds[mask], tokenizer)
-    rouge = _compute_rouge(labels[mask], preds[mask], tokenizer)
-    _reset_state()
+    _labels = []
+    _preds = []
 
-    return simple | bleu | rouge
+    references = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
+
+    logger.info(predictions)
+
+    return _compute_classification_metrics(references, predictions)
 
 
 def compute_metrics_causal_lm(
@@ -169,17 +150,28 @@ def compute_metrics_causal_lm(
     tokenizer: PreTrainedTokenizerFast,
     compute_result: bool = True,
 ) -> dict[str, float]:
-    _update_state(eval_pred)
+    global _labels, _preds
+
+    labels, preds = _batch_to_numpy(eval_pred)
+    _labels.extend(labels)
+    _preds.extend(preds)
 
     if not compute_result:
         return {}
 
-    labels, preds = _collect_state(task="causal")
-    mask = labels != -100
+    labels = []
+    preds = []
+    for label, pred in zip(_labels, _preds, strict=True):
+        mask = label != -100
+        labels.append(label[mask])
+        preds.append(pred[mask])
 
-    simple = _compute_classification_metrics(labels[mask], preds[mask])
-    bleu = _compute_bleu(labels[mask], preds[mask], tokenizer)
-    rouge = _compute_rouge(labels[mask], preds[mask], tokenizer)
-    _reset_state()
+    _labels = []
+    _preds = []
 
-    return simple | bleu | rouge
+    references = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
+
+    logger.info(predictions)
+
+    return _compute_classification_metrics(references, predictions)

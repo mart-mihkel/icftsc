@@ -169,15 +169,13 @@ def _tokenize(
         return enc
 
     if task == "causal":
-        _id2label = cast(dict[int, str], id2label)
-        _id2label[-1] = "private"
+        _id2label = id2label | {-1: "private"}
         return get_causal_batch(tokenizer=tokenizer, enc=enc, id2label=_id2label)
 
     if task == "seq2seq":
-        _id2label = cast(dict[int, str], id2label)
-        _id2label[-1] = "private"
-        _eos = tokenizer.eos_token_id
-        _labels = [[*tokenizer.encode(id2label[label_id]), _eos] for label_id in labels]
+        _id2label = id2label | {-1: "private"}
+        eos = tokenizer.eos_token_id
+        _labels = [[*tokenizer.encode(_id2label[label_id]), eos] for label_id in labels]
         enc["labels"] = _labels
         return enc
 

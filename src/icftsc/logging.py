@@ -1,19 +1,30 @@
 import logging
-import threading
 
 import accelerate
 import datasets
 import evaluate
 import httpx
 import numpy
+import polars
 import torch
 import transformers
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.traceback import Traceback, install
+from rich.traceback import install
+
+_suppress = [
+    transformers,
+    accelerate,
+    datasets,
+    evaluate,
+    polars,
+    torch,
+    httpx,
+    numpy,
+]
 
 _console = Console()
-_suppress = [transformers, datasets, torch, accelerate, httpx, numpy, evaluate]
+
 _handler = RichHandler(
     show_path=False,
     console=_console,
@@ -23,19 +34,9 @@ _handler = RichHandler(
 )
 
 install(
-    console=_console,
     show_locals=True,
+    console=_console,
     suppress=_suppress,
-)
-
-threading.excepthook = lambda args: _console.print(
-    Traceback.from_exception(
-        args.exc_type,
-        args.exc_value,
-        args.exc_traceback,
-        show_locals=True,
-        suppress=_suppress,
-    )
 )
 
 logging.basicConfig(format="%(message)s", handlers=[_handler])
