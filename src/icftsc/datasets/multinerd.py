@@ -7,7 +7,7 @@ from datasets.utils.info_utils import VerificationMode
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import DatasetInfo, get_causal_batch
+from icftsc.datasets.common import DatasetInfo
 from icftsc.logging import logger
 from icftsc.types import Task
 
@@ -43,10 +43,10 @@ type MultinerdTag = Literal[
 ]
 
 
-class MultinerdBatch(TypedDict):
-    tokens: list[list[str]]
-    ner_tags: list[list[str]]
-    lang: list[MultinerdLang]
+class MultinerdExample(TypedDict):
+    tokens: list[str]
+    ner_tags: list[int]
+    lang: MultinerdLang
 
 
 _id2label_full: dict[int, str] = {
@@ -121,71 +121,73 @@ label2id: dict[MultinerdTag, int] = {
 
 examples = [
     ("sentence: John works at Google in California.\nentity: John\nner tag: PER\n"),
+    ("sentence: Paris is the capital of France.\nentity: Paris\nner tag: LOC\n"),
+    ("sentence: The dog chased the cat across the garden.\nentity: dog\ntag: ANIM\n"),
+    ("sentence: I love eating sushi and pasta for dinner.\nentity: sushi\ntag: FOOD\n"),
+    ("sentence: The car drove quickly down the highway.\nentity: car\ntag: VEHI\n"),
     (
         "sentence: The meeting was held at the United Nations headquarters.\n"
-        "entity: United Nations\nner tag: ORG\n"
-    ),
-    ("sentence: Paris is the capital of France.\nentity: Paris\nner tag: LOC\n"),
-    (
-        "sentence: The dog chased the cat across the garden.\n"
-        "entity: dog\nner tag: ANIM\n"
+        "entity: United Nations\n"
+        "tag: ORG\n"
     ),
     (
         "sentence: Evolution shaped the diversity of life on Earth.\n"
-        "entity: Evolution\nner tag: BIO\n"
+        "entity: Evolution\n"
+        "tag: BIO\n"
     ),
     (
         "sentence: Einstein developed the theory of relativity.\n"
-        "entity: Einstein\nner tag: CEL\n"
+        "entity: Einstein\n"
+        "tag: CEL\n"
     ),
     (
         "sentence: The patient was diagnosed with diabetes last year.\n"
-        "entity: diabetes\nner tag: DIS\n"
+        "entity: diabetes\n"
+        "tag: DIS\n"
     ),
     (
         "sentence: The Olympics will be held in Tokyo next summer.\n"
-        "entity: Olympics\nner tag: EVE\n"
-    ),
-    (
-        "sentence: I love eating sushi and pasta for dinner.\n"
-        "entity: sushi\nner tag: FOOD\n"
+        "entity: Olympics\n"
+        "tag: EVE\n"
     ),
     (
         "sentence: The telescope was invented several centuries ago.\n"
-        "entity: telescope\nner tag: INST\n"
+        "entity: telescope\n"
+        "tag: INST\n"
     ),
     (
         "sentence: I watched an interesting movie on Netflix last night.\n"
-        "entity: Netflix\nner tag: MEDIA\n"
+        "entity: Netflix\n"
+        "tag: MEDIA\n"
     ),
     (
         "sentence: The dragon guarded the ancient treasure in the cave.\n"
-        "entity: dragon\nner tag: MYTH\n"
+        "entity: dragon\n"
+        "tag: MYTH\n"
     ),
     (
         "sentence: Roses bloom beautifully in the garden during spring.\n"
-        "entity: Roses\nner tag: PLANT\n"
+        "entity: Roses\n"
+        "tag: PLANT\n"
     ),
     (
         "sentence: The meeting is scheduled for Monday morning.\n"
-        "entity: Monday\nner tag: TIME\n"
+        "entity: Monday\n"
+        "tag: TIME\n"
     ),
-    ("sentence: The car drove quickly down the highway.\nentity: car\nner tag: VEHI\n"),
 ]
 
 
-def _bert_sys_prompt(bos: str, sep: str) -> str:
-    return f"{bos}Identify the NER tag of the entity in the sentence.{sep}"
+def _bert_sys_prompt(sep: str) -> str:
+    return f"Identify the NER tag of the entity in the sentence.{sep}"
 
 
-def _bert_prompt(sentence: str, entity: str, bos: str, sep: str, eos: str) -> str:
-    return f"{bos}{sentence}{sep}{entity}{eos}"
+def _bert_prompt(sentence: str, entity: str, sep: str) -> str:
+    return f"{sentence}{sep}{entity}"
 
 
-def _gpt_sys_prompt(bos: str | None) -> str:
-    _bos = bos if bos is not None else ""
+def _gpt_sys_prompt() -> str:
     return (
-        f"{_bos}"
         "You are a Named Entity Recognition (NER) expert. Given a sentence and "
         "a target entity, output the correct entity label. Use exactly one of "
         "the following tags: PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, "
@@ -194,9 +196,8 @@ def _gpt_sys_prompt(bos: str | None) -> str:
     )
 
 
-def _gpt_prompt(sentence: str, entity: str, bos: str | None) -> str:
-    _bos = bos if bos is not None else ""
-    return f"{_bos}sentence: {sentence}\nentity: {entity}\nner tag: "
+def _gpt_prompt(sentence: str, entity: str) -> str:
+    return f"Sentence: {sentence}\nEntity: {entity}\nTag:"
 
 
 def _t5_sys_prompt() -> str:
@@ -208,20 +209,28 @@ def _t5_sys_prompt() -> str:
 
 
 def _t5_prompt(sentence: str, entity: str) -> str:
-    return f"sentence: {sentence}\nentity: {entity}\nner tag: "
+    return f"sentence: {sentence}\nentity: {entity}\ntag:"
 
 
-def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
+def _get_sys_prompt(
+    tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
+    n_shot: int,
+) -> str:
+    if n_shot > len(examples):
+        raise ValueError("Requested more examples than exist")
+
     if model_type in bert_model_types:
-        return _bert_sys_prompt(bos=tokenizer.bos_token, sep=tokenizer.sep_token)
+        prompt = _bert_sys_prompt(sep=tokenizer.sep_token)
+    elif model_type in gpt_model_types:
+        prompt = _gpt_sys_prompt()
+    elif model_type in t5_model_types:
+        prompt = _t5_sys_prompt()
+    else:
+        raise NotImplementedError(f"Model type '{model_type}'")
 
-    if model_type in gpt_model_types:
-        return _gpt_sys_prompt(bos=tokenizer.bos_token)
-
-    if model_type in t5_model_types:
-        return _t5_sys_prompt()
-
-    raise NotImplementedError(f"Model type '{model_type}'")
+    shots = "".join(examples[:n_shot])
+    return f"{prompt}{shots}"
 
 
 def _get_prompt(
@@ -231,67 +240,62 @@ def _get_prompt(
     entity: str,
 ) -> str:
     if model_type in bert_model_types:
-        return _bert_prompt(
-            sentence=sentence,
-            entity=entity,
-            bos=tokenizer.bos_token,
-            sep=tokenizer.sep_token,
-            eos=tokenizer.eos_token,
-        )
+        return _bert_prompt(sentence, entity, tokenizer.sep_token)
 
     if model_type in gpt_model_types:
-        return _gpt_prompt(sentence=sentence, entity=entity, bos=tokenizer.bos_token)
+        return _gpt_prompt(sentence, entity)
 
     if model_type in t5_model_types:
-        return _t5_prompt(sentence=sentence, entity=entity)
+        return _t5_prompt(sentence, entity)
 
     raise NotImplementedError(f"Model type '{model_type}'")
 
 
 def _tokenize(
-    batch: MultinerdBatch,
+    example: MultinerdExample,
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
-) -> BatchEncoding:
-    prompts: list[str] = []
-    labels: list[int] = []
+) -> list[BatchEncoding]:
+    tokens, tag_ids = example["tokens"], example["ner_tags"]
+    sentence = " ".join(tokens)
+    entities, tag_ids = _join_spans(tokens, tag_ids)
 
-    for tokens, tag_ids in zip(batch["tokens"], batch["ner_tags"], strict=True):
-        sentence = " ".join(tokens)
-        entities, tag_ids = _join_spans(tokens=tokens, tag_ids=tag_ids)
+    encs: list[BatchEncoding] = []
+    for entity, tag_id in zip(entities, tag_ids, strict=True):
+        if tag_id == -1:
+            continue
 
-        for entity, tag_id in zip(entities, tag_ids, strict=True):
-            if tag_id == -1:
-                continue
+        sys = _get_sys_prompt(tokenizer, model_type, n_shot=0)
+        prompt = _get_prompt(tokenizer, model_type, sentence, entity)
 
-            prompt = _get_prompt(
-                model_type=model_type,
-                tokenizer=tokenizer,
-                sentence=sentence,
-                entity=entity,
-            )
+        prompt_enc = tokenizer(f"{sys}{prompt}", truncation=True)
+        prompt_len = len(prompt_enc["input_ids"])
 
-            prompts.append(prompt)
-            labels.append(tag_id)
+        if task == "seqcls":
+            prompt_enc["label"] = tag_id
+            encs.append(prompt_enc)
+            continue
 
-    enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
-    enc["labels"] = labels
+        tag = id2label[tag_id]
+        answer = f"{sys}{prompt} {tag}"
+        answer_enc = tokenizer(answer, truncation=True)
+        labels_enc = answer_enc["input_ids"].copy()
 
-    if task == "seqcls":
-        return enc
+        if task == "causal":
+            labels_enc[:prompt_len] = [-100] * prompt_len
+            answer_enc["labels"] = labels_enc
+            encs.append(answer_enc)
+            continue
 
-    if task == "causal":
-        _id2label = cast(dict[int, str], id2label)
-        return get_causal_batch(tokenizer=tokenizer, enc=enc, id2label=_id2label)
+        if task == "seq2seq":
+            answer_enc["labels"] = labels_enc[prompt_len:]
+            encs.append(answer_enc)
+            continue
 
-    if task == "seq2seq":
-        _eos = tokenizer.eos_token_id
-        _labels = [[*tokenizer.encode(id2label[tag_id]), _eos] for tag_id in labels]
-        enc["labels"] = _labels
-        return enc
+        raise NotImplementedError(f"Task '{task}'")
 
-    raise NotImplementedError(f"Task '{task}'")
+    return encs
 
 
 def _join_spans(
@@ -320,7 +324,7 @@ def _join_spans(
     return out_tokens, out_ids
 
 
-def _filter_english(batch: MultinerdBatch) -> list[bool]:
+def _filter_english(batch: MultinerdExample) -> list[bool]:
     return [lang == "en" for lang in batch["lang"]]
 
 
@@ -372,7 +376,6 @@ def init_multinerd(
     fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
     data = data.map(
         _tokenize,
-        batched=True,
         num_proc=workers,
         remove_columns=cols,
         fn_kwargs=fn_kwargs,
@@ -395,16 +398,8 @@ def init_multinerd_info(
     model_type: str,
     n_shot: int = 0,
 ) -> DatasetInfo:
-    if n_shot > len(examples):
-        raise ValueError("Requested more examples than exist")
-
-    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
-
-    shots = "".join(examples[:n_shot])
-    prompt = f"{prompt}{shots}"
-
     return DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=prompt,
+        system_prompt=_get_sys_prompt(tokenizer, model_type, n_shot),
     )

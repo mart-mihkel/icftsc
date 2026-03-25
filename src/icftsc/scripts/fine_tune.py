@@ -42,7 +42,7 @@ def fine_tune(
         task=task,
     )
 
-    if dataset == "superglue-boolq":
+    if dataset == "boolq" or dataset == "wic":
         logger.warning("drop superglue test data, labels are private")
         data.pop("test")
 

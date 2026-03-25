@@ -42,8 +42,8 @@ def few_shot(
         task=task,
     )
 
-    if dataset == "boolq":
-        logger.warning("using boolq dev data, test labels are private")
+    if dataset == "boolq" or dataset == "wic":
+        logger.warning("using supergluq dev data, test labels are private")
         data["test"] = data["dev"]
 
     has_bos = tokenizer.bos_token is not None

@@ -42,7 +42,7 @@ def prompt_tune(
         task=task,
     )
 
-    if dataset == "boolq":
+    if dataset == "boolq" or dataset == "wic":
         logger.warning("drop boolq test data, labels are private")
         data.pop("test")
 

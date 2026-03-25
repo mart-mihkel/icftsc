@@ -230,9 +230,8 @@ def init_boolq_info(
     model_type: str,
     n_shot: int = 0,
 ) -> DatasetInfo:
-    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type, n_shot=n_shot)
     return DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=prompt,
+        system_prompt=_get_sys_prompt(tokenizer, model_type, n_shot),
     )

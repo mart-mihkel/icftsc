@@ -6,7 +6,7 @@ from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import DatasetInfo, get_causal_batch
+from icftsc.datasets.common import DatasetInfo
 from icftsc.logging import logger
 from icftsc.types import Task
 
@@ -26,14 +26,40 @@ type EstnerTag = Literal[
 ]
 
 
-class EstnerBatch(TypedDict):
-    doc_id: list[int]
-    sent_id: list[int]
-    tokens: list[list[str]]
-    ner_tags: list[list[str]]
-    ner_tags1: list[list[str]]
-    ner_tags2: list[list[str]]
+class EstnerExample(TypedDict):
+    doc_id: int
+    sent_id: int
+    tokens: list[str]
+    ner_tags: list[str]
+    ner_tags1: list[str]
+    ner_tags2: list[str]
 
+
+_id2label_full: dict[int, str] = {
+    0: "O",
+    1: "B-PER",
+    2: "I-PER",
+    3: "B-GPE",
+    4: "I-GPE",
+    5: "B-LOC",
+    6: "I-LOC",
+    7: "B-ORG",
+    8: "I-ORG",
+    9: "B-PROD",
+    10: "I-PROD",
+    11: "B-EVENT",
+    12: "I-EVENT",
+    13: "B-DATE",
+    14: "I-DATE",
+    15: "B-TIME",
+    16: "I-TIME",
+    17: "B-TITLE",
+    18: "I-TITLE",
+    19: "B-MONEY",
+    20: "I-MONEY",
+    21: "B-PERCENT",
+    22: "I-PERCENT",
+}
 
 id2label: dict[int, EstnerTag] = {
     0: "O",
@@ -73,44 +99,44 @@ examples = [
     ("lause: Ta jõi hommikul kuuma kohvi.\nnimeüksus: kohvi\nmärgend: PROD\n"),
     ("lause: Võidupüha tähistatakse juunis.\nnimeüksus: Võidupüha\nmärgend: EVENT\n"),
     ("lause: Ta sündis 1990. aastal.\nnimeüksus: 1990. aastal\nmärgend: DATE\n"),
+    ("lause: Tulemus näitab 75% kasvu.\nnimeüksus: 75%\nmärgend: PERCENT\n"),
     (
         "lause: Koosolek algab kell kolm pärastlõunal.\n"
-        "nimeüksus: kell kolm\nmärgend: TIME\n"
+        "nimeüksus: kell kolm\n"
+        "märgend: TIME\n"
     ),
     (
         "lause: Ta kirjutas raamatu pealkirjaga 'Tarkus'.\n"
-        "nimeüksus: Tarkus\nmärgend: TITLE\n"
+        "nimeüksus: Tarkus\n"
+        "märgend: TITLE\n"
     ),
     (
         "lause: Ta ostis uue auto 25000 euro eest.\n"
-        "nimeüksus: 25000 euro\nmärgend: MONEY\n"
+        "nimeüksus: 25000 euro\n"
+        "märgend: MONEY\n"
     ),
-    ("lause: Tulemus näitab 75% kasvu.\nnimeüksus: 75%\nmärgend: PERCENT\n"),
 ]
 
 
-def _bert_sys_prompt(bos: str, sep: str) -> str:
-    return f"{bos}Määra nimeüksuse NER märgen lauses.{sep}"
+def _bert_sys_prompt(sep: str) -> str:
+    return f"Määra nimeüksuse NER märgen lauses.{sep}"
 
 
-def _bert_prompt(sentence: str, entity: str, bos: str, sep: str, eos: str) -> str:
-    return f"{bos}{sentence}{sep}{entity}{eos}"
+def _bert_prompt(sentence: str, entity: str, sep: str) -> str:
+    return f"{sentence}{sep}{entity}"
 
 
-def _gpt_sys_prompt(bos: str | None) -> str:
-    _bos = bos if bos is not None else ""
+def _gpt_sys_prompt() -> str:
     return (
-        f"{_bos}"
         "Sa oled nimeüksuste tuvastamise (NER) ekspert. Sulle antakse lause ja "
         "sihtüksus ning pead tagastama õige märgendi. Kasuta täpselt ühte "
-        "järgmistest märgenditest: PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME "
+        "järgmistest märgenditest: PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME, "
         "TITLE, MONEY, PERCENT, O. Vasta ainult märgendiga ilma selgituseta.\n"
     )
 
 
-def _gpt_prompt(sentence: str, entity: str, bos: str | None) -> str:
-    _bos = bos if bos is not None else ""
-    return f"{_bos}lause: {sentence}\nnimeüksus: {entity}\nmärgend: "
+def _gpt_prompt(sentence: str, entity: str) -> str:
+    return f"lause: {sentence}\nnimeüksus: {entity}\nmärgend:"
 
 
 def _t5_sys_prompt() -> str:
@@ -122,20 +148,28 @@ def _t5_sys_prompt() -> str:
 
 
 def _t5_prompt(sentence: str, entity: str) -> str:
-    return f"lause: {sentence}\nimeüksus: {entity}\nmärgend: "
+    return f"lause: {sentence}\nnimeüksus: {entity}\nmärgend:"
 
 
-def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
+def _get_sys_prompt(
+    tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
+    n_shot: int,
+) -> str:
+    if n_shot > len(examples):
+        raise ValueError("Requested more examples than exist")
+
     if model_type in bert_model_types:
-        return _bert_sys_prompt(bos=tokenizer.bos_token, sep=tokenizer.sep_token)
+        prompt = _bert_sys_prompt(sep=tokenizer.sep_token)
+    elif model_type in gpt_model_types:
+        prompt = _gpt_sys_prompt()
+    elif model_type in t5_model_types:
+        prompt = _t5_sys_prompt()
+    else:
+        raise NotImplementedError(f"Model type '{model_type}'")
 
-    if model_type in gpt_model_types:
-        return _gpt_sys_prompt(bos=tokenizer.bos_token)
-
-    if model_type in t5_model_types:
-        return _t5_sys_prompt()
-
-    raise NotImplementedError(f"Model type '{model_type}'")
+    shots = "".join(examples[:n_shot])
+    return f"{prompt}{shots}"
 
 
 def _get_prompt(
@@ -145,64 +179,59 @@ def _get_prompt(
     entity: str,
 ) -> str:
     if model_type in bert_model_types:
-        return _bert_prompt(
-            sentence=sentence,
-            entity=entity,
-            bos=tokenizer.bos_token,
-            sep=tokenizer.sep_token,
-            eos=tokenizer.eos_token,
-        )
+        return _bert_prompt(sentence, entity, tokenizer.sep_token)
 
     if model_type in gpt_model_types:
-        return _gpt_prompt(sentence=sentence, entity=entity, bos=tokenizer.bos_token)
+        return _gpt_prompt(sentence, entity)
 
     if model_type in t5_model_types:
-        return _t5_prompt(sentence=sentence, entity=entity)
+        return _t5_prompt(sentence, entity)
 
     raise NotImplementedError(f"Model type '{model_type}'")
 
 
 def _tokenize(
-    batch: EstnerBatch,
+    example: EstnerExample,
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
-) -> BatchEncoding:
-    prompts: list[str] = []
-    labels: list[int] = []
+) -> list[BatchEncoding]:
+    tokens, tags = example["tokens"], example["ner_tags"]
+    sentence = " ".join(tokens)
+    entities, tag_ids = _join_spans(tokens, tags)
 
-    for tokens, tags in zip(batch["tokens"], batch["ner_tags"], strict=True):
-        sentence = " ".join(tokens)
-        entities, tags = _join_spans(tokens=tokens, tags=tags)
+    encs: list[BatchEncoding] = []
+    for entity, tag_id in zip(entities, tag_ids, strict=True):
+        sys = _get_sys_prompt(tokenizer, model_type, n_shot=0)
+        prompt = _get_prompt(tokenizer, model_type, sentence, entity)
 
-        for entity, tag in zip(entities, tags, strict=True):
-            prompt = _get_prompt(
-                model_type=model_type,
-                tokenizer=tokenizer,
-                sentence=sentence,
-                entity=entity,
-            )
+        prompt_enc = tokenizer(f"{sys}{prompt}", truncation=True)
+        prompt_len = len(prompt_enc["input_ids"])
 
-            prompts.append(prompt)
-            labels.append(label2id[tag])
+        if task == "seqcls":
+            prompt_enc["label"] = tag_id
+            encs.append(prompt_enc)
+            continue
 
-    enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
-    enc["labels"] = labels
+        tag = id2label[tag_id]
+        answer = f"{sys}{prompt} {tag}"
+        answer_enc = tokenizer(answer, truncation=True)
+        labels_enc = answer_enc["input_ids"].copy()
 
-    if task == "seqcls":
-        return enc
+        if task == "causal":
+            labels_enc[:prompt_len] = [-100] * prompt_len
+            answer_enc["labels"] = labels_enc
+            encs.append(answer_enc)
+            continue
 
-    if task == "causal":
-        _id2label = cast(dict[int, str], id2label)
-        return get_causal_batch(tokenizer=tokenizer, enc=enc, id2label=_id2label)
+        if task == "seq2seq":
+            answer_enc["labels"] = labels_enc[prompt_len:]
+            encs.append(answer_enc)
+            continue
 
-    if task == "seq2seq":
-        _eos = tokenizer.eos_token_id
-        _labels = [[*tokenizer.encode(id2label[tag_id]), _eos] for tag_id in labels]
-        enc["labels"] = _labels
-        return enc
+        raise NotImplementedError(f"Task '{task}'")
 
-    raise NotImplementedError(f"Task '{task}'")
+    return encs
 
 
 def _join_spans(
@@ -249,7 +278,6 @@ def init_estner(
     fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
     data = data.map(
         _tokenize,
-        batched=True,
         num_proc=workers,
         remove_columns=cols,
         fn_kwargs=fn_kwargs,
@@ -272,16 +300,8 @@ def init_estner_info(
     model_type: str,
     n_shot: int = 0,
 ) -> DatasetInfo:
-    if n_shot > len(examples):
-        raise ValueError("Requested more examples than exist")
-
-    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
-
-    shots = "".join(examples[:n_shot])
-    prompt = f"{prompt}{shots}"
-
     return DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=prompt,
+        system_prompt=_get_sys_prompt(tokenizer, model_type, n_shot),
     )
