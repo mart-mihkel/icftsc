@@ -3,7 +3,7 @@ from transformers import AutoConfig
 from icftsc.datasets.common import get_collator, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.scripts.common import init_model, load_data, train
+from icftsc.scripts.common import get_model, load_data, train
 from icftsc.types import DatasetName, Task
 
 
@@ -13,7 +13,7 @@ def fine_tune(
     dataset: DatasetName,
     task: Task,
     head_only: bool,
-    workers: int,
+    n_shot: int,
     epochs: int,
     batch_size: int,
     learning_rate: float,
@@ -28,27 +28,16 @@ def fine_tune(
     collate_fn = get_collator(tokenizer, task)
     metrics_fn = get_metrics_fn(tokenizer, task)
 
-    logger.info("load dataset '%s'", dataset)
-    data, info = load_data(
-        model_type=config.model_type,
-        tokenizer=tokenizer,
-        dataset=dataset,
-        workers=workers,
-        task=task,
-    )
+    logger.info("load '%s' dataset", dataset)
+    model_type = config.model_type
+    data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
 
     if dataset == "boolq" or dataset == "wic":
         logger.warning("drop superglue test data, labels are private")
         data.pop("test")
 
     logger.info("load pretrained '%s' for '%s'", model_path, task)
-    model, _ = init_model(
-        head_only=head_only,
-        tokenizer=tokenizer,
-        model_path=model_path,
-        data_info=info,
-        task=task,
-    )
+    model = get_model(tokenizer, model_path, info, task, head_only)
 
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)

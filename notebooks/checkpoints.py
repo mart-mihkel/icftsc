@@ -11,7 +11,7 @@ def _():
     from transformers import AutoConfig, AutoModel, AutoTokenizer
 
     from icftsc.datasets.common import DatasetInfo
-    from icftsc.scripts.common import init_pt_model
+    from icftsc.scripts.common import get_pt_model
 
     return (
         AutoConfig,
@@ -19,7 +19,7 @@ def _():
         AutoTokenizer,
         DatasetInfo,
         Parameter,
-        init_pt_model,
+        get_pt_model,
         torch,
     )
 

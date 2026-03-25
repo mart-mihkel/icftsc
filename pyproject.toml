@@ -26,7 +26,7 @@ dev = [
     "marimo~=0.21.1",
     "pytest~=9.0.2",
     "ruff~=0.15.7",
-    "ty~=0.0.24",
+    "ty~=0.0.25",
 ]
 
 [project.scripts]

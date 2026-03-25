@@ -3,7 +3,7 @@ from transformers import AutoConfig
 from icftsc.datasets.common import get_collator, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.scripts.common import init_pt_model, load_data, train
+from icftsc.scripts.common import get_pt_model, load_data, train
 from icftsc.types import DatasetName, PrefixInit, Task
 
 
@@ -13,7 +13,7 @@ def prompt_tune(
     dataset: DatasetName,
     task: Task,
     prefix_init: PrefixInit,
-    workers: int,
+    n_shot: int,
     epochs: int,
     batch_size: int,
     learning_rate: float,
@@ -33,7 +33,7 @@ def prompt_tune(
         model_type=config.model_type,
         tokenizer=tokenizer,
         dataset=dataset,
-        workers=workers,
+        n_shot=n_shot,
         task=task,
     )
 
@@ -48,7 +48,7 @@ def prompt_tune(
         task,
     )
 
-    model = init_pt_model(
+    model = get_pt_model(
         prefix_init=prefix_init,
         tokenizer=tokenizer,
         model_path=model_path,

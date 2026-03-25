@@ -15,7 +15,7 @@ from icftsc.modeling.seqcls import (
     PTGPTForSequenceClassification,
     PTT5ForSequenceClassification,
 )
-from icftsc.scripts.prompt_tune import init_pt_model
+from icftsc.scripts.prompt_tune import get_pt_model
 
 
 def test_init_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
@@ -25,7 +25,7 @@ def test_init_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
         system_prompt="mock",
     )
 
-    model = init_pt_model(
+    model = get_pt_model(
         model_path="jhu-clsp/mmBERT-base",
         tokenizer=mmbert_tokenizer,
         prefix_init="pretrained",
@@ -132,7 +132,7 @@ def test_save_model_seqcls(mmbert_tokenizer: PreTrainedTokenizerFast):
         system_prompt="mock",
     )
 
-    model = init_pt_model(
+    model = get_pt_model(
         model_path="jhu-clsp/mmBERT-base",
         tokenizer=mmbert_tokenizer,
         prefix_init="pretrained",

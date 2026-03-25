@@ -22,21 +22,21 @@ from transformers import (
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
-from icftsc.datasets.boolq import init_boolq, init_boolq_info
-from icftsc.datasets.estner import init_estner, init_estner_info
-from icftsc.datasets.multinerd import DatasetInfo, init_multinerd, init_multinerd_info
-from icftsc.datasets.wic import init_wic, init_wic_info
+from icftsc.datasets.boolq import load_boolq
+from icftsc.datasets.estner import load_estner
+from icftsc.datasets.multinerd import DatasetInfo, load_multinerd
+from icftsc.datasets.wic import load_wic
 from icftsc.logging import logger
 from icftsc.types import DatasetName, PrefixInit, Task
 
 
-def init_model(
-    head_only: bool,
+def get_model(
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
     data_info: DatasetInfo,
     task: Task,
-) -> tuple[PreTrainedModel, dict[str, set[str]]]:
+    head_only: bool,
+) -> PreTrainedModel:
     if task == "seqcls":
         logger.debug("load pretrained model for sequence classification")
         model, loading_info = AutoModelForSequenceClassification.from_pretrained(
@@ -64,26 +64,21 @@ def init_model(
     if head_only:
         freeze(model=model, skip=loading_info["missing_keys"])
 
-    return model, loading_info
+    return model
 
 
-def init_pt_model(
+def get_pt_model(
     prefix_init: PrefixInit,
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
     task: Task,
     data_info: DatasetInfo,
 ) -> PeftModel:
-    sys = tokenizer(data_info["system_prompt"], truncation=True)
-    num_virtual_tokens = len(sys["input_ids"])
+    sys_prompt = data_info["system_prompt"]
+    sys_enc = tokenizer(sys_prompt, truncation=True)
+    num_virtual_tokens = len(sys_enc["input_ids"])
 
-    base, _ = init_model(
-        head_only=False,
-        tokenizer=tokenizer,
-        model_path=model_path,
-        data_info=data_info,
-        task=task,
-    )
+    base = get_model(tokenizer, model_path, data_info, task, head_only=False)
 
     if task == "seqcls":
         task_type = TaskType.SEQ_CLS
@@ -105,8 +100,8 @@ def init_pt_model(
         task_type=task_type,
         prompt_tuning_init=init,
         tokenizer_name_or_path=model_path,
+        prompt_tuning_init_text=sys_prompt,
         num_virtual_tokens=num_virtual_tokens,
-        prompt_tuning_init_text=data_info["system_prompt"],
     )
 
     return cast(PeftModel, get_peft_model(base, config))
@@ -117,70 +112,22 @@ def load_data(
     dataset: DatasetName,
     model_type: str,
     task: Task,
-    workers: int = 0,
+    n_shot: int,
     split: Split | None = None,
-    n_shot: int = 0,
 ) -> tuple[DatasetDict, DatasetInfo]:
     if dataset == "multinerd":
-        info = init_multinerd_info(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            n_shot=n_shot,
-        )
+        return load_multinerd(tokenizer, model_type, task, n_shot, split=split)
 
-        data = init_multinerd(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            workers=workers,
-            split=split,
-            task=task,
-        )
-    elif dataset == "estner":
-        info = init_estner_info(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            n_shot=n_shot,
-        )
+    if dataset == "estner":
+        return load_estner(tokenizer, model_type, task, n_shot, split)
 
-        data = init_estner(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            workers=workers,
-            split=split,
-            task=task,
-        )
-    elif dataset == "boolq":
-        info = init_boolq_info(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            n_shot=n_shot,
-        )
+    if dataset == "boolq":
+        return load_boolq(tokenizer, model_type, task, n_shot, split)
 
-        data = init_boolq(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            workers=workers,
-            split=split,
-            task=task,
-        )
-    elif dataset == "wic":
-        info = init_wic_info(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            n_shot=n_shot,
-        )
+    if dataset == "wic":
+        return load_wic(tokenizer, model_type, task, n_shot, split)
 
-        data = init_wic(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            workers=workers,
-            split=split,
-            task=task,
-        )
-    else:
-        raise NotImplementedError(f"Dataset '{dataset}'")
-
-    return data, info
+    raise NotImplementedError(f"Dataset '{dataset}'")
 
 
 def freeze(model: Module, skip: set[str]):

@@ -22,11 +22,11 @@ def predict_boolq(checkpoint: str):
     config = AutoConfig.from_pretrained(checkpoint)
     tokenizer = load_tokenizer(model_path=checkpoint)
     data, _ = load_data(
-        model_type=config.model_type,
         tokenizer=tokenizer,
-        task=params["task"],
         dataset="boolq",
-        workers=params["workers"],
+        model_type=config.model_type,
+        task=params["task"],
+        n_shot=params["n_shot"],
         split=cast(Split, {"test": "test"}),
     )
 

@@ -200,13 +200,13 @@ def _tokenize(
     raise NotImplementedError(f"Task '{task}'")
 
 
-def init_wic(
+def load_wic(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
-    workers: int = 0,
+    n_shot: int,
     split: Split | None = None,
-) -> DatasetDict:
+) -> tuple[DatasetDict, DatasetInfo]:
     data = cast(DatasetDict, load_dataset("super_glue", "wic", split=split))
 
     if "validation" in data:
@@ -225,12 +225,7 @@ def init_wic(
     ]
 
     fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
-    data = data.map(
-        _tokenize,
-        num_proc=workers,
-        remove_columns=cols,
-        fn_kwargs=fn_kwargs,
-    )
+    data = data.map(_tokenize, remove_columns=cols, fn_kwargs=fn_kwargs)
 
     if "train" in data:
         logger.info("%d train samples", len(data["train"]))
@@ -241,16 +236,10 @@ def init_wic(
     if "test" in data:
         logger.info("%d test samples", len(data["test"]))
 
-    return data
-
-
-def init_wic_info(
-    tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
-    n_shot: int = 0,
-) -> DatasetInfo:
-    return DatasetInfo(
+    info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
         system_prompt=_get_sys_prompt(tokenizer, model_type, n_shot),
     )
+
+    return data, info

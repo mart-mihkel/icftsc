@@ -8,7 +8,7 @@ from icftsc.datasets.common import (
 )
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.scripts.common import init_model, load_data, train
+from icftsc.scripts.common import get_model, load_data, train
 from icftsc.types import DatasetName, PromptMode, Task
 
 
@@ -19,7 +19,6 @@ def few_shot(
     task: Task,
     prompt_mode: PromptMode,
     n_shot: int,
-    workers: int,
     batch_size: int,
     mlflow_tracking_uri: str | None,
 ):
@@ -36,7 +35,6 @@ def few_shot(
         model_type=config.model_type,
         tokenizer=tokenizer,
         dataset=dataset,
-        workers=workers,
         n_shot=n_shot,
         task=task,
     )
@@ -57,18 +55,11 @@ def few_shot(
     data["test"] = data["test"].map(
         prepend_system_tokens,
         batched=True,
-        num_proc=workers,
         fn_kwargs={"sys": sys, "has_bos": has_bos},
     )
 
     logger.info("load pretrained '%s' for '%s'", model_path, task)
-    model, _ = init_model(
-        model_path=model_path,
-        tokenizer=tokenizer,
-        head_only=False,
-        data_info=info,
-        task=task,
-    )
+    model = get_model(tokenizer, model_path, info, task, head_only=False)
 
     train(
         model=model,
