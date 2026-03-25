@@ -5,7 +5,16 @@ from typing import Any, TypedDict, cast
 import numpy as np
 import torch
 from torch import Tensor
-from transformers import BatchEncoding, PreTrainedTokenizerFast
+from transformers import (
+    AutoTokenizer,
+    BatchEncoding,
+    DataCollator,
+    DataCollatorWithPadding,
+    PreTrainedTokenizerFast,
+)
+
+from icftsc.logging import logger
+from icftsc.types import Task
 
 
 class DatasetInfo(TypedDict):
@@ -93,3 +102,28 @@ def randomize_prompt(
 
     out = {"input_ids": random_ids, "attention_mask": enc["attention_mask"]}
     return BatchEncoding(out)
+
+
+def load_tokenizer(model_path: str) -> PreTrainedTokenizerFast:
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
+
+    if tokenizer.pad_token is None:
+        logger.warning("tokenizer doesn't have a padding token, using eos")
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    return tokenizer
+
+
+def get_collator(tokenizer: PreTrainedTokenizerFast, task: Task) -> DataCollator:
+    if task == "seqcls":
+        return DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
+
+    if task == "causal" or task == "seq2seq":
+        return DataCollatorWithPaddingAndLabels(
+            tokenizer=tokenizer,
+            pad_to_multiple_of=8,
+        )
+
+    raise NotImplementedError(f"Task '{task}'")

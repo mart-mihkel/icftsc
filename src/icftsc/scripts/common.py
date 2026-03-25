@@ -8,17 +8,13 @@ import torch
 from datasets.dataset_dict import DatasetDict
 from datasets.splits import Split
 from mlflow import end_run, set_experiment, set_tracking_uri, start_run
-from torch.nn import Module, Parameter
+from torch.nn import Module
 from torch.utils.data import Dataset
 from transformers import (
-    AutoConfig,
-    AutoModel,
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
-    AutoTokenizer,
     DataCollator,
-    DataCollatorWithPadding,
     EvalPrediction,
     PreTrainedModel,
     PreTrainedTokenizerFast,
@@ -28,16 +24,10 @@ from transformers.training_args import TrainingArguments
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
 from icftsc.datasets.boolq import init_boolq, init_boolq_info
-from icftsc.datasets.common import DataCollatorWithPaddingAndLabels
 from icftsc.datasets.estner import init_estner, init_estner_info
 from icftsc.datasets.multinerd import DatasetInfo, init_multinerd, init_multinerd_info
 from icftsc.datasets.wic import init_wic, init_wic_info
 from icftsc.logging import logger
-from icftsc.metrics import (
-    compute_metrics_causal_lm,
-    compute_metrics_seq2seq,
-    compute_metrics_seq_cls,
-)
 from icftsc.modeling.causal import PTGPTForCausalLM
 from icftsc.modeling.common import PTModel, PTModelConfig
 from icftsc.modeling.seq2seq import PTT5ForSeq2SeqLM
@@ -53,55 +43,6 @@ def save_params(params: dict[str, Any], run_name: str):
     os.makedirs(f"out/{run_name}", exist_ok=True)
     with open(f"out/{run_name}/cli_params.json", "w") as f:
         json.dump(params, f, indent=2)
-
-
-def init_metrics_fn(
-    task: Task,
-    tokenizer: PreTrainedTokenizerFast,
-) -> Callable[[EvalPrediction, bool], dict[str, int | float]]:
-    if task == "seqcls":
-        return compute_metrics_seq_cls
-
-    if task == "seq2seq":
-        return lambda eval_pred, compute_result: compute_metrics_seq2seq(
-            eval_pred=eval_pred,
-            compute_result=compute_result,
-            tokenizer=tokenizer,
-        )
-
-    if task == "causal":
-        return lambda eval_pred, compute_result: compute_metrics_causal_lm(
-            eval_pred=eval_pred,
-            compute_result=compute_result,
-            tokenizer=tokenizer,
-        )
-
-    raise NotImplementedError(f"Task '{task}'")
-
-
-def init_tokenizer(model_path: str) -> PreTrainedTokenizerFast:
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
-
-    if tokenizer.pad_token is None:
-        logger.warning("tokenizer doesn't have a padding token, using eos")
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.pad_token_id = tokenizer.eos_token_id
-
-    return tokenizer
-
-
-def init_collator(tokenizer: PreTrainedTokenizerFast, task: Task) -> DataCollator:
-    if task == "seqcls":
-        return DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
-
-    if task == "causal" or task == "seq2seq":
-        return DataCollatorWithPaddingAndLabels(
-            tokenizer=tokenizer,
-            pad_to_multiple_of=8,
-        )
-
-    raise NotImplementedError(f"Task '{task}'")
 
 
 def init_model(
@@ -255,7 +196,7 @@ def init_pt_model(
     return model
 
 
-def init_data(
+def load_data(
     tokenizer: PreTrainedTokenizerFast,
     dataset: DatasetName,
     model_type: str,

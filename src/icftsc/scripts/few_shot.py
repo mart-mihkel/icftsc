@@ -1,15 +1,14 @@
 from transformers import AutoConfig
 
-from icftsc.datasets.common import prepend_system_tokens, randomize_prompt
-from icftsc.logging import logger
-from icftsc.scripts.common import (
-    init_collator,
-    init_data,
-    init_metrics_fn,
-    init_model,
-    init_tokenizer,
-    train,
+from icftsc.datasets.common import (
+    get_collator,
+    load_tokenizer,
+    prepend_system_tokens,
+    randomize_prompt,
 )
+from icftsc.logging import logger
+from icftsc.metrics import get_metrics_fn
+from icftsc.scripts.common import init_model, load_data, train
 from icftsc.types import DatasetName, PromptMode, Task
 
 
@@ -28,12 +27,12 @@ def few_shot(
     config = AutoConfig.from_pretrained(model_path)
 
     logger.info("load pretrained tokenizer")
-    tokenizer = init_tokenizer(model_path=model_path)
-    collate_fn = init_collator(tokenizer=tokenizer, task=task)
-    metrics_fn = init_metrics_fn(task=task, tokenizer=tokenizer)
+    tokenizer = load_tokenizer(model_path)
+    collate_fn = get_collator(tokenizer, task)
+    metrics_fn = get_metrics_fn(tokenizer, task)
 
     logger.info("load dataset '%s'", dataset)
-    data, info = init_data(
+    data, info = load_data(
         model_type=config.model_type,
         tokenizer=tokenizer,
         dataset=dataset,

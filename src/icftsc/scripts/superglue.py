@@ -9,8 +9,9 @@ from torch.utils.data import Dataset
 from transformers import AutoConfig, AutoModel, DataCollatorWithPadding, Trainer
 
 from icftsc.datasets.boolq import id2label
+from icftsc.datasets.common import load_tokenizer
 from icftsc.logging import logger
-from icftsc.scripts.common import init_data, init_tokenizer
+from icftsc.scripts.common import load_data
 
 
 def predict_boolq(checkpoint: str):
@@ -19,8 +20,8 @@ def predict_boolq(checkpoint: str):
         params = json.load(f)
 
     config = AutoConfig.from_pretrained(checkpoint)
-    tokenizer = init_tokenizer(model_path=checkpoint)
-    data, _ = init_data(
+    tokenizer = load_tokenizer(model_path=checkpoint)
+    data, _ = load_data(
         model_type=config.model_type,
         tokenizer=tokenizer,
         task=params["task"],

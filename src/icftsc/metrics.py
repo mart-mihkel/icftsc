@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import evaluate
 import numpy as np
 from scipy.special import log_softmax
@@ -6,6 +8,7 @@ from torch.fft import Tensor
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
 from icftsc.logging import logger
+from icftsc.types import Task
 
 _bleu = evaluate.load("bleu")
 _rouge = evaluate.load("rouge")
@@ -180,3 +183,27 @@ def compute_metrics_causal_lm(
     logger.debug("predictions 0-10: %s", predictions[:10])
 
     return _compute_classification_metrics(references, predictions)
+
+
+def get_metrics_fn(
+    tokenizer: PreTrainedTokenizerFast,
+    task: Task,
+) -> Callable[[EvalPrediction, bool], dict[str, int | float]]:
+    if task == "seqcls":
+        return compute_metrics_seq_cls
+
+    if task == "seq2seq":
+        return lambda eval_pred, compute_result: compute_metrics_seq2seq(
+            eval_pred=eval_pred,
+            compute_result=compute_result,
+            tokenizer=tokenizer,
+        )
+
+    if task == "causal":
+        return lambda eval_pred, compute_result: compute_metrics_causal_lm(
+            eval_pred=eval_pred,
+            compute_result=compute_result,
+            tokenizer=tokenizer,
+        )
+
+    raise NotImplementedError(f"Task '{task}'")
