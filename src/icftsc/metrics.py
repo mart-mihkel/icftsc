@@ -140,6 +140,7 @@ def compute_metrics_seq2seq(
     references = tokenizer.batch_decode(labels, skip_special_tokens=True)
     predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
 
+    logger.info(references)
     logger.info(predictions)
 
     return _compute_classification_metrics(references, predictions)
@@ -172,6 +173,7 @@ def compute_metrics_causal_lm(
     references = tokenizer.batch_decode(labels, skip_special_tokens=True)
     predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
 
+    logger.info(references)
     logger.info(predictions)
 
     return _compute_classification_metrics(references, predictions)

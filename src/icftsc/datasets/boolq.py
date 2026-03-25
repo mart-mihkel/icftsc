@@ -6,91 +6,100 @@ from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import DatasetInfo, get_causal_batch
+from icftsc.datasets.common import DatasetInfo
 from icftsc.logging import logger
 from icftsc.types import Task
 
-type BoolQALabel = Literal["false", "true"]
+type BoolQALabel = Literal["no", "yes"]
 
 
-class BoolqBatch(TypedDict):
-    idx: list[int]
-    passage: list[str]
-    question: list[str]
-    label: list[int]
+class BoolqExample(TypedDict):
+    idx: int
+    passage: str
+    question: str
+    label: int
 
 
 id2label: dict[int, BoolQALabel] = {
-    0: "false",
-    1: "true",
+    0: "no",
+    1: "yes",
 }
 
 label2id: dict[BoolQALabel, int] = {
-    "false": 0,
-    "true": 1,
+    "no": 0,
+    "yes": 1,
 }
 
 examples = [
     (
-        "Passage: The sky appears blue during the day due to Rayleigh "
-        "scattering.\nQuestion: Is the sky blue?\nAnswer: true\n"
+        "Passage: The sky appears blue during the day due to Rayleigh scattering.\n"
+        "Question: Is the sky blue?\n"
+        "Answer: yes\n"
     ),
     (
-        "Passage: Fish are animals that live exclusively underwater and "
-        "breathe using gills.\nQuestion: Can fish breathe on land?\nAnswer: false\n"
+        "Passage: Fish are animals that live exclusively underwater and breathe "
+        "using gills.\n"
+        "Question: Can fish breathe on land?\n"
+        "Answer: no\n"
     ),
     (
-        "Passage: Water freezes at 0 degrees Celsius and boils at 100 "
-        "degrees Celsius at sea level.\n"
-        "Question: Does water freeze at room temperature?\nAnswer: false\n"
+        "Passage: Water freezes at 0 degrees Celsius and boils at 100 degrees "
+        "Celsius at sea level.\n"
+        "Question: Does water freeze at room temperature?\n"
+        "Answer: no\n"
     ),
     (
-        "Passage: The Earth orbits around the Sun in approximately 365 "
-        "days.\nQuestion: Does the Earth orbit the Sun?\nAnswer: true\n"
+        "Passage: The Earth orbits around the Sun in approximately 365 days.\n"
+        "Question: Does the Earth orbit the Sun?\n"
+        "Answer: yes\n"
     ),
     (
-        "Passage: Photosynthesis is the process by which plants convert "
-        "sunlight into energy.\nQuestion: Do plants produce their own food?"
-        "\nAnswer: true\n"
+        "Passage: Photosynthesis is the process by which plants convert sunlight "
+        "into energy.\n"
+        "Question: Do plants produce their own food?\n"
+        "Answer: yes\n"
     ),
     (
-        "Passage: The Great Wall of China is visible from space with "
-        "naked eye.\nQuestion: Is the Great Wall visible from space?"
-        "\nAnswer: false\n"
+        "Passage: The Great Wall of China is visible from space with naked eye.\n"
+        "Question: Is the Great Wall visible from space?\n"
+        "Answer: no\n"
     ),
     (
-        "Passage: Lightning is a discharge of electricity that occurs "
-        "during thunderstorms.\nQuestion: Is lightning caused by electricity?"
-        "\nAnswer: true\n"
+        "Passage: Lightning is a discharge of electricity that occurs during "
+        "thunderstorms.\n"
+        "Question: Is lightning caused by electricity?\n"
+        "Answer: yes\n"
     ),
     (
         "Passage: The human body contains 206 bones in adulthood.\n"
-        "Question: Do adults have more than 300 bones?\nAnswer: false\n"
+        "Question: Do adults have more than 300 bones?\n"
+        "Answer: no\n"
     ),
 ]
 
 
-def _bert_sys_prompt(bos: str, sep: str) -> str:
-    return f"{bos}Answer the question based on the passage.{sep}"
+def _bert_sys_prompt(sep: str) -> str:
+    return f"Answer the question based on the passage.{sep}"
 
 
-def _bert_prompt(question: str, passage: str, bos: str, sep: str, eos: str) -> str:
-    return f"{bos}{question}{sep}{passage}{eos}"
+def _bert_prompt(example: BoolqExample, sep: str) -> str:
+    return f"{example['question']}{sep}{example['passage']}"
 
 
-def _gpt_sys_prompt(bos: str | None) -> str:
-    _bos = bos if bos is not None else ""
+def _gpt_sys_prompt() -> str:
     return (
-        f"{_bos}"
         "You are a Boolean Question Answering expert.Given a passage and a "
-        'question, answer with exactly one word: "true" or "false".\nDo '
+        'question, answer with exactly one word: "yes" or "no".\nDo '
         "not provide any explanation.\n"
     )
 
 
-def _gpt_prompt(question: str, passage: str, bos: str | None) -> str:
-    _bos = bos if bos is not None else ""
-    return f"{_bos}Passage: {passage}\nQuestion: {question}\nAnswer: "
+def _gpt_prompt(example: BoolqExample) -> str:
+    return (
+        f"Passage: {example['passage']}\n"
+        f"Question: {example['question']}\n"
+        "Answer (yes/no):"
+    )
 
 
 def _t5_sys_prompt() -> str:
@@ -100,84 +109,84 @@ def _t5_sys_prompt() -> str:
     )
 
 
-def _t5_prompt(question: str, passage: str) -> str:
-    return f"passage: {passage}\nquestion: {question}\nanswer: "
+def _t5_prompt(example: BoolqExample) -> str:
+    return (
+        f"passage: {example['passage']}\n"
+        f"question: {example['question']}\n"
+        "answer (yes/no):"
+    )
 
 
-def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, model_type: str) -> str:
+def _get_sys_prompt(
+    tokenizer: PreTrainedTokenizerFast,
+    model_type: str,
+    n_shot: int,
+) -> str:
+    if n_shot > len(examples):
+        raise ValueError("Requested more examples than exist")
+
     if model_type in bert_model_types:
-        return _bert_sys_prompt(bos=tokenizer.bos_token, sep=tokenizer.sep_token)
+        prompt = _bert_sys_prompt(sep=tokenizer.sep_token)
+    elif model_type in gpt_model_types:
+        prompt = _gpt_sys_prompt()
+    elif model_type in t5_model_types:
+        prompt = _t5_sys_prompt()
+    else:
+        raise NotImplementedError(f"Model type '{model_type}'")
 
-    if model_type in gpt_model_types:
-        return _gpt_sys_prompt(bos=tokenizer.bos_token)
-
-    if model_type in t5_model_types:
-        return _t5_sys_prompt()
-
-    raise NotImplementedError(f"Model type '{model_type}'")
+    shots = "".join(examples[:n_shot])
+    return f"{prompt}{shots}"
 
 
 def _get_prompt(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
-    question: str,
-    passage: str,
+    example: BoolqExample,
 ) -> str:
     if model_type in bert_model_types:
-        return _bert_prompt(
-            question=question,
-            passage=passage,
-            bos=tokenizer.bos_token,
-            sep=tokenizer.sep_token,
-            eos=tokenizer.eos_token,
-        )
+        return _bert_prompt(example, tokenizer.sep_token)
 
     if model_type in gpt_model_types:
-        return _gpt_prompt(question=question, passage=passage, bos=tokenizer.bos_token)
+        return _gpt_prompt(example)
 
     if model_type in t5_model_types:
-        return _t5_prompt(question=question, passage=passage)
+        return _t5_prompt(example)
 
     raise NotImplementedError(f"Model type '{model_type}'")
 
 
 def _tokenize(
-    batch: BoolqBatch,
+    example: BoolqExample,
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
 ) -> BatchEncoding:
-    prompts: list[str] = []
-    labels: list[int] = []
+    _id2label = id2label | {-1: "private"}
 
-    it = zip(batch["passage"], batch["question"], batch["label"], strict=True)
-    for passage, question, label_id in it:
-        prompt = _get_prompt(
-            model_type=model_type,
-            tokenizer=tokenizer,
-            question=question,
-            passage=passage,
-        )
+    sys = _get_sys_prompt(tokenizer, model_type, n_shot=5)
+    prompt = _get_prompt(tokenizer, model_type, example)
+    label_id = example["label"]
+    label = _id2label[label_id]
 
-        prompts.append(prompt)
-        labels.append(label_id)
-
-    enc = tokenizer(prompts, truncation=True, add_special_tokens=False)
-    enc["labels"] = labels
+    prompt_enc = tokenizer(f"{sys}{prompt}", truncation=True)
+    prompt_len = len(prompt_enc["input_ids"])
 
     if task == "seqcls":
-        return enc
+        prompt_enc["label"] = label_id
+        return prompt_enc
+
+    answer = f"{sys}{prompt} {label}"
+    answer_enc = tokenizer(answer, truncation=True)
+    labels_enc = answer_enc["input_ids"].copy()
 
     if task == "causal":
-        _id2label = id2label | {-1: "private"}
-        return get_causal_batch(tokenizer=tokenizer, enc=enc, id2label=_id2label)
+        labels_enc[:prompt_len] = [-100] * prompt_len
+        answer_enc["labels"] = labels_enc
+        return answer_enc
 
     if task == "seq2seq":
-        _id2label = id2label | {-1: "private"}
-        eos = tokenizer.eos_token_id
-        _labels = [[*tokenizer.encode(_id2label[label_id]), eos] for label_id in labels]
-        enc["labels"] = _labels
-        return enc
+        answer_enc["labels"] = labels_enc[prompt_len:]
+        return answer_enc
 
     raise NotImplementedError(f"Task '{task}'")
 
@@ -221,14 +230,7 @@ def init_boolq_info(
     model_type: str,
     n_shot: int = 0,
 ) -> DatasetInfo:
-    if n_shot > len(examples):
-        raise ValueError("Requested more examples than exist")
-
-    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type)
-
-    shots = "".join(examples[:n_shot])
-    prompt = f"{prompt}{shots}"
-
+    prompt = _get_sys_prompt(tokenizer=tokenizer, model_type=model_type, n_shot=n_shot)
     return DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),

@@ -260,7 +260,7 @@ def init_data(
     dataset: DatasetName,
     model_type: str,
     task: Task,
-    workers: int,
+    workers: int = 0,
     split: Split | None = None,
     n_shot: int = 0,
 ) -> tuple[DatasetDict, DatasetInfo]:
@@ -345,30 +345,21 @@ def train(
     epochs: int,
     learning_rate: float,
     batch_size: int,
-    effective_batch_size: int,
     grad_chkpts: bool,
     mlflow_tracking_uri: str | None,
 ):
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
 
-    grad_acc_steps = max(1, ceil(effective_batch_size / batch_size))
-    actual_effective_batch_size = batch_size * grad_acc_steps
-
-    train_steps = ceil(len(data["train"]) / actual_effective_batch_size) * epochs
+    train_steps = ceil(len(data["train"]) / batch_size) * epochs
     eval_steps = max(1, train_steps // 3)
     logging_steps = max(1, train_steps // 100)
 
     out_dir = f"out/{run_name}"
     report_to = "mlflow" if mlflow_tracking_uri else "none"
 
-    logger.debug("%shave cuda", "" if have_cuda else "don't ")
-    logger.debug("batch size %d", batch_size)
-    logger.debug(
-        "effective batch size %d with %d gradient accumulation steps",
-        actual_effective_batch_size,
-        grad_acc_steps,
-    )
+    logger.debug("using '%s' optimizer", optim)
+    logger.debug("using '%s' output dir", out_dir)
 
     args = TrainingArguments(
         run_name=run_name,
@@ -384,7 +375,6 @@ def train(
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        gradient_accumulation_steps=grad_acc_steps,
         gradient_checkpointing=grad_chkpts,
         bf16_full_eval=have_cuda,
         bf16=have_cuda,

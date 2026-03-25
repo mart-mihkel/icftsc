@@ -80,7 +80,6 @@ def few_shot(
         epochs=0,
         learning_rate=5e-5,
         batch_size=batch_size,
-        effective_batch_size=batch_size,
         grad_chkpts=False,
         mlflow_tracking_uri=mlflow_tracking_uri,
     )
