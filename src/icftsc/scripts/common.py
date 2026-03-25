@@ -1,13 +1,13 @@
 import json
-import os
 from collections.abc import Callable
 from math import ceil
-from typing import Any, cast
+from typing import cast
 
 import torch
 from datasets.dataset_dict import DatasetDict
 from datasets.splits import Split
 from mlflow import end_run, set_experiment, set_tracking_uri, start_run
+from peft import PeftModel, PromptTuningConfig, TaskType, get_peft_model
 from torch.nn import Module
 from torch.utils.data import Dataset
 from transformers import (
@@ -22,27 +22,12 @@ from transformers import (
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
-from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
 from icftsc.datasets.boolq import init_boolq, init_boolq_info
 from icftsc.datasets.estner import init_estner, init_estner_info
 from icftsc.datasets.multinerd import DatasetInfo, init_multinerd, init_multinerd_info
 from icftsc.datasets.wic import init_wic, init_wic_info
 from icftsc.logging import logger
-from icftsc.modeling.causal import PTGPTForCausalLM
-from icftsc.modeling.common import PTModel, PTModelConfig
-from icftsc.modeling.seq2seq import PTT5ForSeq2SeqLM
-from icftsc.modeling.seqcls import (
-    PTBertForSequenceClassification,
-    PTGPTForSequenceClassification,
-    PTT5ForSequenceClassification,
-)
 from icftsc.types import DatasetName, PrefixInit, Task
-
-
-def save_params(params: dict[str, Any], run_name: str):
-    os.makedirs(f"out/{run_name}", exist_ok=True)
-    with open(f"out/{run_name}/cli_params.json", "w") as f:
-        json.dump(params, f, indent=2)
 
 
 def init_model(
@@ -82,72 +67,17 @@ def init_model(
     return model, loading_info
 
 
-def load_pt_model(checkpoint: str) -> PTModel:
-    logger.debug("load pt-model from checkpoint")
-    config = AutoConfig.from_pretrained(checkpoint, local_files_only=True)
-    # FIXME: there's no automodel support
-    return AutoModel.from_pretrained(
-        checkpoint,
-        config=config,
-        local_files_only=True,
-    )
-
-
-def init_seqcls_pt_model(config: PTModelConfig, model_type: str) -> PTModel:
-    if model_type in bert_model_types:
-        logger.debug("init pt-bert for sequence classification")
-        return PTBertForSequenceClassification(config=config)
-
-    if model_type in gpt_model_types:
-        logger.debug("init pt-gpt for sequence classification")
-        return PTGPTForSequenceClassification(config=config)
-
-    if model_type in t5_model_types:
-        logger.debug("init pt-t5 for sequence classification")
-        return PTT5ForSequenceClassification(config=config)
-
-    raise NotImplementedError(
-        f"PTModelForSequenceClassification for '{model_type}' base model"
-    )
-
-
-def init_causal_pt_model(config: PTModelConfig, model_type: str) -> PTModel:
-    if model_type in gpt_model_types:
-        logger.debug("init pt-gpt for causal language modeling")
-        return PTGPTForCausalLM(config=config)
-
-    raise NotImplementedError(f"PTModelForCausalLM for '{model_type}' base model")
-
-
-def init_seq2seq_pt_model(config: PTModelConfig, model_type: str) -> PTModel:
-    if model_type in t5_model_types:
-        logger.debug("init pt-t5 for sequence to sequence")
-        return PTT5ForSeq2SeqLM(config=config)
-
-    raise NotImplementedError(f"PTModelForSeq2SeqLM for '{model_type}' base model")
-
-
 def init_pt_model(
     prefix_init: PrefixInit,
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
     task: Task,
     data_info: DatasetInfo,
-) -> PTModel:
-    if "checkpoint" in model_path:
-        return load_pt_model(checkpoint=model_path)
+) -> PeftModel:
+    sys = tokenizer(data_info["system_prompt"], truncation=True)
+    num_virtual_tokens = len(sys["input_ids"])
 
-    bos = tokenizer.bos_token or ""
-    sys = tokenizer(
-        f"{bos}{data_info['system_prompt']}",
-        add_special_tokens=False,
-        truncation=True,
-    )
-
-    system_ids = torch.tensor(sys["input_ids"])
-    num_virtual_tokens = len(system_ids)
-
-    base, loading_info = init_model(
+    base, _ = init_model(
         head_only=False,
         tokenizer=tokenizer,
         model_path=model_path,
@@ -155,45 +85,31 @@ def init_pt_model(
         task=task,
     )
 
-    config = PTModelConfig(
-        task=task,
-        pretrained_model=model_path,
-        num_virtual_tokens=num_virtual_tokens,
-        num_labels=len(data_info["id2label"]),
-        id2label=data_info["id2label"],
-        label2id=data_info["label2id"],
-    )
-
-    model_type = base.config.model_type
     if task == "seqcls":
-        model = init_seqcls_pt_model(config=config, model_type=model_type)
+        task_type = TaskType.SEQ_CLS
     elif task == "causal":
-        model = init_causal_pt_model(config=config, model_type=model_type)
+        task_type = TaskType.CAUSAL_LM
     elif task == "seq2seq":
-        model = init_seq2seq_pt_model(config=config, model_type=model_type)
+        task_type = TaskType.SEQ_2_SEQ_LM
     else:
         raise NotImplementedError(f"Task '{task}'")
 
-    if model.base.config.pad_token_id is None:
-        model.base.config.pad_token_id = tokenizer.eos_token_id
-
-    logger.debug("insert pretrained weights")
-    model.base.load_state_dict(base.state_dict(), strict=False)
-    del base
-
-    freeze(model=model.base, skip=loading_info["missing_keys"])
-
-    emb = model.base.get_input_embeddings()
-    if prefix_init == "random":
-        logger.debug("init random prefix")
-        model.prefix = Parameter(torch.randn(num_virtual_tokens, emb.embedding_dim))
-    elif prefix_init == "pretrained":
-        logger.debug("init pretrained prefix")
-        model.prefix = Parameter(emb(system_ids).detach())
+    if prefix_init == "pretrained":
+        init = "TEXT"
+    elif prefix_init == "random":
+        init = "RANDOM"
     else:
         raise NotImplementedError(f"Prefix init '{prefix_init}'")
 
-    return model
+    config = PromptTuningConfig(
+        task_type=task_type,
+        prompt_tuning_init=init,
+        tokenizer_name_or_path=model_path,
+        num_virtual_tokens=num_virtual_tokens,
+        prompt_tuning_init_text=data_info["system_prompt"],
+    )
+
+    return cast(PeftModel, get_peft_model(base, config))
 
 
 def load_data(

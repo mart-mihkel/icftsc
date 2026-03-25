@@ -16,6 +16,7 @@ dependencies = [
     "polars>=1.39.3",
     "typer~=0.24.1",
     "torch~=2.10.0",
+    "peft~=0.18.1",
     "nltk~=3.9.3",
 ]
 

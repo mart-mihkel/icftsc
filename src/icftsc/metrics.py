@@ -35,6 +35,12 @@ def _batch_to_numpy(eval_pred: EvalPrediction) -> tuple[np.ndarray, np.ndarray]:
 
     batch_preds = np.argmax(batch_logits, axis=-1)
 
+    _, label_dim = batch_labels.shape
+    _, pred_dim = batch_preds.shape
+    if label_dim < pred_dim:
+        virtual_dim = pred_dim - label_dim
+        batch_preds = batch_preds[:, virtual_dim:]
+
     return batch_labels, batch_preds
 
 
@@ -169,6 +175,9 @@ def compute_metrics_causal_lm(
     labels = []
     preds = []
     for label, pred in zip(_labels, _preds, strict=True):
+        label = label[1:]
+        pred = pred[:-1]
+
         mask = label != -100
         labels.append(label[mask])
         preds.append(pred[mask])

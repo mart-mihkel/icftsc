@@ -1,11 +1,19 @@
+import json
+import os
 from collections.abc import Callable
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from typer import Context, Option, Typer
 
 from icftsc.types import DatasetName, PrefixInit, PromptMode, Task
 
 app = Typer(no_args_is_help=True)
+
+
+def save_params(params: dict[str, Any], run_name: str):
+    os.makedirs(f"out/{run_name}", exist_ok=True)
+    with open(f"out/{run_name}/cli_params.json", "w") as f:
+        json.dump(params, f, indent=2)
 
 
 def timed(func: Callable) -> Callable:
@@ -52,7 +60,6 @@ def fine_tune(
     grad_chkpts: bool = False,
     mlflow_tracking_uri: str | None = None,
 ):
-    from icftsc.scripts.common import save_params
     from icftsc.scripts.fine_tune import fine_tune
 
     save_params(ctx.params, run_name)
@@ -87,7 +94,6 @@ def prompt_tune(
     grad_chkpts: bool = False,
     mlflow_tracking_uri: str | None = None,
 ):
-    from icftsc.scripts.common import save_params
     from icftsc.scripts.prompt_tune import prompt_tune
 
     save_params(ctx.params, run_name)
@@ -120,7 +126,6 @@ def few_shot(
     batch_size: int = 8,
     mlflow_tracking_uri: str | None = None,
 ):
-    from icftsc.scripts.common import save_params
     from icftsc.scripts.few_shot import few_shot
 
     save_params(ctx.params, run_name)
