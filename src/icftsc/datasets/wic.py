@@ -142,8 +142,8 @@ def _get_sys_prompt(
     else:
         raise NotImplementedError(f"Model type '{model_type}'")
 
-    shots = "".join(examples[:n_shot])
-    return f"{prompt}{shots}"
+    shots = "\n".join(examples[:n_shot])
+    return f"{prompt}\n{shots}"
 
 
 def _get_prompt(
@@ -168,23 +168,23 @@ def _tokenize(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
+    n_shot: int,
 ) -> BatchEncoding:
-    # TODO: parameterize n-shot
     _id2label = id2label | {-1: "private"}
 
-    sys = _get_sys_prompt(tokenizer, model_type, n_shot=0)
+    sys = _get_sys_prompt(tokenizer, model_type, n_shot)
     prompt = _get_prompt(tokenizer, model_type, example)
     label_id = example["label"]
     label = _id2label[label_id]
 
-    prompt_enc = tokenizer(f"{sys}{prompt}", truncation=True)
+    prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
     prompt_len = len(prompt_enc["input_ids"])
 
     if task == "seqcls":
         prompt_enc["label"] = label_id
         return prompt_enc
 
-    answer = f"{sys}{prompt} {label}"
+    answer = f"{sys}\n{prompt} {label}"
     answer_enc = tokenizer(answer, truncation=True)
     labels_enc = answer_enc["input_ids"].copy()
 
@@ -224,7 +224,13 @@ def load_wic(
         "label",
     ]
 
-    fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
+    fn_kwargs = {
+        "model_type": model_type,
+        "tokenizer": tokenizer,
+        "n_shot": n_shot,
+        "task": task,
+    }
+
     data = data.map(_tokenize, remove_columns=cols, fn_kwargs=fn_kwargs)
 
     if "train" in data:

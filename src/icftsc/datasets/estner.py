@@ -168,8 +168,8 @@ def _get_sys_prompt(
     else:
         raise NotImplementedError(f"Model type '{model_type}'")
 
-    shots = "".join(examples[:n_shot])
-    return f"{prompt}{shots}"
+    shots = "\n".join(examples[:n_shot])
+    return f"{prompt}\n{shots}"
 
 
 def _get_prompt(
@@ -195,6 +195,7 @@ def _tokenize(
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
+    n_shot: int,
 ) -> list[BatchEncoding]:
     tokens, tags = example["tokens"], example["ner_tags"]
     sentence = " ".join(tokens)
@@ -202,10 +203,10 @@ def _tokenize(
 
     encs: list[BatchEncoding] = []
     for entity, tag_id in zip(entities, tag_ids, strict=True):
-        sys = _get_sys_prompt(tokenizer, model_type, n_shot=0)
+        sys = _get_sys_prompt(tokenizer, model_type, n_shot)
         prompt = _get_prompt(tokenizer, model_type, sentence, entity)
 
-        prompt_enc = tokenizer(f"{sys}{prompt}", truncation=True)
+        prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
         prompt_len = len(prompt_enc["input_ids"])
 
         if task == "seqcls":
@@ -214,7 +215,7 @@ def _tokenize(
             continue
 
         tag = id2label[tag_id]
-        answer = f"{sys}{prompt} {tag}"
+        answer = f"{sys}\n{prompt} {tag}"
         answer_enc = tokenizer(answer, truncation=True)
         labels_enc = answer_enc["input_ids"].copy()
 
@@ -275,7 +276,13 @@ def load_estner(
     data = cast(DatasetDict, load_dataset("tartuNLP/EstNER", split=split))
 
     cols = ["doc_id", "sent_id", "tokens", "ner_tags", "ner_tags_2", "ner_tags_3"]
-    fn_kwargs = {"tokenizer": tokenizer, "model_type": model_type, "task": task}
+    fn_kwargs = {
+        "model_type": model_type,
+        "tokenizer": tokenizer,
+        "n_shot": n_shot,
+        "task": task,
+    }
+
     data = data.map(_tokenize, remove_columns=cols, fn_kwargs=fn_kwargs)
 
     if "train" in data:

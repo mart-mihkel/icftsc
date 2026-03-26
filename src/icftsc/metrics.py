@@ -1,3 +1,4 @@
+from collections import Counter
 from collections.abc import Callable
 
 import evaluate
@@ -119,8 +120,8 @@ def compute_metrics_seq_cls(
     _labels = []
     _preds = []
 
-    logger.debug("labels 0-10: %s", all_labels[mask][:10])
-    logger.debug("predictions 0-10: %s", all_preds[mask][:10])
+    logger.debug("labels: %s", Counter(all_labels[mask]))
+    logger.debug("predictions: %s", Counter(all_preds[mask]))
 
     return _compute_classification_metrics(all_labels[mask], all_preds[mask])
 
@@ -152,8 +153,8 @@ def compute_metrics_seq2seq(
     references = tokenizer.batch_decode(labels, skip_special_tokens=True)
     predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
 
-    logger.debug("references 0-10: %s", references[:10])
-    logger.debug("predictions 0-10: %s", predictions[:10])
+    logger.debug("references: %s", Counter(references))
+    logger.debug("predictions: %s", Counter(predictions))
 
     return _compute_classification_metrics(references, predictions)
 
@@ -188,8 +189,8 @@ def compute_metrics_causal_lm(
     references = tokenizer.batch_decode(labels, skip_special_tokens=True)
     predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
 
-    logger.debug("references 0-10: %s", references[:10])
-    logger.debug("predictions 0-10: %s", predictions[:10])
+    logger.debug("references: %s", Counter(references))
+    logger.debug("predictions: %s", Counter(predictions))
 
     return _compute_classification_metrics(references, predictions)
 
