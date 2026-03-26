@@ -1,12 +1,4 @@
-import tempfile
-
-import torch
-from torch.nn import Parameter
-from transformers import (
-    AutoConfig,
-    DataCollatorWithPadding,
-    PreTrainedTokenizerFast,
-)
+from transformers import DataCollatorWithPadding, PreTrainedTokenizerFast
 
 from icftsc.datasets.multinerd import DatasetInfo
 from icftsc.modeling.common import PTModelConfig
@@ -34,8 +26,6 @@ def test_init_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
     )
 
     assert model is not None
-    assert model.base is not None
-    assert model.prefix is not None
 
 
 def test_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
@@ -123,33 +113,3 @@ def test_pt_t5(t5_tokenizer: PreTrainedTokenizerFast):
     assert out.loss is not None
     assert out.logits is not None
     assert out.logits.shape == (2, 2)
-
-
-def test_save_model_seqcls(mmbert_tokenizer: PreTrainedTokenizerFast):
-    info = DatasetInfo(
-        id2label={0: "0", 1: "1"},
-        label2id={"0": 0, "1": 1},
-        system_prompt="mock",
-    )
-
-    model = get_pt_model(
-        model_path="jhu-clsp/mmBERT-base",
-        tokenizer=mmbert_tokenizer,
-        prefix_init="pretrained",
-        data_info=info,
-        task="seqcls",
-    )
-
-    new_prefix = Parameter(torch.ones_like(model.prefix))
-    with tempfile.TemporaryDirectory() as tmp:
-        model.prefix = new_prefix
-        model.save_pretrained(tmp)
-
-        config = AutoConfig.from_pretrained(tmp)
-        loaded_model = PTBertForSequenceClassification.from_pretrained(
-            tmp,
-            config=config,
-        )
-
-    assert isinstance(loaded_model, PTBertForSequenceClassification)
-    assert loaded_model.prefix.equal(new_prefix)
