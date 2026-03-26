@@ -4,7 +4,7 @@ from datasets.dataset_dict import DatasetDict
 from datasets.load import load_dataset
 from datasets.splits import Split
 from datasets.utils.info_utils import VerificationMode
-from transformers import BatchEncoding, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
 from icftsc.datasets.common import DatasetInfo
@@ -43,10 +43,10 @@ type MultinerdTag = Literal[
 ]
 
 
-class MultinerdExample(TypedDict):
-    tokens: list[str]
-    ner_tags: list[int]
-    lang: MultinerdLang
+class MultinerdExamples(TypedDict):
+    tokens: list[list[str]]
+    ner_tags: list[list[int]]
+    lang: list[MultinerdLang]
 
 
 _id2label_full: dict[int, str] = {
@@ -120,8 +120,8 @@ label2id: dict[MultinerdTag, int] = {
 }
 
 examples = [
-    ("sentence: John works at Google in California.\nentity: John\nner tag: PER\n"),
-    ("sentence: Paris is the capital of France.\nentity: Paris\nner tag: LOC\n"),
+    ("sentence: John works at Google in California.\nentity: John\ntag: PER\n"),
+    ("sentence: Paris is the capital of France.\nentity: Paris\ntag: LOC\n"),
     ("sentence: The dog chased the cat across the garden.\nentity: dog\ntag: ANIM\n"),
     ("sentence: I love eating sushi and pasta for dinner.\nentity: sushi\ntag: FOOD\n"),
     ("sentence: The car drove quickly down the highway.\nentity: car\ntag: VEHI\n"),
@@ -188,16 +188,14 @@ def _bert_prompt(sentence: str, entity: str, sep: str) -> str:
 
 def _gpt_sys_prompt() -> str:
     return (
-        "You are a Named Entity Recognition (NER) expert. Given a sentence and "
-        "a target entity, output the correct entity label. Use exactly one of "
-        "the following tags: PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, "
-        "INST, MEDIA, MYTH, PLANT, TIME, VEHI. Respond with only the NER tag "
-        "and no explanation.\n"
+        "Identify the NER tag of the entity in the sentence. Possible tags are: "
+        "PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, MYTH, "
+        "PLANT, TIME, VEHI\n"
     )
 
 
 def _gpt_prompt(sentence: str, entity: str) -> str:
-    return f"Sentence: {sentence}\nEntity: {entity}\nTag:"
+    return f"sentence: {sentence}\nentity: {entity}\ntag:"
 
 
 def _t5_sys_prompt() -> str:
@@ -251,52 +249,54 @@ def _get_prompt(
     raise NotImplementedError(f"Model type '{model_type}'")
 
 
-def _tokenize(
-    example: MultinerdExample,
+def _tokenize_batch(
+    examples: MultinerdExamples,
     tokenizer: PreTrainedTokenizerFast,
     model_type: str,
     task: Task,
     n_shot: int,
-) -> list[BatchEncoding]:
-    tokens, tag_ids = example["tokens"], example["ner_tags"]
-    sentence = " ".join(tokens)
-    entities, tag_ids = _join_spans(tokens, tag_ids)
+) -> dict[str, list]:
+    all_ids, all_attn, all_labels = [], [], []
 
-    encs: list[BatchEncoding] = []
-    for entity, tag_id in zip(entities, tag_ids, strict=True):
-        if tag_id == -1:
-            continue
+    for tokens, tag_ids in zip(examples["tokens"], examples["ner_tags"], strict=True):
+        sentence = " ".join(tokens)
+        entities, tag_ids = _join_spans(tokens, tag_ids)
 
-        sys = _get_sys_prompt(tokenizer, model_type, n_shot)
-        prompt = _get_prompt(tokenizer, model_type, sentence, entity)
+        for entity, tag_id in zip(entities, tag_ids, strict=True):
+            if tag_id == -1:
+                continue
 
-        prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
-        prompt_len = len(prompt_enc["input_ids"])
+            sys = _get_sys_prompt(tokenizer, model_type, n_shot)
+            prompt = _get_prompt(tokenizer, model_type, sentence, entity)
 
-        if task == "seqcls":
-            prompt_enc["label"] = tag_id
-            encs.append(prompt_enc)
-            continue
+            prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+            prompt_len = len(prompt_enc["input_ids"])
 
-        tag = id2label[tag_id]
-        answer = f"{sys}\n{prompt} {tag}"
-        answer_enc = tokenizer(answer, truncation=True)
-        labels_enc = answer_enc["input_ids"].copy()
+            if task == "seqcls":
+                all_ids.append(prompt_enc["input_ids"])
+                all_attn.append(prompt_enc["attention_mask"])
+                all_labels.append(tag_id)
+                continue
 
-        if task == "causal":
-            labels_enc[:prompt_len] = [-100] * prompt_len
-            answer_enc["labels"] = labels_enc
-            encs.append(answer_enc)
-            continue
+            answer = f"{sys}\n{prompt} {id2label[tag_id]}"
+            answer_enc = tokenizer(answer, truncation=True)
+            labels_enc = answer_enc["input_ids"].copy()
 
-        if task == "seq2seq":
-            answer_enc["labels"] = labels_enc[prompt_len:]
-            encs.append(answer_enc)
-            continue
+            all_ids.append(answer_enc["input_ids"])
+            all_attn.append(answer_enc["attention_mask"])
 
-        raise NotImplementedError(f"Task '{task}'")
+            if task == "causal":
+                labels_enc[:prompt_len] = [-100] * prompt_len
+                all_labels.append(labels_enc)
+                continue
 
-    return encs
+            if task == "seq2seq":
+                all_labels.append(labels_enc[prompt_len:])
+                continue
+
+            raise NotImplementedError(f"Task '{task}'")
+
+    return {"input_ids": all_ids, "attention_mask": all_attn, "labels": all_labels}
 
 
 def _join_spans(
@@ -325,7 +325,7 @@ def _join_spans(
     return out_tokens, out_ids
 
 
-def _filter_english(batch: MultinerdExample) -> list[bool]:
+def _filter_english(batch: MultinerdExamples) -> list[bool]:
     return [lang == "en" for lang in batch["lang"]]
 
 
@@ -381,7 +381,12 @@ def load_multinerd(
         "task": task,
     }
 
-    data = data.map(_tokenize, remove_columns=cols, fn_kwargs=fn_kwargs)
+    data = data.map(
+        _tokenize_batch,
+        batched=True,
+        remove_columns=cols,
+        fn_kwargs=fn_kwargs,
+    )
 
     if "train" in data:
         logger.info("%d train samples", len(data["train"]))

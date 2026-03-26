@@ -20,15 +20,8 @@ class BoolqExample(TypedDict):
     label: int
 
 
-id2label: dict[int, BoolQALabel] = {
-    0: "no",
-    1: "yes",
-}
-
-label2id: dict[BoolQALabel, int] = {
-    "no": 0,
-    "yes": 1,
-}
+id2label: dict[int, BoolQALabel] = {0: "no", 1: "yes"}
+label2id: dict[BoolQALabel, int] = {"no": 0, "yes": 1}
 
 examples = [
     (
@@ -88,9 +81,8 @@ def _bert_prompt(example: BoolqExample, sep: str) -> str:
 
 def _gpt_sys_prompt() -> str:
     return (
-        "You are a Boolean Question Answering expert.Given a passage and a "
-        'question, answer with exactly one word: "yes" or "no".\nDo '
-        "not provide any explanation.\n"
+        "Answer the question based on the passage. Do not provide any explanation, "
+        'answer with exactly one word: "yes" or "no".\n'
     )
 
 
@@ -105,7 +97,7 @@ def _gpt_prompt(example: BoolqExample) -> str:
 def _t5_sys_prompt() -> str:
     return (
         "boolean question answering: given a passage and a question, "
-        'answer with "true" or "false".\n'
+        'answer with "yes" or "no".\n'
     )
 
 

@@ -25,15 +25,8 @@ class WiCExample(TypedDict):
     label: int
 
 
-id2label: dict[int, WiCLabel] = {
-    0: "no",
-    1: "yes",
-}
-
-label2id: dict[WiCLabel, int] = {
-    "no": 0,
-    "yes": 1,
-}
+id2label: dict[int, WiCLabel] = {0: "no", 1: "yes"}
+label2id: dict[WiCLabel, int] = {"no": 0, "yes": 1}
 
 examples = [
     (

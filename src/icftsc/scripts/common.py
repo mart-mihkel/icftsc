@@ -156,22 +156,20 @@ def train(
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
 
     train_steps = ceil(len(data["train"]) / batch_size) * epochs
-    eval_steps = max(1, train_steps // 3)
     logging_steps = max(1, train_steps // 100)
 
     out_dir = f"out/{run_name}"
     report_to = "mlflow" if mlflow_tracking_uri else "none"
 
     logger.debug("using '%s' optimizer", optim)
-    logger.debug("using '%s' output dir", out_dir)
+    logger.debug("saving checkpoints to '%s'", out_dir)
 
     args = TrainingArguments(
         run_name=run_name,
         report_to=report_to,
         output_dir=out_dir,
         save_strategy="no",
-        eval_strategy="steps",
-        eval_steps=eval_steps,
+        eval_strategy="epoch",
         batch_eval_metrics=True,
         logging_steps=logging_steps,
         learning_rate=learning_rate,
