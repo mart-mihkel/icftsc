@@ -186,7 +186,7 @@ def _tokenize(
         return answer_enc
 
     if task == "seq2seq":
-        answer_enc["labels"] = labels_enc[prompt_len:]
+        answer_enc["labels"] = labels_enc[(prompt_len - 1) :]
         return answer_enc
 
     raise NotImplementedError(f"Task '{task}'")
