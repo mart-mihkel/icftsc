@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal
 
 from typer import Context, Option, Typer
 
-from icftsc.types import DatasetName, PrefixInit, PromptMode, Task
+from icftsc.types import DatasetName, PrefixInit, Task
 
 app = Typer(no_args_is_help=True)
 
@@ -120,7 +120,6 @@ def few_shot(
     run_name: Annotated[str, Option()],
     dataset: Annotated[DatasetName.__value__, Option()],
     task: Annotated[Task.__value__, Option()],
-    prompt_mode: Annotated[PromptMode.__value__, Option()],
     n_shot: Annotated[int, Option()],
     batch_size: int = 8,
     mlflow_tracking_uri: str | None = None,
@@ -133,7 +132,6 @@ def few_shot(
         run_name=run_name,
         dataset=dataset,
         task=task,
-        prompt_mode=prompt_mode,
         n_shot=n_shot,
         batch_size=batch_size,
         mlflow_tracking_uri=mlflow_tracking_uri,

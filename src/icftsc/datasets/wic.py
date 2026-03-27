@@ -6,9 +6,8 @@ from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import DatasetInfo
 from icftsc.logging import logger
-from icftsc.types import Task
+from icftsc.types import DatasetInfo, Task
 
 type WiCLabel = Literal["no", "yes"]
 

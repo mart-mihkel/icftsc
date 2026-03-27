@@ -10,8 +10,8 @@ def _():
     from torch.nn import Parameter
     from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-    from icftsc.datasets.common import DatasetInfo
-    from icftsc.scripts.common import get_pt_model
+    from icftsc.datasets.util import DatasetInfo
+    from icftsc.modeling.util import get_pt_model
 
     return (
         AutoConfig,

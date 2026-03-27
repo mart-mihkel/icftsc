@@ -7,9 +7,8 @@ from datasets.utils.info_utils import VerificationMode
 from transformers import PreTrainedTokenizerFast
 
 from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
-from icftsc.datasets.common import DatasetInfo
 from icftsc.logging import logger
-from icftsc.types import Task
+from icftsc.types import DatasetInfo, Task
 
 type MultinerdLang = Literal[
     "zh",
@@ -190,7 +189,7 @@ def _gpt_sys_prompt() -> str:
     return (
         "Identify the NER tag of the entity in the sentence. Possible tags are: "
         "PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, MYTH, "
-        "PLANT, TIME, VEHI\n"
+        "PLANT, TIME, VEHI.\n"
     )
 
 

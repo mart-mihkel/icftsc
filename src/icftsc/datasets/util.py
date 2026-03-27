@@ -1,26 +1,23 @@
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, TypedDict, cast
+from typing import Any, cast
 
-import numpy as np
 import torch
+from datasets.dataset_dict import DatasetDict
+from datasets.splits import Split
 from torch import Tensor
 from transformers import (
     AutoTokenizer,
-    BatchEncoding,
     DataCollator,
     DataCollatorWithPadding,
     PreTrainedTokenizerFast,
 )
 
+from icftsc.datasets.boolq import load_boolq
+from icftsc.datasets.estner import load_estner
+from icftsc.datasets.multinerd import load_multinerd
+from icftsc.datasets.wic import load_wic
 from icftsc.logging import logger
-from icftsc.types import Task
-
-
-class DatasetInfo(TypedDict):
-    id2label: dict[int, str]
-    label2id: dict[str, int]
-    system_prompt: str
+from icftsc.types import DatasetInfo, DatasetName, Task
 
 
 @dataclass
@@ -56,52 +53,27 @@ class DataCollatorWithPaddingAndLabels:
         }
 
 
-def prepend_system_tokens(
-    enc: BatchEncoding,
-    sys: BatchEncoding,
-    has_bos: bool,
-) -> BatchEncoding:
-    ids: list[list[int]] = []
-    attn: list[list[int]] = []
-    it = zip(
-        cast(Iterable, enc["input_ids"]),
-        cast(Iterable, enc["attention_mask"]),
-        strict=True,
-    )
-
-    for _ids, _attn in it:
-        if has_bos:
-            _ids = _ids[1:]
-            _attn = _attn[1:]
-
-        ids.append(sys["input_ids"] + _ids)
-        attn.append(sys["attention_mask"] + _attn)
-
-    out = {"input_ids": ids, "attention_mask": attn, "labels": enc["labels"]}
-    return BatchEncoding(out)
-
-
-def randomize_prompt(
+def load_data(
     tokenizer: PreTrainedTokenizerFast,
-    enc: BatchEncoding,
-) -> BatchEncoding:
-    vocab_size = tokenizer.vocab_size
-    special_ids = tokenizer.all_special_ids
+    dataset: DatasetName,
+    model_type: str,
+    task: Task,
+    n_shot: int,
+    split: Split | None = None,
+) -> tuple[DatasetDict, DatasetInfo]:
+    if dataset == "multinerd":
+        return load_multinerd(tokenizer, model_type, task, n_shot, split=split)
 
-    random_ids = []
-    for token_id in cast(list[int], enc["input_ids"]):
-        if token_id in special_ids:
-            random_ids.append(token_id)
-            continue
+    if dataset == "estner":
+        return load_estner(tokenizer, model_type, task, n_shot, split)
 
-        rand_id = np.random.randint(0, vocab_size)
-        while rand_id in special_ids:
-            rand_id = np.random.randint(0, vocab_size)
+    if dataset == "boolq":
+        return load_boolq(tokenizer, model_type, task, n_shot, split)
 
-        random_ids.append(rand_id)
+    if dataset == "wic":
+        return load_wic(tokenizer, model_type, task, n_shot, split)
 
-    out = {"input_ids": random_ids, "attention_mask": enc["attention_mask"]}
-    return BatchEncoding(out)
+    raise NotImplementedError(f"Dataset '{dataset}'")
 
 
 def load_tokenizer(model_path: str) -> PreTrainedTokenizerFast:

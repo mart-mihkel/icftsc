@@ -1,15 +1,10 @@
-from transformers import AutoConfig
+from transformers import AutoConfig, AutoModel
 
-from icftsc.datasets.common import (
-    get_collator,
-    load_tokenizer,
-    prepend_system_tokens,
-    randomize_prompt,
-)
+from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.scripts.common import get_model, load_data, train
-from icftsc.types import DatasetName, PromptMode, Task
+from icftsc.modeling.util import train
+from icftsc.types import DatasetName, Task
 
 
 def few_shot(
@@ -17,7 +12,6 @@ def few_shot(
     run_name: str,
     dataset: DatasetName,
     task: Task,
-    prompt_mode: PromptMode,
     n_shot: int,
     batch_size: int,
     mlflow_tracking_uri: str | None,
@@ -31,7 +25,7 @@ def few_shot(
     metrics_fn = get_metrics_fn(tokenizer, task)
 
     logger.info("load dataset '%s'", dataset)
-    data, info = load_data(
+    data, _ = load_data(
         model_type=config.model_type,
         tokenizer=tokenizer,
         dataset=dataset,
@@ -43,23 +37,8 @@ def few_shot(
         logger.warning("using supergluq dev data, test labels are private")
         data["test"] = data["dev"]
 
-    has_bos = tokenizer.bos_token is not None
-    sys = tokenizer(info["system_prompt"], truncation=True, add_special_tokens=False)
-    logger.info("prepare system prompt with %d tokens", len(sys["input_ids"]))
-    if prompt_mode == "random":
-        logger.info("randomize system prompt")
-        sys = randomize_prompt(tokenizer=tokenizer, enc=sys)
-    elif prompt_mode != "system":
-        raise NotImplementedError(f"Prompt mode '{prompt_mode}'")
-
-    data["test"] = data["test"].map(
-        prepend_system_tokens,
-        batched=True,
-        fn_kwargs={"sys": sys, "has_bos": has_bos},
-    )
-
     logger.info("load pretrained '%s' for '%s'", model_path, task)
-    model = get_model(tokenizer, model_path, info, task, head_only=False)
+    model = AutoModel.from_pretrained(model_path)
 
     train(
         model=model,

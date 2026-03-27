@@ -1,9 +1,9 @@
 from transformers import AutoConfig
 
-from icftsc.datasets.common import get_collator, load_tokenizer
+from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.scripts.common import get_model, load_data, train
+from icftsc.modeling.util import get_model, train
 from icftsc.types import DatasetName, Task
 
 

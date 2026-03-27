@@ -5,7 +5,6 @@ from typing import cast
 
 import torch
 from datasets.dataset_dict import DatasetDict
-from datasets.splits import Split
 from mlflow import end_run, set_experiment, set_tracking_uri, start_run
 from peft import PeftModel, PromptTuningConfig, TaskType, get_peft_model
 from torch.nn import Module
@@ -22,12 +21,9 @@ from transformers import (
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
-from icftsc.datasets.boolq import load_boolq
-from icftsc.datasets.estner import load_estner
-from icftsc.datasets.multinerd import DatasetInfo, load_multinerd
-from icftsc.datasets.wic import load_wic
+from icftsc.datasets.util import DatasetInfo
 from icftsc.logging import logger
-from icftsc.types import DatasetName, PrefixInit, Task
+from icftsc.types import PrefixInit, Task
 
 
 def get_model(
@@ -107,29 +103,6 @@ def get_pt_model(
     return cast(PeftModel, get_peft_model(base, config))
 
 
-def load_data(
-    tokenizer: PreTrainedTokenizerFast,
-    dataset: DatasetName,
-    model_type: str,
-    task: Task,
-    n_shot: int,
-    split: Split | None = None,
-) -> tuple[DatasetDict, DatasetInfo]:
-    if dataset == "multinerd":
-        return load_multinerd(tokenizer, model_type, task, n_shot, split=split)
-
-    if dataset == "estner":
-        return load_estner(tokenizer, model_type, task, n_shot, split)
-
-    if dataset == "boolq":
-        return load_boolq(tokenizer, model_type, task, n_shot, split)
-
-    if dataset == "wic":
-        return load_wic(tokenizer, model_type, task, n_shot, split)
-
-    raise NotImplementedError(f"Dataset '{dataset}'")
-
-
 def freeze(model: Module, skip: set[str]):
     logger.info("freeze base model")
     for name, param in model.named_parameters():
@@ -170,6 +143,7 @@ def train(
         output_dir=out_dir,
         save_strategy="no",
         eval_strategy="epoch",
+        eval_on_start=True,
         batch_eval_metrics=True,
         logging_steps=logging_steps,
         learning_rate=learning_rate,

@@ -1,6 +1,6 @@
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.datasets.common import DataCollatorWithPaddingAndLabels
+from icftsc.datasets.util import DataCollatorWithPaddingAndLabels
 
 
 def test_collator_with_labels(gpt2_tokenizer: PreTrainedTokenizerFast):

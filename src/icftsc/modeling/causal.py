@@ -1,7 +1,7 @@
 from torch import Tensor
 from transformers.modeling_outputs import CausalLMOutput
 
-from icftsc.modeling.common import PTModel
+from icftsc.modeling.pt import PTModel
 
 
 class PTGPTForCausalLM(PTModel):

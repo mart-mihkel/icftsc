@@ -1,34 +1,14 @@
 from transformers import DataCollatorWithPadding, PreTrainedTokenizerFast
 
-from icftsc.datasets.multinerd import DatasetInfo
-from icftsc.modeling.common import PTModelConfig
+from icftsc.modeling.pt import PTModelConfig
 from icftsc.modeling.seqcls import (
     PTBertForSequenceClassification,
     PTGPTForSequenceClassification,
     PTT5ForSequenceClassification,
 )
-from icftsc.scripts.prompt_tune import get_pt_model
 
 
-def test_init_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
-    info = DatasetInfo(
-        id2label={0: "0", 1: "1"},
-        label2id={"0": 0, "1": 1},
-        system_prompt="mock",
-    )
-
-    model = get_pt_model(
-        model_path="jhu-clsp/mmBERT-base",
-        tokenizer=mmbert_tokenizer,
-        prefix_init="pretrained",
-        data_info=info,
-        task="seqcls",
-    )
-
-    assert model is not None
-
-
-def test_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_pt_mmbert_seqcls(mmbert_tokenizer: PreTrainedTokenizerFast):
     cls = mmbert_tokenizer.cls_token_id
     data = [
         {"input_ids": [cls, 1, 2], "label": 0},
@@ -57,7 +37,7 @@ def test_pt_bert(mmbert_tokenizer: PreTrainedTokenizerFast):
     assert out.logits.shape == (2, 2)
 
 
-def test_pt_gpt2_seq_cls(gpt2_tokenizer: PreTrainedTokenizerFast):
+def test_pt_gpt2_seqcls(gpt2_tokenizer: PreTrainedTokenizerFast):
     data = [
         {"input_ids": [1, 2], "label": 0},
         {"input_ids": [3], "label": 1},
@@ -86,7 +66,7 @@ def test_pt_gpt2_seq_cls(gpt2_tokenizer: PreTrainedTokenizerFast):
     assert out.logits.shape == (2, 2)
 
 
-def test_pt_t5(t5_tokenizer: PreTrainedTokenizerFast):
+def test_pt_t5_seqcls(t5_tokenizer: PreTrainedTokenizerFast):
     data = [
         {"input_ids": [1, 2], "label": 0},
         {"input_ids": [3], "label": 1},
