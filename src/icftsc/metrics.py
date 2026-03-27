@@ -39,7 +39,7 @@ def _batch_to_numpy(
 
     batch_preds = np.argmax(batch_logits, axis=-1)
 
-    if task == "seqcls":
+    if task == "seqcls" or task == "seq2seq":
         return batch_labels, batch_preds
 
     _, label_dim = batch_labels.shape

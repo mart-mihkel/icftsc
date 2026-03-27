@@ -1,3 +1,7 @@
+from typing import cast
+
+import mlflow
+from peft import PromptTuningConfig
 from transformers import AutoConfig
 
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
@@ -18,7 +22,8 @@ def prompt_tune(
     batch_size: int,
     learning_rate: float,
     grad_chkpts: bool,
-    mlflow_tracking_uri: str | None,
+    experiment: str,
+    mlflow_tracking_uri: str,
 ):
     logger.info("load model config")
     config = AutoConfig.from_pretrained(model_path)
@@ -58,19 +63,33 @@ def prompt_tune(
 
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    ptcfg = cast(PromptTuningConfig, model.peft_config["default"])
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
+    logger.info("virtual tokens %d", ptcfg.num_virtual_tokens)
+    logger.info(
+        "tracking '%s' of experiment '%s' at %s",
+        run_name,
+        experiment,
+        mlflow_tracking_uri,
+    )
+
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    mlflow.set_experiment(experiment)
+    mlflow.start_run(run_name=run_name)
 
     train(
         model=model,
         data=data,
         collate_fn=collate_fn,
         metrics_fn=metrics_fn,
-        run_name=run_name,
         epochs=epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
         grad_chkpts=grad_chkpts,
-        mlflow_tracking_uri=mlflow_tracking_uri,
+        run_name=run_name,
+        report_to="mlflow",
     )
+
+    mlflow.end_run()

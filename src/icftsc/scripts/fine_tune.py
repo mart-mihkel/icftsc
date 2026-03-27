@@ -1,3 +1,4 @@
+import mlflow
 from transformers import AutoConfig
 
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
@@ -18,7 +19,8 @@ def fine_tune(
     batch_size: int,
     learning_rate: float,
     grad_chkpts: bool,
-    mlflow_tracking_uri: str | None,
+    mlflow_tracking_uri: str,
+    experiment: str,
 ):
     logger.info("load model config")
     config = AutoConfig.from_pretrained(model_path)
@@ -44,16 +46,28 @@ def fine_tune(
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
+    logger.info(
+        "tracking '%s' of experiment '%s' at %s",
+        run_name,
+        experiment,
+        mlflow_tracking_uri,
+    )
+
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    mlflow.set_experiment(experiment)
+    mlflow.start_run(run_name=run_name)
 
     train(
         model=model,
         data=data,
         collate_fn=collate_fn,
         metrics_fn=metrics_fn,
-        run_name=run_name,
         epochs=epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
         grad_chkpts=grad_chkpts,
-        mlflow_tracking_uri=mlflow_tracking_uri,
+        run_name=run_name,
+        report_to="mlflow",
     )
+
+    mlflow.end_run()

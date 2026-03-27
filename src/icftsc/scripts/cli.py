@@ -49,23 +49,23 @@ def callback(log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"):
 def fine_tune(
     ctx: Context,
     model: Annotated[str, Option()],
-    run_name: Annotated[str, Option()],
     dataset: Annotated[DatasetName.__value__, Option()],
     task: Annotated[Task.__value__, Option()],
     head_only: Annotated[bool, Option()],
+    experiment: Annotated[str, Option()],
+    run_name: Annotated[str, Option()],
+    mlflow_tracking_uri: str = "sqlite:///mlflow.db",
     n_shot: int = 0,
     epochs: int = 1,
     batch_size: int = 8,
     learning_rate: float = 5e-5,
     grad_chkpts: bool = False,
-    mlflow_tracking_uri: str | None = None,
 ):
     from icftsc.scripts.fine_tune import fine_tune
 
     save_params(ctx.params, run_name)
     fine_tune(
         model_path=model,
-        run_name=run_name,
         dataset=dataset,
         task=task,
         head_only=head_only,
@@ -74,6 +74,8 @@ def fine_tune(
         batch_size=batch_size,
         learning_rate=learning_rate,
         grad_chkpts=grad_chkpts,
+        experiment=experiment,
+        run_name=run_name,
         mlflow_tracking_uri=mlflow_tracking_uri,
     )
 
@@ -83,23 +85,23 @@ def fine_tune(
 def prompt_tune(
     ctx: Context,
     model: Annotated[str, Option()],
-    run_name: Annotated[str, Option()],
     dataset: Annotated[DatasetName.__value__, Option()],
     task: Annotated[Task.__value__, Option()],
     prefix_init: Annotated[PrefixInit.__value__, Option()],
-    n_shot: int = 0,
-    epochs: int = 1,
+    experiment: Annotated[str, Option()],
+    run_name: Annotated[str, Option()],
+    mlflow_tracking_uri: str = "sqlite:///mlflow.db",
+    n_shot: int = 5,
+    epochs: int = 5,
     batch_size: int = 8,
-    learning_rate: float = 5e-5,
+    learning_rate: float = 1e-3,
     grad_chkpts: bool = False,
-    mlflow_tracking_uri: str | None = None,
 ):
     from icftsc.scripts.prompt_tune import prompt_tune
 
     save_params(ctx.params, run_name)
     prompt_tune(
         model_path=model,
-        run_name=run_name,
         dataset=dataset,
         task=task,
         prefix_init=prefix_init,
@@ -108,6 +110,8 @@ def prompt_tune(
         batch_size=batch_size,
         learning_rate=learning_rate,
         grad_chkpts=grad_chkpts,
+        experiment=experiment,
+        run_name=run_name,
         mlflow_tracking_uri=mlflow_tracking_uri,
     )
 
@@ -117,23 +121,25 @@ def prompt_tune(
 def few_shot(
     ctx: Context,
     model: Annotated[str, Option()],
-    run_name: Annotated[str, Option()],
     dataset: Annotated[DatasetName.__value__, Option()],
     task: Annotated[Task.__value__, Option()],
-    n_shot: Annotated[int, Option()],
+    experiment: Annotated[str, Option()],
+    run_name: Annotated[str, Option()],
+    mlflow_tracking_uri: str = "sqlite:///mlflow.db",
+    n_shot: int = 5,
     batch_size: int = 8,
-    mlflow_tracking_uri: str | None = None,
 ):
     from icftsc.scripts.few_shot import few_shot
 
     save_params(ctx.params, run_name)
     few_shot(
         model_path=model,
-        run_name=run_name,
         dataset=dataset,
         task=task,
         n_shot=n_shot,
         batch_size=batch_size,
+        experiment=experiment,
+        run_name=run_name,
         mlflow_tracking_uri=mlflow_tracking_uri,
     )
 

@@ -5,7 +5,6 @@ from typing import cast
 
 import torch
 from datasets.dataset_dict import DatasetDict
-from mlflow import end_run, set_experiment, set_tracking_uri, start_run
 from peft import PeftModel, PromptTuningConfig, TaskType, get_peft_model
 from torch.nn import Module
 from torch.utils.data import Dataset
@@ -100,6 +99,7 @@ def get_pt_model(
         num_virtual_tokens=num_virtual_tokens,
     )
 
+    logger.debug("init prompt tuning model for %s", model_path)
     return cast(PeftModel, get_peft_model(base, config))
 
 
@@ -118,12 +118,12 @@ def train(
     data: DatasetDict,
     collate_fn: DataCollator,
     metrics_fn: Callable[[EvalPrediction, bool], dict[str, int | float]],
-    run_name: str,
-    epochs: int,
-    learning_rate: float,
-    batch_size: int,
-    grad_chkpts: bool,
-    mlflow_tracking_uri: str | None,
+    epochs: int = 0,
+    learning_rate: float = 5e-5,
+    batch_size: int = 8,
+    grad_chkpts: bool = False,
+    run_name: str = "default",
+    report_to: str = "none",
 ):
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
@@ -132,10 +132,9 @@ def train(
     logging_steps = max(1, train_steps // 100)
 
     out_dir = f"out/{run_name}"
-    report_to = "mlflow" if mlflow_tracking_uri else "none"
 
-    logger.debug("using '%s' optimizer", optim)
-    logger.debug("saving checkpoints to '%s'", out_dir)
+    logger.debug("optimizer '%s'", optim)
+    logger.debug("checkpoint dir '%s'", out_dir)
 
     args = TrainingArguments(
         run_name=run_name,
@@ -166,19 +165,6 @@ def train(
         compute_metrics=_metrics_fn,
     )
 
-    if mlflow_tracking_uri is not None:
-        logger.info(
-            "tracking experiment 'icftsc' run '%s' at %s",
-            run_name,
-            mlflow_tracking_uri,
-        )
-
-        set_tracking_uri(mlflow_tracking_uri)
-        set_experiment("icftsc")
-        start_run(run_name=run_name)
-    else:
-        logger.warning("no experiment tracking configured")
-
     logger.info("start trainer")
     trainer.train()
 
@@ -192,6 +178,3 @@ def train(
 
     logger.info("save checkpoint to %s", out_dir)
     trainer.save_model(out_dir)
-
-    if mlflow_tracking_uri is not None:
-        end_run()

@@ -1,3 +1,4 @@
+import mlflow
 from transformers import AutoConfig, AutoModel
 
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
@@ -14,7 +15,8 @@ def few_shot(
     task: Task,
     n_shot: int,
     batch_size: int,
-    mlflow_tracking_uri: str | None,
+    experiment: str,
+    mlflow_tracking_uri: str,
 ):
     logger.info("load model config")
     config = AutoConfig.from_pretrained(model_path)
@@ -40,15 +42,25 @@ def few_shot(
     logger.info("load pretrained '%s' for '%s'", model_path, task)
     model = AutoModel.from_pretrained(model_path)
 
+    logger.info(
+        "tracking '%s' of experiment '%s' at %s",
+        run_name,
+        experiment,
+        mlflow_tracking_uri,
+    )
+
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    mlflow.set_experiment("icftsc")
+    mlflow.start_run(run_name=run_name)
+
     train(
         model=model,
         data=data,
         collate_fn=collate_fn,
         metrics_fn=metrics_fn,
-        run_name=run_name,
-        epochs=0,
-        learning_rate=5e-5,
         batch_size=batch_size,
-        grad_chkpts=False,
-        mlflow_tracking_uri=mlflow_tracking_uri,
+        run_name=run_name,
+        report_to="mlflow",
     )
+
+    mlflow.end_run()

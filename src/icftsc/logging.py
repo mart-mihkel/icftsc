@@ -1,10 +1,12 @@
 import logging
+import sqlite3
 
 import accelerate
 import datasets
 import evaluate
 import httpx
 import numpy
+import peft
 import polars
 import torch
 import transformers
@@ -17,10 +19,12 @@ _suppress = [
     accelerate,
     datasets,
     evaluate,
+    sqlite3,
     polars,
     torch,
     httpx,
     numpy,
+    peft,
 ]
 
 _console = Console()
