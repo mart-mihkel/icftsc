@@ -30,7 +30,10 @@ def predict_boolq(checkpoint: str):
     )
 
     logger.info("load model from checkpoint")
-    model = AutoModel.from_pretrained(checkpoint)
+    model = AutoModel.from_pretrained(
+        checkpoint,
+        device_map="auto",
+    )
 
     logger.info("load trainer from checkpoint")
     args = torch.load(path / "training_args.bin", weights_only=False)

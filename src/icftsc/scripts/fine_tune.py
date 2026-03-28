@@ -34,8 +34,8 @@ def fine_tune(
     data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
 
     if dataset == "boolq" or dataset == "wic":
-        logger.warning("drop superglue test data, labels are private")
-        data.pop("test")
+        logger.warning("using superglue dev data for test, labels are private")
+        data["test"] = data["dev"]
 
     logger.info("load pretrained '%s' for '%s'", model_path, task)
     model = get_model(tokenizer, model_path, info, task, head_only)

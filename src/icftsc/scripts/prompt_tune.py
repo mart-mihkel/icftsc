@@ -37,8 +37,8 @@ def prompt_tune(
     data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
 
     if dataset == "boolq" or dataset == "wic":
-        logger.warning("drop boolq test data, labels are private")
-        data.pop("test")
+        logger.warning("using superglue dev data for test, labels are private")
+        data["test"] = data["dev"]
 
     logger.info(
         "init pt-model from '%s' with %s prefix initialization for '%s'",

@@ -40,15 +40,22 @@ def get_model(
             num_labels=len(data_info["id2label"]),
             id2label=data_info["id2label"],
             label2id=data_info["label2id"],
+            device_map="auto",
         )
     elif task == "causal":
         logger.debug("load pretrained model for causal language modeling")
         loading_info = {"missing_keys": set()}
-        model = AutoModelForCausalLM.from_pretrained(model_path)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            device_map="auto",
+        )
     elif task == "seq2seq":
         logger.debug("load pretrained model for sequence to sequence")
         loading_info = {"missing_keys": set()}
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            model_path,
+            device_map="auto",
+        )
     else:
         raise NotImplementedError(f"Task '{task}'")
 
