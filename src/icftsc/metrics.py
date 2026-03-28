@@ -51,6 +51,11 @@ def _batch_to_numpy(
     return batch_labels, batch_preds
 
 
+def _filter_gibberish(references: list[str], predictions: list[str]) -> list[str]:
+    refset = set(references)
+    return [pred if pred in refset else "<gibberish>" for pred in predictions]
+
+
 def _compute_classification_metrics(
     labels: np.ndarray | list,
     preds: np.ndarray | list,
@@ -158,6 +163,7 @@ def compute_metrics_seq2seq(
 
     references = tokenizer.batch_decode(labels, skip_special_tokens=True)
     predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    predictions = _filter_gibberish(references, predictions)
 
     logger.debug("references: %s", Counter(references))
     logger.debug("predictions: %s", Counter(predictions))
@@ -194,6 +200,7 @@ def compute_metrics_causal_lm(
 
     references = tokenizer.batch_decode(labels, skip_special_tokens=True)
     predictions = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    predictions = _filter_gibberish(references, predictions)
 
     logger.debug("references: %s", Counter(references))
     logger.debug("predictions: %s", Counter(predictions))

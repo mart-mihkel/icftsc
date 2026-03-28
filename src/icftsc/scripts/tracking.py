@@ -3,17 +3,16 @@ from mlflow.tracking import MlflowClient
 
 from icftsc.logging import logger
 
-path = "out/metrics.csv"
 
-
-def collect_metrics(mlflow_tracking_uri: str):
+def collect_metrics(mlflow_tracking_uri: str, experiment: str):
+    logger.info("connecting to '%s'", mlflow_tracking_uri)
     client = MlflowClient(tracking_uri=mlflow_tracking_uri)
-    experiment = client.get_experiment_by_name("icftsc")
+    exp = client.get_experiment_by_name(experiment)
 
-    if experiment is None:
-        raise ValueError("Experiment 'icftsc' not found")
+    if exp is None:
+        raise ValueError(f"Experiment '{experiment}' not found")
 
-    runs = client.search_runs(experiment.experiment_id, "")
+    runs = client.search_runs(exp.experiment_id, "")
     logger.info("found %d runs", len(runs))
 
     rows = []
@@ -36,8 +35,10 @@ def collect_metrics(mlflow_tracking_uri: str):
 
         rows.append(run_data)
 
+    path = f"out/{experiment}-metrics.csv"
+
     df = pl.DataFrame(rows)
     df.write_csv(path)
 
     logger.info("collected %d records and %d parameters", df.shape[0], df.shape[1])
-    logger.info("save metrics to %s", path)
+    logger.info("saved metrics to '%s'", path)

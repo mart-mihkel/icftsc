@@ -34,13 +34,8 @@ def prompt_tune(
     metrics_fn = get_metrics_fn(tokenizer, task)
 
     logger.info("load dataset '%s'", dataset)
-    data, info = load_data(
-        model_type=config.model_type,
-        tokenizer=tokenizer,
-        dataset=dataset,
-        n_shot=n_shot,
-        task=task,
-    )
+    model_type = config.model_type
+    data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
 
     if dataset == "boolq" or dataset == "wic":
         logger.warning("drop boolq test data, labels are private")
@@ -69,7 +64,7 @@ def prompt_tune(
     logger.info("trainable parameters %d", trainable)
     logger.info("virtual tokens %d", ptcfg.num_virtual_tokens)
     logger.info(
-        "tracking '%s' of experiment '%s' at %s",
+        "tracking '%s' of experiment '%s' at '%s'",
         run_name,
         experiment,
         mlflow_tracking_uri,
@@ -78,6 +73,23 @@ def prompt_tune(
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
+    mlflow.log_params(
+        {
+            "task": task,
+            "dataset": dataset,
+            "prefix_init": prefix_init,
+            "system_prompt": info["system_prompt"],
+        }
+    )
+
+    mlflow.log_metrics(
+        {
+            "total_parameters": total,
+            "trainable_parameters": trainable,
+            "num_virtual_tokens": ptcfg.num_virtual_tokens,
+            "n_shot": n_shot,
+        }
+    )
 
     train(
         model=model,

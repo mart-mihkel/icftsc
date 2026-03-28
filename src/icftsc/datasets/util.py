@@ -36,7 +36,7 @@ class DataCollatorWithPaddingAndLabels:
         inputs = []
         attn = []
         for feature in features:
-            _labels = feature["labels"]
+            _labels = feature.get("labels", [])
             _inputs = feature["input_ids"]
             _attn = feature["attention_mask"]
 

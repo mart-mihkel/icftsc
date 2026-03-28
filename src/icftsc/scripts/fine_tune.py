@@ -47,7 +47,7 @@ def fine_tune(
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
     logger.info(
-        "tracking '%s' of experiment '%s' at %s",
+        "tracking '%s' of experiment '%s' at '%s'",
         run_name,
         experiment,
         mlflow_tracking_uri,
@@ -56,6 +56,22 @@ def fine_tune(
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
+    mlflow.log_params(
+        {
+            "task": task,
+            "dataset": dataset,
+            "head_only": head_only,
+            "system_prompt": info["system_prompt"],
+        }
+    )
+
+    mlflow.log_metrics(
+        {
+            "n_shot": n_shot,
+            "total_parameters": total,
+            "trainable_parameters": trainable,
+        }
+    )
 
     train(
         model=model,

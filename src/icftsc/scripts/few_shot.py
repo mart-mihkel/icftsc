@@ -27,13 +27,8 @@ def few_shot(
     metrics_fn = get_metrics_fn(tokenizer, task)
 
     logger.info("load dataset '%s'", dataset)
-    data, _ = load_data(
-        model_type=config.model_type,
-        tokenizer=tokenizer,
-        dataset=dataset,
-        n_shot=n_shot,
-        task=task,
-    )
+    model_type = config.model_type
+    data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
 
     if dataset == "boolq" or dataset == "wic":
         logger.warning("using supergluq dev data, test labels are private")
@@ -42,16 +37,34 @@ def few_shot(
     logger.info("load pretrained '%s' for '%s'", model_path, task)
     model = AutoModel.from_pretrained(model_path)
 
+    total = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
     logger.info(
-        "tracking '%s' of experiment '%s' at %s",
+        "tracking '%s' of experiment '%s' at '%s'",
         run_name,
         experiment,
         mlflow_tracking_uri,
     )
 
     mlflow.set_tracking_uri(mlflow_tracking_uri)
-    mlflow.set_experiment("icftsc")
+    mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
+    mlflow.log_params(
+        {
+            "task": task,
+            "dataset": dataset,
+            "system_prompt": info["system_prompt"],
+        }
+    )
+
+    mlflow.log_metrics(
+        {
+            "n_shot": n_shot,
+            "total_parameters": total,
+            "trainable_parameters": trainable,
+        }
+    )
 
     train(
         model=model,

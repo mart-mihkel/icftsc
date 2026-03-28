@@ -103,7 +103,10 @@ def get_pt_model(
     return cast(PeftModel, get_peft_model(base, config))
 
 
-def freeze(model: Module, skip: set[str]):
+def freeze(model: Module, skip: set[str] | None = None):
+    if skip is None:
+        skip = set()
+
     logger.info("freeze base model")
     for name, param in model.named_parameters():
         if name in skip:
