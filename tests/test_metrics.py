@@ -3,11 +3,18 @@ import pytest
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
 from icftsc.metrics import (
+    _filter_gibberish,
     compute_metrics_causal_lm,
     compute_metrics_seq2seq,
     compute_metrics_seq_cls,
     get_metrics_fn,
 )
+
+
+def test_filter_gibberis():
+    ref = [" yes", " no", " yes"]
+    pred = [" dog", " no", " yes"]
+    assert _filter_gibberish(ref, pred) == ["<gibberish>", " no", " yes"]
 
 
 def test_seq_cls():
