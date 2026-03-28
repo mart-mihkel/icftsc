@@ -19,7 +19,6 @@ def fine_tune(
     batch_size: int,
     learning_rate: float,
     grad_chkpts: bool,
-    mlflow_tracking_uri: str,
     experiment: str,
 ):
     logger.info("load model config")
@@ -46,14 +45,8 @@ def fine_tune(
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
-    logger.info(
-        "tracking '%s' of experiment '%s' at '%s'",
-        run_name,
-        experiment,
-        mlflow_tracking_uri,
-    )
+    logger.info("tracking '%s' of experiment '%s'", run_name, experiment)
 
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
     mlflow.log_params(

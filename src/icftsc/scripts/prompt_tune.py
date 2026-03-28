@@ -23,7 +23,6 @@ def prompt_tune(
     learning_rate: float,
     grad_chkpts: bool,
     experiment: str,
-    mlflow_tracking_uri: str,
 ):
     logger.info("load model config")
     config = AutoConfig.from_pretrained(model_path)
@@ -57,14 +56,8 @@ def prompt_tune(
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
     logger.info("virtual tokens %d", ptcfg.num_virtual_tokens)
-    logger.info(
-        "tracking '%s' of experiment '%s' at '%s'",
-        run_name,
-        experiment,
-        mlflow_tracking_uri,
-    )
+    logger.info("tracking '%s' of experiment '%s'", run_name, experiment)
 
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
     mlflow.log_params(

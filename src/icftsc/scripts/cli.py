@@ -50,7 +50,6 @@ def fine_tune(
     head_only: Annotated[bool, Option()],
     experiment: Annotated[str, Option()],
     run_name: Annotated[str, Option()],
-    mlflow_tracking_uri: str = "sqlite:///mlflow.db",
     n_shot: int = 0,
     epochs: int = 1,
     batch_size: int = 8,
@@ -75,7 +74,6 @@ def fine_tune(
         grad_chkpts=grad_chkpts,
         experiment=experiment,
         run_name=run_name,
-        mlflow_tracking_uri=mlflow_tracking_uri,
     )
 
 
@@ -89,7 +87,6 @@ def prompt_tune(
     prefix_init: Annotated[PrefixInit.__value__, Option()],
     experiment: Annotated[str, Option()],
     run_name: Annotated[str, Option()],
-    mlflow_tracking_uri: str = "sqlite:///mlflow.db",
     n_shot: int = 5,
     epochs: int = 5,
     batch_size: int = 8,
@@ -114,7 +111,6 @@ def prompt_tune(
         grad_chkpts=grad_chkpts,
         experiment=experiment,
         run_name=run_name,
-        mlflow_tracking_uri=mlflow_tracking_uri,
     )
 
 
@@ -127,7 +123,6 @@ def few_shot(
     task: Annotated[Task.__value__, Option()],
     experiment: Annotated[str, Option()],
     run_name: Annotated[str, Option()],
-    mlflow_tracking_uri: str = "sqlite:///mlflow.db",
     n_shot: int = 5,
     batch_size: int = 8,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
@@ -145,7 +140,6 @@ def few_shot(
         batch_size=batch_size,
         experiment=experiment,
         run_name=run_name,
-        mlflow_tracking_uri=mlflow_tracking_uri,
     )
 
 

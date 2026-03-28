@@ -16,7 +16,6 @@ def few_shot(
     n_shot: int,
     batch_size: int,
     experiment: str,
-    mlflow_tracking_uri: str,
 ):
     logger.info("load model config")
     config = AutoConfig.from_pretrained(model_path)
@@ -40,14 +39,8 @@ def few_shot(
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    logger.info(
-        "tracking '%s' of experiment '%s' at '%s'",
-        run_name,
-        experiment,
-        mlflow_tracking_uri,
-    )
+    logger.info("tracking '%s' of experiment '%s'", run_name, experiment)
 
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
     mlflow.log_params(
