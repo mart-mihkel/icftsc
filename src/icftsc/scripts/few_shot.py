@@ -1,10 +1,10 @@
 import mlflow
-from transformers import AutoConfig, AutoModel
+from transformers import AutoConfig
 
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.modeling.util import train
+from icftsc.modeling.util import get_model, train
 from icftsc.types import DatasetName, Task
 
 
@@ -26,16 +26,16 @@ def few_shot(
     collate_fn = get_collator(tokenizer, task)
     metrics_fn = get_metrics_fn(tokenizer, task)
 
-    logger.info("load dataset '%s'", dataset)
+    logger.info("load '%s' dataset", dataset)
     model_type = config.model_type
     data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
 
     if dataset == "boolq" or dataset == "wic":
-        logger.warning("using supergluq dev data, test labels are private")
+        logger.warning("using superglue dev data, test labels are private")
         data["test"] = data["dev"]
 
     logger.info("load pretrained '%s' for '%s'", model_path, task)
-    model = AutoModel.from_pretrained(model_path)
+    model = get_model(tokenizer, model_path, info, task, head_only=False)
 
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)

@@ -33,7 +33,7 @@ def prompt_tune(
     collate_fn = get_collator(tokenizer, task)
     metrics_fn = get_metrics_fn(tokenizer, task)
 
-    logger.info("load dataset '%s'", dataset)
+    logger.info("load '%s' dataset", dataset)
     model_type = config.model_type
     data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
 
@@ -48,13 +48,7 @@ def prompt_tune(
         task,
     )
 
-    model = get_pt_model(
-        prefix_init=prefix_init,
-        tokenizer=tokenizer,
-        model_path=model_path,
-        data_info=info,
-        task=task,
-    )
+    model = get_pt_model(prefix_init, tokenizer, model_path, task, info)
 
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
