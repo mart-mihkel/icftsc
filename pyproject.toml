@@ -13,7 +13,7 @@ dependencies = [
     "datasets~=4.5.0",
     "evaluate~=0.4.6",
     "mlflow~=3.10.1",
-    "polars>=1.39.3",
+    "polars~=1.39.3",
     "typer~=0.24.1",
     "torch~=2.10.0",
     "peft~=0.18.1",
@@ -22,6 +22,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "plotnine~=0.15.3",
     "ipython~=9.11.0",
     "marimo~=0.21.1",
     "pytest~=9.0.2",
