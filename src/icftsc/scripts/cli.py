@@ -1,5 +1,5 @@
-import json
-import os
+from __future__ import annotations
+
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
@@ -11,6 +11,9 @@ app = Typer(no_args_is_help=True)
 
 
 def save_params(params: dict[str, Any], run_name: str):
+    import json
+    import os
+
     os.makedirs(f"out/{run_name}", exist_ok=True)
     with open(f"out/{run_name}/cli_params.json", "w") as f:
         json.dump(params, f, indent=2)
@@ -37,13 +40,6 @@ def timed(func: Callable) -> Callable:
     return wrapper
 
 
-@app.callback()
-def callback(log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"):
-    from icftsc.logging import logger
-
-    logger.setLevel(log_level)
-
-
 @app.command()
 @timed
 def fine_tune(
@@ -60,9 +56,12 @@ def fine_tune(
     batch_size: int = 8,
     learning_rate: float = 5e-5,
     grad_chkpts: bool = False,
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
+    from icftsc.logging import logger
     from icftsc.scripts.fine_tune import fine_tune
 
+    logger.setLevel(log_level)
     save_params(ctx.params, run_name)
     fine_tune(
         model_path=model,
@@ -96,9 +95,12 @@ def prompt_tune(
     batch_size: int = 8,
     learning_rate: float = 1e-3,
     grad_chkpts: bool = False,
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
+    from icftsc.logging import logger
     from icftsc.scripts.prompt_tune import prompt_tune
 
+    logger.setLevel(log_level)
     save_params(ctx.params, run_name)
     prompt_tune(
         model_path=model,
@@ -128,9 +130,12 @@ def few_shot(
     mlflow_tracking_uri: str = "sqlite:///mlflow.db",
     n_shot: int = 5,
     batch_size: int = 8,
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
+    from icftsc.logging import logger
     from icftsc.scripts.few_shot import few_shot
 
+    logger.setLevel(log_level)
     save_params(ctx.params, run_name)
     few_shot(
         model_path=model,
@@ -146,18 +151,29 @@ def few_shot(
 
 @app.command()
 @timed
-def predict_superglue(checkpoint: Annotated[str, Option()]):
+def predict_superglue(
+    checkpoint: Annotated[str, Option()],
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
+):
+    from icftsc.logging import logger
     from icftsc.scripts.superglue import predict_boolq
 
-    predict_boolq(checkpoint=checkpoint)
+    logger.setLevel(log_level)
+    predict_boolq(checkpoint)
 
 
 @app.command()
 @timed
-def collect_metrics(mlflow_tracking_uri: Annotated[str, Option()]):
+def collect_metrics(
+    mlflow_tracking_uri: Annotated[str, Option()],
+    experiment: Annotated[str, Option()],
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
+):
+    from icftsc.logging import logger
     from icftsc.scripts.tracking import collect_metrics
 
-    collect_metrics(mlflow_tracking_uri=mlflow_tracking_uri)
+    logger.setLevel(log_level)
+    collect_metrics(mlflow_tracking_uri, experiment)
 
 
 if __name__ == "__main__":
