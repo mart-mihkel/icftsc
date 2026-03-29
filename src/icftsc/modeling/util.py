@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from math import ceil
-from typing import cast
+from typing import Any, cast
 
 import torch
 from datasets.dataset_dict import DatasetDict
@@ -11,9 +11,11 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
     DataCollator,
+    DistilBertModel,
     EvalPrediction,
     PreTrainedModel,
     PreTrainedTokenizerFast,
+    T5Gemma2Model,
 )
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
@@ -85,6 +87,24 @@ def get_model(
     return model
 
 
+def _distiblert_prompt_tuning_kwargs(model: DistilBertModel) -> dict[str, Any]:
+    cfg = model.config
+    return {
+        "token_dim": cfg.dim,
+        "num_layers": cfg.n_layers,
+        "num_attention_heads": cfg.n_heads,
+    }
+
+
+def _t5gemma2_prompt_tuning_kwargs(model: T5Gemma2Model) -> dict[str, Any]:
+    cfg = model.config
+    return {
+        "token_dim": cfg.encoder.text_config.hidden_size,
+        "num_layers": cfg.encoder.text_config.num_hidden_layers,
+        "num_attention_heads": cfg.encoder.text_config.num_attention_heads,
+    }
+
+
 def get_pt_model(
     prefix_init: PrefixInit,
     tokenizer: PreTrainedTokenizerFast,
@@ -114,12 +134,21 @@ def get_pt_model(
     else:
         raise NotImplementedError(f"Prefix init '{prefix_init}'")
 
+    edge_case_kwargs = {}
+    if "distilbert" in model_path:
+        base = cast(DistilBertModel, base)
+        edge_case_kwargs = _distiblert_prompt_tuning_kwargs(base)
+    elif "t5gemma-2" in model_path:
+        base = cast(T5Gemma2Model, base)
+        edge_case_kwargs = _t5gemma2_prompt_tuning_kwargs(base)
+
     config = PromptTuningConfig(
         task_type=task_type,
         prompt_tuning_init=init,
         tokenizer_name_or_path=model_path,
         prompt_tuning_init_text=sys_prompt,
         num_virtual_tokens=num_virtual_tokens,
+        **edge_case_kwargs,
     )
 
     logger.debug("init prompt tuning model for %s", model_path)
