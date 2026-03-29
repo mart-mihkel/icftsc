@@ -294,7 +294,8 @@ def _tokenize_batch(
                 continue
 
             if task == "seq2seq":
-                all_labels.append(labels_enc[(prompt_len - 1) :])
+                idx = prompt_len - int(labels_enc[-1] == tokenizer.eos_token_id)
+                all_labels.append(labels_enc[idx:])
                 continue
 
             raise NotImplementedError(f"Task '{task}'")

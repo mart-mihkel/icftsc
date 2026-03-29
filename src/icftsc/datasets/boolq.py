@@ -181,7 +181,8 @@ def _tokenize(
         return answer_enc
 
     if task == "seq2seq":
-        answer_enc["labels"] = labels_enc[(prompt_len - 1) :]
+        idx = prompt_len - int(labels_enc[-1] == tokenizer.eos_token_id)
+        answer_enc["labels"] = labels_enc[idx:]
         return answer_enc
 
     raise NotImplementedError(f"Task '{task}'")
