@@ -1,10 +1,13 @@
+from typing import cast
+
 import mlflow
+from torch.utils.data import Dataset
 from transformers import AutoConfig
 
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.modeling.util import get_arch, get_model, train
+from icftsc.modeling.util import get_arch, get_model, get_trainer
 from icftsc.types import DatasetName, Task
 
 
@@ -62,7 +65,7 @@ def few_shot(
         }
     )
 
-    train(
+    trainer = get_trainer(
         model=model,
         data=data,
         collate_fn=collate_fn,
@@ -71,5 +74,10 @@ def few_shot(
         run_name=run_name,
         report_to="mlflow",
     )
+
+    logger.info("start test evaluation")
+    test = cast(Dataset, data["test"])
+    metrics = trainer.evaluate(test, metric_key_prefix="test")
+    logger.info(metrics)
 
     mlflow.end_run()

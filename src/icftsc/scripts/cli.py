@@ -10,13 +10,19 @@ from icftsc.types import DatasetName, PrefixInit, Task
 app = Typer(no_args_is_help=True)
 
 
-def save_params(params: dict[str, Any], run_name: str):
+def save_params(args: dict[str, Any], run_name: str):
     import json
     import os
 
-    os.makedirs(f"out/{run_name}", exist_ok=True)
-    with open(f"out/{run_name}/cli_params.json", "w") as f:
-        json.dump(params, f, indent=2)
+    from icftsc.logging import logger
+
+    logdir = f"out/{run_name}"
+    argpath = f"{logdir}/cli_args.json"
+    logger.debug("save cli args to '%s'", argpath)
+
+    os.makedirs(logdir, exist_ok=True)
+    with open(argpath, "w") as f:
+        json.dump(args, f, indent=2)
 
 
 def timed(func: Callable) -> Callable:

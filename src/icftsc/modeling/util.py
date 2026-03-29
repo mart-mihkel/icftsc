@@ -1,4 +1,3 @@
-import json
 from collections.abc import Callable
 from math import ceil
 from typing import cast
@@ -7,7 +6,6 @@ import torch
 from datasets.dataset_dict import DatasetDict
 from peft import PeftModel, PromptTuningConfig, TaskType, get_peft_model
 from torch.nn import Module
-from torch.utils.data import Dataset
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
@@ -141,18 +139,15 @@ def freeze(model: Module, skip: set[str] | None = None):
         param.requires_grad = False
 
 
-def train(
-    model: Module,
+def get_args(
     data: DatasetDict,
-    collate_fn: DataCollator,
-    metrics_fn: Callable[[EvalPrediction, bool], dict[str, int | float]],
     epochs: int = 0,
     learning_rate: float = 5e-5,
     batch_size: int = 8,
     grad_chkpts: bool = False,
     run_name: str = "default",
     report_to: str = "none",
-):
+) -> TrainingArguments:
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
 
@@ -164,7 +159,7 @@ def train(
     logger.debug("optimizer '%s'", optim)
     logger.debug("checkpoint dir '%s'", out_dir)
 
-    args = TrainingArguments(
+    return TrainingArguments(
         run_name=run_name,
         report_to=report_to,
         output_dir=out_dir,
@@ -183,26 +178,34 @@ def train(
         bf16=have_cuda,
     )
 
-    _metrics_fn = cast(Callable[[EvalPrediction], dict[str, int | float]], metrics_fn)
-    trainer = Trainer(
+
+def get_trainer(
+    model: Module,
+    data: DatasetDict,
+    collate_fn: DataCollator,
+    metrics_fn: Callable[[EvalPrediction, bool], dict[str, int | float]],
+    epochs: int = 0,
+    learning_rate: float = 5e-5,
+    batch_size: int = 8,
+    grad_chkpts: bool = False,
+    run_name: str = "default",
+    report_to: str = "none",
+) -> Trainer:
+    args = get_args(
+        data=data,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        batch_size=batch_size,
+        grad_chkpts=grad_chkpts,
+        run_name=run_name,
+        report_to=report_to,
+    )
+
+    return Trainer(
         args=args,
         model=model,
         train_dataset=data["train"],
         eval_dataset=data["dev"],
         data_collator=collate_fn,
-        compute_metrics=_metrics_fn,
+        compute_metrics=cast(Callable, metrics_fn),
     )
-
-    logger.info("start trainer")
-    trainer.train()
-
-    if "test" in data:
-        logger.info("run test evaluation")
-        test = cast(Dataset, data["test"])
-        metrics = trainer.evaluate(test, metric_key_prefix="test")
-        logger.info(json.dumps(metrics, indent=4))
-    else:
-        logger.warning("skip test evalatuaion")
-
-    logger.info("save checkpoint to %s", out_dir)
-    trainer.save_model(out_dir)

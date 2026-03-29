@@ -1,10 +1,13 @@
+from typing import cast
+
 import mlflow
+from torch.utils.data import Dataset
 from transformers import AutoConfig
 
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.modeling.util import get_arch, get_model, train
+from icftsc.modeling.util import get_arch, get_model, get_trainer
 from icftsc.types import DatasetName, Task
 
 
@@ -69,7 +72,7 @@ def fine_tune(
         }
     )
 
-    train(
+    trainer = get_trainer(
         model=model,
         data=data,
         collate_fn=collate_fn,
@@ -81,5 +84,18 @@ def fine_tune(
         run_name=run_name,
         report_to="mlflow",
     )
+
+    logger.info("start trainer")
+    trainer.train()
+
+    if "test" in data:
+        test = cast(Dataset, data["test"])
+        metrics = trainer.evaluate(test, metric_key_prefix="test")
+        logger.info(metrics)
+    else:
+        logger.warning("skip test evalatuaion")
+
+    logger.info("save checkpoint to %s", trainer.args.output_dir)
+    trainer.save_model()
 
     mlflow.end_run()
