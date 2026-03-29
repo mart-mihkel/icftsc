@@ -5,7 +5,11 @@ from datasets.load import load_dataset
 from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.constants import (
+    decoder_model_types,
+    encoder_decoder_model_types,
+    encoder_model_types,
+)
 from icftsc.logging import logger
 from icftsc.types import DatasetInfo, Task
 
@@ -70,22 +74,22 @@ examples = [
 ]
 
 
-def _bert_sys_prompt(sep: str) -> str:
+def _enc_sys_prompt(sep: str) -> str:
     return f"Answer the question based on the passage.{sep}"
 
 
-def _bert_prompt(example: BoolqExample, sep: str) -> str:
+def _enc_prompt(example: BoolqExample, sep: str) -> str:
     return f"{example['question']}{sep}{example['passage']}"
 
 
-def _gpt_sys_prompt() -> str:
+def _dec_sys_prompt() -> str:
     return (
         "Answer the question based on the passage. Do not provide any explanation, "
         'answer with exactly one word: "yes" or "no".\n'
     )
 
 
-def _gpt_prompt(example: BoolqExample) -> str:
+def _dec_prompt(example: BoolqExample) -> str:
     return (
         f"Passage: {example['passage']}\n"
         f"Question: {example['question']}\n"
@@ -93,14 +97,14 @@ def _gpt_prompt(example: BoolqExample) -> str:
     )
 
 
-def _t5_sys_prompt() -> str:
+def _encdec_sys_prompt() -> str:
     return (
         "boolean question answering: given a passage and a question, "
         'answer with "yes" or "no".\n'
     )
 
 
-def _t5_prompt(example: BoolqExample) -> str:
+def _encdec_prompt(example: BoolqExample) -> str:
     return (
         f"passage: {example['passage']}\n"
         f"question: {example['question']}\n"
@@ -116,12 +120,12 @@ def _get_sys_prompt(
     if n_shot > len(examples):
         raise ValueError("Requested more examples than exist")
 
-    if model_type in bert_model_types:
-        prompt = _bert_sys_prompt(sep=tokenizer.sep_token)
-    elif model_type in gpt_model_types:
-        prompt = _gpt_sys_prompt()
-    elif model_type in t5_model_types:
-        prompt = _t5_sys_prompt()
+    if model_type in encoder_model_types:
+        prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
+    elif model_type in decoder_model_types:
+        prompt = _dec_sys_prompt()
+    elif model_type in encoder_decoder_model_types:
+        prompt = _encdec_sys_prompt()
     else:
         raise NotImplementedError(f"Model type '{model_type}'")
 
@@ -134,14 +138,14 @@ def _get_prompt(
     model_type: str,
     example: BoolqExample,
 ) -> str:
-    if model_type in bert_model_types:
-        return _bert_prompt(example, tokenizer.sep_token)
+    if model_type in encoder_model_types:
+        return _enc_prompt(example, tokenizer.sep_token)
 
-    if model_type in gpt_model_types:
-        return _gpt_prompt(example)
+    if model_type in decoder_model_types:
+        return _dec_prompt(example)
 
-    if model_type in t5_model_types:
-        return _t5_prompt(example)
+    if model_type in encoder_decoder_model_types:
+        return _encdec_prompt(example)
 
     raise NotImplementedError(f"Model type '{model_type}'")
 

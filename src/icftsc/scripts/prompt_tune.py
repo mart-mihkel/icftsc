@@ -7,7 +7,7 @@ from transformers import AutoConfig
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.modeling.util import get_pt_model, train
+from icftsc.modeling.util import get_arch, get_pt_model, train
 from icftsc.types import DatasetName, PrefixInit, Task
 
 
@@ -64,7 +64,10 @@ def prompt_tune(
         {
             "task": task,
             "dataset": dataset,
+            "base_model": model_path,
             "prefix_init": prefix_init,
+            "architecture": get_arch(model_type),
+            "method": f"prompt-tune-{prefix_init}",
             "system_prompt": info["system_prompt"],
         }
     )

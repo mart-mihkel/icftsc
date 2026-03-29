@@ -5,7 +5,11 @@ from datasets.load import load_dataset
 from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.constants import (
+    decoder_model_types,
+    encoder_decoder_model_types,
+    encoder_model_types,
+)
 from icftsc.logging import logger
 from icftsc.types import DatasetInfo, Task
 
@@ -79,19 +83,19 @@ examples = [
 ]
 
 
-def _bert_sys_prompt(sep: str) -> str:
+def _enc_sys_prompt(sep: str) -> str:
     return f"Does the word have the same meaning in both sentences?{sep}"
 
 
-def _bert_prompt(example: WiCExample, sep: str) -> str:
+def _enc_prompt(example: WiCExample, sep: str) -> str:
     return f"{example['word']}{sep}{example['sentence1']}{sep}{example['sentence2']}"
 
 
-def _gpt_sys_prompt() -> str:
+def _dec_sys_prompt() -> str:
     return "Question: Does the word have the same meaning in both sentences?\n"
 
 
-def _gpt_prompt(example: WiCExample) -> str:
+def _dec_prompt(example: WiCExample) -> str:
     return (
         f"Word: {example['word']}\n"
         f"Sentence 1: {example['sentence1']}\n"
@@ -100,14 +104,14 @@ def _gpt_prompt(example: WiCExample) -> str:
     )
 
 
-def _t5_sys_prompt() -> str:
+def _encdec_sys_prompt() -> str:
     return (
         "word in context: "
         "determine if the word has the same meaning in both sentences.\n"
     )
 
 
-def _t5_prompt(example: WiCExample) -> str:
+def _encdec_prompt(example: WiCExample) -> str:
     return (
         "word in context: does the word have the same meaning in both sentences.\n"
         f"word: {example['word']}\n"
@@ -125,12 +129,12 @@ def _get_sys_prompt(
     if n_shot > len(examples):
         raise ValueError("Requested more examples than exist")
 
-    if model_type in bert_model_types:
-        prompt = _bert_sys_prompt(sep=tokenizer.sep_token)
-    elif model_type in gpt_model_types:
-        prompt = _gpt_sys_prompt()
-    elif model_type in t5_model_types:
-        prompt = _t5_sys_prompt()
+    if model_type in encoder_model_types:
+        prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
+    elif model_type in decoder_model_types:
+        prompt = _dec_sys_prompt()
+    elif model_type in encoder_decoder_model_types:
+        prompt = _encdec_sys_prompt()
     else:
         raise NotImplementedError(f"Model type '{model_type}'")
 
@@ -143,14 +147,14 @@ def _get_prompt(
     model_type: str,
     example: WiCExample,
 ) -> str:
-    if model_type in bert_model_types:
-        return _bert_prompt(example, tokenizer.sep_token)
+    if model_type in encoder_model_types:
+        return _enc_prompt(example, tokenizer.sep_token)
 
-    if model_type in gpt_model_types:
-        return _gpt_prompt(example)
+    if model_type in decoder_model_types:
+        return _dec_prompt(example)
 
-    if model_type in t5_model_types:
-        return _t5_prompt(example)
+    if model_type in encoder_decoder_model_types:
+        return _encdec_prompt(example)
 
     raise NotImplementedError(f"Model type '{model_type}'")
 

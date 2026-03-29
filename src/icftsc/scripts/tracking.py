@@ -1,10 +1,10 @@
-import polars as pl
 from mlflow.tracking import MlflowClient
+from polars import DataFrame
 
 from icftsc.logging import logger
 
 
-def collect_metrics(mlflow_tracking_uri: str, experiment: str):
+def collect_metrics(mlflow_tracking_uri: str, experiment: str) -> DataFrame:
     logger.info("connecting to '%s'", mlflow_tracking_uri)
     client = MlflowClient(tracking_uri=mlflow_tracking_uri)
     exp = client.get_experiment_by_name(experiment)
@@ -13,8 +13,6 @@ def collect_metrics(mlflow_tracking_uri: str, experiment: str):
         raise ValueError(f"Experiment '{experiment}' not found")
 
     runs = client.search_runs(exp.experiment_id, "")
-    logger.info("found %d runs", len(runs))
-
     rows = []
     for run in runs:
         run_data = {
@@ -35,10 +33,11 @@ def collect_metrics(mlflow_tracking_uri: str, experiment: str):
 
         rows.append(run_data)
 
-    path = f"out/{experiment}-metrics.csv"
-
-    df = pl.DataFrame(rows)
+    path = f"out/metrics-{experiment}.csv"
+    df = DataFrame(rows)
     df.write_csv(path)
 
-    logger.info("collected %d records and %d parameters", df.shape[0], df.shape[1])
+    logger.info("found %d runs with %d params", df.shape[0], df.shape[1])
     logger.info("saved metrics to '%s'", path)
+
+    return df

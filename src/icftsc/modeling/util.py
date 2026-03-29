@@ -20,9 +20,27 @@ from transformers import (
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
+from icftsc.constants import (
+    decoder_model_types,
+    encoder_decoder_model_types,
+    encoder_model_types,
+)
 from icftsc.datasets.util import DatasetInfo
 from icftsc.logging import logger
-from icftsc.types import PrefixInit, Task
+from icftsc.types import Architecture, PrefixInit, Task
+
+
+def get_arch(model_type: str) -> Architecture:
+    if model_type in encoder_model_types:
+        return "encoder"
+
+    if model_type in decoder_model_types:
+        return "decoder"
+
+    if model_type in encoder_decoder_model_types:
+        return "encoder-decoder"
+
+    raise NotImplementedError(f"Model type '{model_type}'")
 
 
 def get_model(

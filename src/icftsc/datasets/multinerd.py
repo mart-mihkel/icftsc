@@ -6,7 +6,11 @@ from datasets.splits import Split
 from datasets.utils.info_utils import VerificationMode
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.constants import (
+    decoder_model_types,
+    encoder_decoder_model_types,
+    encoder_model_types,
+)
 from icftsc.logging import logger
 from icftsc.types import DatasetInfo, Task
 
@@ -177,15 +181,15 @@ examples = [
 ]
 
 
-def _bert_sys_prompt(sep: str) -> str:
+def _enc_sys_prompt(sep: str) -> str:
     return f"Identify the NER tag of the entity in the sentence.{sep}"
 
 
-def _bert_prompt(sentence: str, entity: str, sep: str) -> str:
+def _enc_prompt(sentence: str, entity: str, sep: str) -> str:
     return f"{sentence}{sep}{entity}"
 
 
-def _gpt_sys_prompt() -> str:
+def _dec_sys_prompt() -> str:
     return (
         "Identify the NER tag of the entity in the sentence. Possible tags are: "
         "PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, MYTH, "
@@ -193,11 +197,11 @@ def _gpt_sys_prompt() -> str:
     )
 
 
-def _gpt_prompt(sentence: str, entity: str) -> str:
+def _dec_prompt(sentence: str, entity: str) -> str:
     return f"sentence: {sentence}\nentity: {entity}\ntag:"
 
 
-def _t5_sys_prompt() -> str:
+def _encdec_sys_prompt() -> str:
     return (
         "ner: identify the ner tag of the entity in the sentence.\ntags: PER "
         "ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, MYTH, PLANT, "
@@ -205,7 +209,7 @@ def _t5_sys_prompt() -> str:
     )
 
 
-def _t5_prompt(sentence: str, entity: str) -> str:
+def _encdec_prompt(sentence: str, entity: str) -> str:
     return f"sentence: {sentence}\nentity: {entity}\ntag:"
 
 
@@ -217,12 +221,12 @@ def _get_sys_prompt(
     if n_shot > len(examples):
         raise ValueError("Requested more examples than exist")
 
-    if model_type in bert_model_types:
-        prompt = _bert_sys_prompt(sep=tokenizer.sep_token)
-    elif model_type in gpt_model_types:
-        prompt = _gpt_sys_prompt()
-    elif model_type in t5_model_types:
-        prompt = _t5_sys_prompt()
+    if model_type in encoder_model_types:
+        prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
+    elif model_type in decoder_model_types:
+        prompt = _dec_sys_prompt()
+    elif model_type in encoder_decoder_model_types:
+        prompt = _encdec_sys_prompt()
     else:
         raise NotImplementedError(f"Model type '{model_type}'")
 
@@ -236,14 +240,14 @@ def _get_prompt(
     sentence: str,
     entity: str,
 ) -> str:
-    if model_type in bert_model_types:
-        return _bert_prompt(sentence, entity, tokenizer.sep_token)
+    if model_type in encoder_model_types:
+        return _enc_prompt(sentence, entity, tokenizer.sep_token)
 
-    if model_type in gpt_model_types:
-        return _gpt_prompt(sentence, entity)
+    if model_type in decoder_model_types:
+        return _dec_prompt(sentence, entity)
 
-    if model_type in t5_model_types:
-        return _t5_prompt(sentence, entity)
+    if model_type in encoder_decoder_model_types:
+        return _encdec_prompt(sentence, entity)
 
     raise NotImplementedError(f"Model type '{model_type}'")
 

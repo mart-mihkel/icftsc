@@ -4,7 +4,7 @@ from transformers import AutoConfig
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.modeling.util import get_model, train
+from icftsc.modeling.util import get_arch, get_model, train
 from icftsc.types import DatasetName, Task
 
 
@@ -47,6 +47,9 @@ def few_shot(
         {
             "task": task,
             "dataset": dataset,
+            "method": "few-shot",
+            "base_model": model_path,
+            "architecture": get_arch(model_type),
             "system_prompt": info["system_prompt"],
         }
     )

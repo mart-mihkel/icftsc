@@ -5,7 +5,11 @@ from datasets.load import load_dataset
 from datasets.splits import Split
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.constants import bert_model_types, gpt_model_types, t5_model_types
+from icftsc.constants import (
+    decoder_model_types,
+    encoder_decoder_model_types,
+    encoder_model_types,
+)
 from icftsc.logging import logger
 from icftsc.types import DatasetInfo, Task
 
@@ -117,26 +121,26 @@ examples = [
 ]
 
 
-def _bert_sys_prompt(sep: str) -> str:
+def _enc_sys_prompt(sep: str) -> str:
     return f"Määra nimeüksuse NER märgen lauses.{sep}"
 
 
-def _bert_prompt(sentence: str, entity: str, sep: str) -> str:
+def _enc_prompt(sentence: str, entity: str, sep: str) -> str:
     return f"{sentence}{sep}{entity}"
 
 
-def _gpt_sys_prompt() -> str:
+def _dec_sys_prompt() -> str:
     return (
         "Määra nimeüksuse NER märgen lauses. Võimalikut märgendid on: PER, ORG, "
         "LOC, GPE, PROD, EVENT, DATE, TIME, TITLE, MONEY, PERCENT, O.\n"
     )
 
 
-def _gpt_prompt(sentence: str, entity: str) -> str:
+def _dec_prompt(sentence: str, entity: str) -> str:
     return f"lause: {sentence}\nnimeüksus: {entity}\nmärgend:"
 
 
-def _t5_sys_prompt() -> str:
+def _encdec_sys_prompt() -> str:
     return (
         "ner: tuvasta lauses oleva nimeüksuse NER-märgend.\n"
         "märgendid: PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME, TITLE, MONEY, "
@@ -144,7 +148,7 @@ def _t5_sys_prompt() -> str:
     )
 
 
-def _t5_prompt(sentence: str, entity: str) -> str:
+def _encdec_prompt(sentence: str, entity: str) -> str:
     return f"lause: {sentence}\nnimeüksus: {entity}\nmärgend:"
 
 
@@ -156,12 +160,12 @@ def _get_sys_prompt(
     if n_shot > len(examples):
         raise ValueError("Requested more examples than exist")
 
-    if model_type in bert_model_types:
-        prompt = _bert_sys_prompt(sep=tokenizer.sep_token)
-    elif model_type in gpt_model_types:
-        prompt = _gpt_sys_prompt()
-    elif model_type in t5_model_types:
-        prompt = _t5_sys_prompt()
+    if model_type in encoder_model_types:
+        prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
+    elif model_type in decoder_model_types:
+        prompt = _dec_sys_prompt()
+    elif model_type in encoder_decoder_model_types:
+        prompt = _encdec_sys_prompt()
     else:
         raise NotImplementedError(f"Model type '{model_type}'")
 
@@ -175,14 +179,14 @@ def _get_prompt(
     sentence: str,
     entity: str,
 ) -> str:
-    if model_type in bert_model_types:
-        return _bert_prompt(sentence, entity, tokenizer.sep_token)
+    if model_type in encoder_model_types:
+        return _enc_prompt(sentence, entity, tokenizer.sep_token)
 
-    if model_type in gpt_model_types:
-        return _gpt_prompt(sentence, entity)
+    if model_type in decoder_model_types:
+        return _dec_prompt(sentence, entity)
 
-    if model_type in t5_model_types:
-        return _t5_prompt(sentence, entity)
+    if model_type in encoder_decoder_model_types:
+        return _encdec_prompt(sentence, entity)
 
     raise NotImplementedError(f"Model type '{model_type}'")
 
