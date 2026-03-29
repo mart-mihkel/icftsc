@@ -22,26 +22,23 @@ def _():
 @app.cell
 def _(Path, logger, os):
     logger.setLevel("INFO")
-    figpath = Path("out/fig")
+    figpath = Path("out/fig/multinerd")
     os.makedirs(figpath, exist_ok=True)
     return (figpath,)
 
 
 @app.cell(hide_code=True)
 def _(get_arch, logger, pl):
-    def add_metadata(df: pl.DataFrame) -> pl.DataFrame:
+    def wrangle_metadata(df: pl.DataFrame) -> pl.DataFrame:
         """
-        Manually add metadata to old experiments if missing.
+        Manually add or modify metadata of old experiments.
 
         Add 'method', 'base_model' and 'architecture' columns
         for forwards compatibility.
+        Remove train and eval runtime from few-shot runs.
         """
-        cols = {"method", "base_model", "architecture"}
-        if cols.issubset(df.columns):
-            return df
-
         logger.info("add forwards compatible metadata to old experiment")
-        return df.with_columns(
+        _method = (
             pl.when(pl.col("run_name").str.contains("fine-tune"))
             .then(pl.lit("fine-tune"))
             .when(pl.col("run_name").str.contains("pretrained-prefix"))
@@ -51,25 +48,51 @@ def _(get_arch, logger, pl):
             .when(pl.col("run_name").str.contains("head"))
             .then(pl.lit("cls-head"))
             .otherwise(pl.lit("few-shot"))
-            .alias("method"),
-            pl.col("run_name")
-            .str.replace("-(fine|pretrained|random|head|\\d-shot).*", "")
-            .alias("base_model"),
-            pl.col("model_type")
-            .map_elements(get_arch, pl.String)
-            .alias("architecture"),
+            .alias("method")
         )
 
-    return (add_metadata,)
+        _train_runtime = (
+            pl.when(pl.col("run_name").str.contains(r"fine|prefix|head"))
+            .then(pl.col("train_runtime"))
+            .otherwise(None)
+            .alias("train_runtime")
+        )
+
+        _eval_runtime = (
+            pl.when(pl.col("run_name").str.contains(r"fine|prefix|head"))
+            .then(pl.col("eval_runtime"))
+            .otherwise(None)
+            .alias("eval_runtime")
+        )
+
+        _base_model = (
+            pl.col("run_name")
+            .str.replace(r"-(fine|pretrained|random|cls|head|few|\d-shot).*", "")
+            .alias("base_model")
+        )
+
+        _arch = (
+            pl.col("model_type").map_elements(get_arch, pl.String).alias("architecture")
+        )
+
+        return df.with_columns(
+            _method,
+            _train_runtime,
+            _eval_runtime,
+            _base_model,
+            _arch,
+        )
+
+    return (wrangle_metadata,)
 
 
 @app.cell
-def _(add_metadata, collect_metrics, os):
+def _(collect_metrics, os, wrangle_metadata):
     _tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     _experiment = "icftsc-multinerd"
 
     df = collect_metrics(_tracking_uri, _experiment)
-    df = add_metadata(df)
+    df = wrangle_metadata(df)
     return (df,)
 
 
@@ -115,7 +138,7 @@ def _(df, figpath, pl, pn):
         + pn.aes(
             x="total_parameters",
             y="test_f1",
-            color="method",
+            fill="method",
             shape="architecture",
         )
         + pn.labs(
@@ -126,8 +149,8 @@ def _(df, figpath, pl, pn):
         + pn.scale_x_log10()
         + pn.ylim(0, 1)
         + pn.facet_wrap("model_type")
-        + pn.geom_line()
-        + pn.geom_point()
+        + pn.geom_line(pn.aes(color="method"))
+        + pn.geom_point(stroke=0.25, size=2)
     )
 
     _p.save(figpath / "pref_scaling.png")
@@ -147,7 +170,7 @@ def _(df, figpath, pl, pn):
         + pn.aes(
             x="trainable_parameters",
             y="train_runtime",
-            color="method",
+            fill="method",
             shape="model_type",
         )
         + pn.labs(
@@ -157,7 +180,7 @@ def _(df, figpath, pl, pn):
         )
         + pn.scale_x_log10()
         + pn.scale_y_log10()
-        + pn.geom_point()
+        + pn.geom_point(stroke=0.25, size=2)
     )
 
     _p.save(figpath / "compute_scaling.png")
@@ -172,28 +195,36 @@ def _(df, figpath, pl, pn):
         .sort("base_model", "method")
         .group_by("base_model")
         .agg(
-            pl.col("test_f1").diff().last(),
+            pl.col("test_f1").diff().last().alias("f1_gain_abs"),
+            pl.col("test_f1")
+            .diff()
+            .last()
+            .mul(1 / pl.col("test_f1").first())
+            .alias("f1_gain_rel"),
             pl.col("architecture").last(),
+            pl.col("model_type").last(),
+            pl.col("total_parameters").first(),
         )
     )
 
     _p = (
         pn.ggplot(_df)
         + pn.aes(
-            x="base_model",
-            y="test_f1",
+            x="f1_gain_abs",
+            y="f1_gain_rel",
             fill="architecture",
+            shape="model_type",
+            size="total_parameters",
         )
         + pn.labs(
-            x="Model",
-            y="Prompt-Tuning Absolute F1 Gain",
+            x="PT Absolute F1 Increase",
+            y="PT Relative F1 Increase",
             title="Prompt-Tuning vs Fine-Tuning",
         )
-        + pn.geom_bar(stat="identity")
-        + pn.coord_flip()
+        + pn.geom_point(stroke=0.25)
     )
 
-    _p.save(figpath / "perf_loss.png")
+    _p.save(figpath / "pt_vs_ft.png")
     _p
     return
 
