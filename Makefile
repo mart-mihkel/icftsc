@@ -5,5 +5,10 @@ pre-commit:
 	uv run ruff format
 	uv run ty check
 
-upload:
-	rsync -rv --exclude-from .gitignore --exclude .git . $(REMOTE)
+sync:
+	rsync --verbose --archive --delete \
+		--exclude-from .gitignore \
+		--exclude .pytest_cache \
+		--exclude .ruff_cache \
+		--exclude .git \
+		. $(REMOTE)
