@@ -5,6 +5,9 @@ pre-commit:
 	uv run ruff format
 	uv run ty check
 
+test:
+	uv run pytest --quiet --numprocesses 4
+
 sync:
 	rsync --verbose --archive --delete \
 		--exclude-from .gitignore \
