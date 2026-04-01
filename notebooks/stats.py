@@ -19,7 +19,7 @@ with app.setup:
     os.makedirs(figpath, exist_ok=True)
 
 
-@app.function(hide_code=True)
+@app.function
 def wrangle_metadata(df: pl.DataFrame) -> pl.DataFrame:
     """
     Manually add or modify metadata of old experiments.
@@ -78,7 +78,7 @@ def _():
     _tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     _experiment = "icftsc-multinerd"
 
-    df = collect_metrics(_tracking_uri, _experiment)
+    df = collect_metrics(_tracking_uri, _experiment, write_csv=False)
     df = wrangle_metadata(df)
     return (df,)
 

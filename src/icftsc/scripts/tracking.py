@@ -4,7 +4,11 @@ from polars import DataFrame
 from icftsc.logging import logger
 
 
-def collect_metrics(mlflow_tracking_uri: str, experiment: str) -> DataFrame:
+def collect_metrics(
+    mlflow_tracking_uri: str,
+    experiment: str,
+    write_csv: bool,
+) -> DataFrame:
     logger.info("connecting to '%s'", mlflow_tracking_uri)
     client = MlflowClient(tracking_uri=mlflow_tracking_uri)
     exp = client.get_experiment_by_name(experiment)
@@ -35,9 +39,10 @@ def collect_metrics(mlflow_tracking_uri: str, experiment: str) -> DataFrame:
 
     path = f"out/metrics-{experiment}.csv"
     df = DataFrame(rows)
-    df.write_csv(path)
 
     logger.info("found %d runs with %d params", df.shape[0], df.shape[1])
-    logger.info("saved metrics to '%s'", path)
+    if write_csv:
+        df.write_csv(path)
+        logger.info("saved metrics to '%s'", path)
 
     return df

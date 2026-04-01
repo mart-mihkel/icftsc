@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
 from typer import Context, Option, Typer
@@ -16,8 +15,8 @@ def save_params(args: dict[str, Any], run_name: str):
 
     from icftsc.logging import logger
 
-    logdir = f"out/{run_name}"
-    argpath = f"{logdir}/cli_args.json"
+    logdir = os.path.join("out", run_name)
+    argpath = os.path.join(logdir, "cli_args.json")
     logger.debug("save cli args to '%s'", argpath)
 
     os.makedirs(logdir, exist_ok=True)
@@ -25,29 +24,7 @@ def save_params(args: dict[str, Any], run_name: str):
         json.dump(args, f, indent=2)
 
 
-def timed(func: Callable) -> Callable:
-    import time
-    from functools import wraps
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from icftsc.logging import logger
-
-        start = time.time()
-        result = func(*args, **kwargs)
-        elapsed = time.time() - start
-
-        hours, remainder = divmod(int(elapsed), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        logger.info("time elapsed %02d:%02d:%02d", hours, minutes, seconds)
-
-        return result
-
-    return wrapper
-
-
 @app.command()
-@timed
 def fine_tune(
     ctx: Context,
     model: Annotated[str, Option()],
@@ -84,7 +61,6 @@ def fine_tune(
 
 
 @app.command()
-@timed
 def prompt_tune(
     ctx: Context,
     model: Annotated[str, Option()],
@@ -121,7 +97,6 @@ def prompt_tune(
 
 
 @app.command()
-@timed
 def few_shot(
     ctx: Context,
     model: Annotated[str, Option()],
@@ -150,7 +125,6 @@ def few_shot(
 
 
 @app.command()
-@timed
 def predict_superglue(
     checkpoint: Annotated[str, Option()],
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
@@ -163,7 +137,6 @@ def predict_superglue(
 
 
 @app.command()
-@timed
 def collect_metrics(
     mlflow_tracking_uri: Annotated[str, Option()],
     experiment: Annotated[str, Option()],
@@ -173,7 +146,7 @@ def collect_metrics(
     from icftsc.scripts.tracking import collect_metrics
 
     logger.setLevel(log_level)
-    collect_metrics(mlflow_tracking_uri, experiment)
+    collect_metrics(mlflow_tracking_uri, experiment, write_csv=True)
 
 
 if __name__ == "__main__":
