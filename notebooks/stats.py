@@ -1,11 +1,9 @@
 import marimo
 
-__generated_with = "0.21.1"
+__generated_with = "0.22.0"
 app = marimo.App(width="medium")
 
-
-@app.cell
-def _():
+with app.setup:
     import os
     from pathlib import Path
 
@@ -16,78 +14,67 @@ def _():
     from icftsc.modeling.util import get_arch
     from icftsc.scripts.tracking import collect_metrics
 
-    return Path, collect_metrics, get_arch, logger, os, pl, pn
-
-
-@app.cell
-def _(Path, logger, os):
     logger.setLevel("INFO")
     figpath = Path("out/fig/multinerd")
     os.makedirs(figpath, exist_ok=True)
-    return (figpath,)
 
 
-@app.cell(hide_code=True)
-def _(get_arch, logger, pl):
-    def wrangle_metadata(df: pl.DataFrame) -> pl.DataFrame:
-        """
-        Manually add or modify metadata of old experiments.
+@app.function(hide_code=True)
+def wrangle_metadata(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Manually add or modify metadata of old experiments.
 
-        Add 'method', 'base_model' and 'architecture' columns
-        for forwards compatibility.
-        Remove train and eval runtime from few-shot runs.
-        """
-        logger.info("add forwards compatible metadata to old experiment")
-        _method = (
-            pl.when(pl.col("run_name").str.contains("fine-tune"))
-            .then(pl.lit("fine-tune"))
-            .when(pl.col("run_name").str.contains("pretrained-prefix"))
-            .then(pl.lit("prompt-tune-pretrained"))
-            .when(pl.col("run_name").str.contains("random-prefix"))
-            .then(pl.lit("prompt-tune-random"))
-            .when(pl.col("run_name").str.contains("head"))
-            .then(pl.lit("cls-head"))
-            .otherwise(pl.lit("few-shot"))
-            .alias("method")
-        )
+    Add 'method', 'base_model' and 'architecture' columns
+    for forwards compatibility.
+    Remove train and eval runtime from few-shot runs.
+    """
+    logger.info("add forwards compatible metadata to old experiment")
+    _method = (
+        pl.when(pl.col("run_name").str.contains("fine-tune"))
+        .then(pl.lit("fine-tune"))
+        .when(pl.col("run_name").str.contains("pretrained-prefix"))
+        .then(pl.lit("prompt-tune-pretrained"))
+        .when(pl.col("run_name").str.contains("random-prefix"))
+        .then(pl.lit("prompt-tune-random"))
+        .when(pl.col("run_name").str.contains("head"))
+        .then(pl.lit("cls-head"))
+        .otherwise(pl.lit("few-shot"))
+        .alias("method")
+    )
 
-        _train_runtime = (
-            pl.when(pl.col("run_name").str.contains(r"fine|prefix|head"))
-            .then(pl.col("train_runtime"))
-            .otherwise(None)
-            .alias("train_runtime")
-        )
+    _train_runtime = (
+        pl.when(pl.col("run_name").str.contains(r"fine|prefix|head"))
+        .then(pl.col("train_runtime"))
+        .otherwise(None)
+        .alias("train_runtime")
+    )
 
-        _eval_runtime = (
-            pl.when(pl.col("run_name").str.contains(r"fine|prefix|head"))
-            .then(pl.col("eval_runtime"))
-            .otherwise(None)
-            .alias("eval_runtime")
-        )
+    _eval_runtime = (
+        pl.when(pl.col("run_name").str.contains(r"fine|prefix|head"))
+        .then(pl.col("eval_runtime"))
+        .otherwise(None)
+        .alias("eval_runtime")
+    )
 
-        _base_model = (
-            pl.col("run_name")
-            .str.replace(r"-(fine|pretrained|random|cls|head|few|\d-shot).*", "")
-            .alias("base_model")
-        )
+    _base_model = (
+        pl.col("run_name")
+        .str.replace(r"-(fine|pretrained|random|cls|head|few|\d-shot).*", "")
+        .alias("base_model")
+    )
 
-        _arch = (
-            pl.col("model_type").map_elements(get_arch, pl.String).alias("architecture")
-        )
+    _arch = pl.col("model_type").map_elements(get_arch, pl.String).alias("architecture")
 
-        return df.with_columns(
-            _method,
-            _train_runtime,
-            _eval_runtime,
-            _base_model,
-            _arch,
-        )
-
-    return (wrangle_metadata,)
+    return df.with_columns(
+        _method,
+        _train_runtime,
+        _eval_runtime,
+        _base_model,
+        _arch,
+    )
 
 
 @app.cell
-def _(collect_metrics, os, wrangle_metadata):
+def _():
     _tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     _experiment = "icftsc-multinerd"
 
@@ -96,11 +83,11 @@ def _(collect_metrics, os, wrangle_metadata):
     return (df,)
 
 
-@app.cell(hide_code=True)
-def _(df, pl):
+@app.cell
+def _(df):
     _gpu_hr_cost = 0.5
 
-    (
+    _df = (
         df.select("train_runtime", "eval_runtime", "test_runtime")
         .sum()
         .unpivot(variable_name="task", value_name="seconds")
@@ -111,27 +98,23 @@ def _(df, pl):
                 pl.col("task").str.replace("_runtime", ""),
             ]
         )
-        .select(["task", "gpu_hours", "cost_eur"])
-        .pipe(
-            lambda _d: pl.concat(
-                [
-                    _d,
-                    pl.DataFrame(
-                        {
-                            "task": ["total"],
-                            "gpu_hours": [round(_d["gpu_hours"].sum(), 2)],
-                            "cost_eur": [round(_d["cost_eur"].sum(), 2)],
-                        }
-                    ),
-                ]
-            )
-        )
+        .select("task", "gpu_hours", "cost_eur")
     )
+
+    _totals = pl.DataFrame(
+        {
+            "task": ["total"],
+            "gpu_hours": [round(_df["gpu_hours"].sum(), 2)],
+            "cost_eur": [round(_df["cost_eur"].sum(), 2)],
+        }
+    )
+
+    pl.concat([_df, _totals])
     return
 
 
 @app.cell
-def _(df, figpath, pl, pn):
+def _(df):
     _df = df.with_columns(pl.col("total_parameters").mul(1e-6))
     _p = (
         pn.ggplot(_df)
@@ -159,7 +142,7 @@ def _(df, figpath, pl, pn):
 
 
 @app.cell
-def _(df, figpath, pl, pn):
+def _(df):
     _df = df.with_columns(
         pl.col("train_runtime").mul(1 / 3600),
         pl.col("trainable_parameters").mul(1e-6),
@@ -189,7 +172,7 @@ def _(df, figpath, pl, pn):
 
 
 @app.cell
-def _(df, figpath, pl, pn):
+def _(df):
     _df = (
         df.filter(pl.col("method").is_in(("fine-tune", "prompt-tune-pretrained")))
         .sort("base_model", "method")
