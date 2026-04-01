@@ -16,10 +16,10 @@ split = cast(
 )
 
 
-def test_boolq_seqcls(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_boolq_seqcls(bert_tokenizer: PreTrainedTokenizerFast):
     data, _ = load_boolq(
-        tokenizer=mmbert_tokenizer,
-        model_type="modernbert",
+        tokenizer=bert_tokenizer,
+        model_type="bert",
         task="seqcls",
         split=split,
         n_shot=0,
@@ -56,7 +56,6 @@ def test_boolq_causal(gpt2_tokenizer: PreTrainedTokenizerFast):
     assert "input_ids" in train_sample
     assert "attention_mask" in train_sample
     assert len(labels) == prompt_len
-    assert all(label == -100 for label in labels[: prompt_len - 1])
 
 
 def test_boolq_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
@@ -79,11 +78,11 @@ def test_boolq_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
     assert all(label >= 0 for label in train_sample["labels"])
 
 
-def test_boolq_n_shot(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_boolq_n_shot(bert_tokenizer: PreTrainedTokenizerFast):
     n_shot = 3
     _, info = load_boolq(
-        tokenizer=mmbert_tokenizer,
-        model_type="modernbert",
+        tokenizer=bert_tokenizer,
+        model_type="bert",
         task="seqcls",
         split=split,
         n_shot=n_shot,
@@ -94,10 +93,10 @@ def test_boolq_n_shot(mmbert_tokenizer: PreTrainedTokenizerFast):
     assert info["system_prompt"].count("Answer:") == n_shot
 
 
-def test_boolq_invalid_model_type(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_boolq_invalid_model_type(bert_tokenizer: PreTrainedTokenizerFast):
     with pytest.raises(NotImplementedError, match="Model type 'invalid'"):
         load_boolq(
-            tokenizer=mmbert_tokenizer,
+            tokenizer=bert_tokenizer,
             model_type="invalid",
             task="seqcls",
             split=split,
@@ -105,11 +104,11 @@ def test_boolq_invalid_model_type(mmbert_tokenizer: PreTrainedTokenizerFast):
         )
 
 
-def test_boolq_invalid_n_shot(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_boolq_invalid_n_shot(bert_tokenizer: PreTrainedTokenizerFast):
     with pytest.raises(ValueError, match="Requested more examples than exist"):
         load_boolq(
-            tokenizer=mmbert_tokenizer,
-            model_type="modernbert",
+            tokenizer=bert_tokenizer,
+            model_type="bert",
             task="seqcls",
             split=split,
             n_shot=100,

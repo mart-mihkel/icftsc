@@ -5,10 +5,10 @@ from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 
 @fixture
-def mmbert_tokenizer() -> PreTrainedTokenizerFast:
+def bert_tokenizer() -> PreTrainedTokenizerFast:
     return cast(
         PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("jhu-clsp/mmBERT-base"),
+        AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-bert"),
     )
 
 
@@ -16,7 +16,7 @@ def mmbert_tokenizer() -> PreTrainedTokenizerFast:
 def gpt2_tokenizer() -> PreTrainedTokenizerFast:
     tokenizer = cast(
         PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("openai-community/gpt2"),
+        AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2"),
     )
 
     tokenizer.pad_token = tokenizer.eos_token
@@ -29,5 +29,5 @@ def gpt2_tokenizer() -> PreTrainedTokenizerFast:
 def t5_tokenizer() -> PreTrainedTokenizerFast:
     return cast(
         PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("google-t5/t5-small"),
+        AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-t5"),
     )

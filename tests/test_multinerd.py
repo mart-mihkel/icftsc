@@ -25,10 +25,10 @@ def test_join_spans():
     assert jtags == [-1, -1, 0]
 
 
-def test_multinerd_seqcls(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_multinerd_seqcls(bert_tokenizer: PreTrainedTokenizerFast):
     data, _ = load_multinerd(
-        tokenizer=mmbert_tokenizer,
-        model_type="modernbert",
+        tokenizer=bert_tokenizer,
+        model_type="bert",
         filter_en=False,
         task="seqcls",
         split=split,
@@ -95,11 +95,11 @@ def test_multinerd_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
     assert all(label >= 0 for label in train_sample["labels"])
 
 
-def test_multinerd_n_shot(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_multinerd_n_shot(bert_tokenizer: PreTrainedTokenizerFast):
     n_shot = 3
     _, info = load_multinerd(
-        tokenizer=mmbert_tokenizer,
-        model_type="modernbert",
+        tokenizer=bert_tokenizer,
+        model_type="bert",
         filter_en=False,
         task="seqcls",
         split=split,
@@ -112,10 +112,10 @@ def test_multinerd_n_shot(mmbert_tokenizer: PreTrainedTokenizerFast):
     assert info["system_prompt"].count("tag:") == n_shot
 
 
-def test_multinerd_invalid_model_type(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_multinerd_invalid_model_type(bert_tokenizer: PreTrainedTokenizerFast):
     with pytest.raises(NotImplementedError, match="Model type 'invalid'"):
         load_multinerd(
-            tokenizer=mmbert_tokenizer,
+            tokenizer=bert_tokenizer,
             model_type="invalid",
             filter_en=False,
             task="seqcls",
@@ -125,11 +125,11 @@ def test_multinerd_invalid_model_type(mmbert_tokenizer: PreTrainedTokenizerFast)
         )
 
 
-def test_multinerd_invalid_n_shot(mmbert_tokenizer: PreTrainedTokenizerFast):
+def test_multinerd_invalid_n_shot(bert_tokenizer: PreTrainedTokenizerFast):
     with pytest.raises(ValueError, match="Requested more examples than exist"):
         load_multinerd(
-            tokenizer=mmbert_tokenizer,
-            model_type="modernbert",
+            tokenizer=bert_tokenizer,
+            model_type="bert",
             filter_en=False,
             task="seqcls",
             split=split,
