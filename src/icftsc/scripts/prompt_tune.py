@@ -8,7 +8,7 @@ from transformers import AutoConfig
 from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
-from icftsc.modeling.util import get_arch, get_pt_model, get_trainer
+from icftsc.modeling import get_arch, get_pt_model, get_trainer
 from icftsc.types import DatasetName, PrefixInit, Task
 
 

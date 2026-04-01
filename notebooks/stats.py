@@ -11,7 +11,7 @@ with app.setup:
     import polars as pl
 
     from icftsc.logging import logger
-    from icftsc.modeling.util import get_arch
+    from icftsc.modeling import get_arch
     from icftsc.scripts.tracking import collect_metrics
 
     logger.setLevel("INFO")
