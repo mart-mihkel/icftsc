@@ -4,30 +4,22 @@ from pytest import fixture
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 
-@fixture
+@fixture(scope="session")
 def bert_tokenizer() -> PreTrainedTokenizerFast:
-    return cast(
-        PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-bert"),
-    )
+    tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-bert")
+    return cast(PreTrainedTokenizerFast, tokenizer)
 
 
-@fixture
+@fixture(scope="session")
 def gpt2_tokenizer() -> PreTrainedTokenizerFast:
-    tokenizer = cast(
-        PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2"),
-    )
-
+    tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2")
+    tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
-
     return tokenizer
 
 
-@fixture
+@fixture(scope="session")
 def t5_tokenizer() -> PreTrainedTokenizerFast:
-    return cast(
-        PreTrainedTokenizerFast,
-        AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-t5"),
-    )
+    tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-t5")
+    return cast(PreTrainedTokenizerFast, tokenizer)
