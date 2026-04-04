@@ -83,7 +83,7 @@ def test_boolq_invalid_n_shot(
     boolq: DatasetDict,
 ):
     with (
-        pytest.raises(ValueError, match="Requested more examples than exist"),
+        pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("icftsc.datasets.boolq.load_dataset", return_value=boolq),
     ):
         load_boolq(bert_tokenizer, "bert", "seqcls", 100)

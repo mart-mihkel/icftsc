@@ -61,12 +61,14 @@ BASE=distilbert/distilbert-base-cased
 
 NAME=$(echo $BASE | awk -F / '{print $2}')
 PREFIX_INIT=pretrained
+N_TRAIN_SAMPLES=1024
+N_DEV_SAMPLES=1024
 DATASET=multinerd
 LOG_LEVEL=DEBUG
 PREFIX_LR=1e-3
 BATCH_SIZE=8
 N_SHOT=3
-EPOCHS=1
+EPOCHS=3
 
 if [[ $1 = few-shot ]]; then
     uv run cli few-shot \
@@ -85,16 +87,18 @@ fi
 if [[ $1 = cls-head ]]; then
     uv run cli fine-tune \
         --run-name $NAME-cls-head-$N_SHOT-shot-$DATASET \
+        --n-train-samples $N_TRAIN_SAMPLES \
+        --n-dev-samples $N_DEV_SAMPLES \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
-        --no-grad-chkpts \
         --model $BASE \
         --task $TASK \
-        --head-only
+        --head-only \
+        --do-eval
 
     exit 0
 fi
@@ -102,16 +106,18 @@ fi
 if [[ $1 = fine-tune ]]; then
     uv run cli fine-tune \
         --run-name $NAME-fine-tune-$N_SHOT-shot-$DATASET \
+        --n-train-samples $N_TRAIN_SAMPLES \
+        --n-dev-samples $N_DEV_SAMPLES \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
-        --no-grad-chkpts \
         --no-head-only \
         --model $BASE \
-        --task $TASK
+        --task $TASK \
+        --do-eval
 
     exit 0
 fi
@@ -119,6 +125,8 @@ fi
 if [[ $1 = prompt-tune ]]; then
     uv run cli prompt-tune \
         --run-name $NAME-$PREFIX_INIT-prefix-$N_SHOT-shot-$DATASET \
+        --n-train-samples $N_TRAIN_SAMPLES \
+        --n-dev-samples $N_DEV_SAMPLES \
         --learning-rate $PREFIX_LR \
         --prefix-init $PREFIX_INIT \
         --experiment icftsc-test \
@@ -127,9 +135,9 @@ if [[ $1 = prompt-tune ]]; then
         --dataset $DATASET \
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
-        --no-grad-chkpts \
         --model $BASE \
-        --task $TASK
+        --task $TASK \
+        --do-eval
 
     exit 0
 fi

@@ -63,6 +63,7 @@ def few_shot(
         data=data,
         collate_fn=collate_fn,
         metrics_fn=metrics_fn,
+        do_eval=False,
         batch_size=batch_size,
         run_name=run_name,
         report_to="mlflow",

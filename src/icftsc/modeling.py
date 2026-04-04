@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from math import ceil
 from typing import Any, cast
 
 import torch
@@ -169,40 +168,36 @@ def freeze(model: Module, skip: set[str] | None = None):
 
 
 def get_args(
-    data: DatasetDict,
+    do_eval: bool,
     epochs: int = 0,
     learning_rate: float = 5e-5,
     batch_size: int = 8,
-    grad_chkpts: bool = False,
     run_name: str = "default",
     report_to: str = "none",
 ) -> TrainingArguments:
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
-
-    train_steps = ceil(len(data["train"]) / batch_size) * epochs
-    logging_steps = max(1, train_steps // 100)
-
+    eval_strategy = "epoch" if do_eval else "no"
     out_dir = f"out/{run_name}"
 
     logger.debug("optimizer '%s'", optim)
     logger.debug("checkpoint dir '%s'", out_dir)
+    logger.debug("eval strategy '%s'", eval_strategy)
 
     return TrainingArguments(
         run_name=run_name,
         report_to=report_to,
         output_dir=out_dir,
         save_strategy="no",
-        eval_strategy="epoch",
-        eval_on_start=True,
+        eval_strategy=eval_strategy,
+        eval_on_start=do_eval,
         batch_eval_metrics=True,
-        logging_steps=logging_steps,
+        logging_steps=100,
         learning_rate=learning_rate,
         optim=optim,
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        gradient_checkpointing=grad_chkpts,
         bf16_full_eval=have_cuda,
         bf16=have_cuda,
     )
@@ -213,22 +208,14 @@ def get_trainer(
     data: DatasetDict,
     collate_fn: DataCollator,
     metrics_fn: Callable[[EvalPrediction, bool], dict[str, int | float]],
+    do_eval: bool,
     epochs: int = 0,
     learning_rate: float = 5e-5,
     batch_size: int = 8,
-    grad_chkpts: bool = False,
     run_name: str = "default",
     report_to: str = "none",
 ) -> Trainer:
-    args = get_args(
-        data=data,
-        epochs=epochs,
-        learning_rate=learning_rate,
-        batch_size=batch_size,
-        grad_chkpts=grad_chkpts,
-        run_name=run_name,
-        report_to=report_to,
-    )
+    args = get_args(do_eval, epochs, learning_rate, batch_size, run_name, report_to)
 
     return Trainer(
         args=args,

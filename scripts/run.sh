@@ -62,6 +62,8 @@ BASE=distilbert/distilbert-base-cased
 # BASE=google/t5gemma-2-4b-4b
 
 NAME=$(echo $BASE | awk -F / '{print $2}')
+N_TRAIN_SAMPLES=20000
+N_DEV_SAMPLES=1024
 DATASET=multinerd
 LOG_LEVEL=DEBUG
 PREFIX_LR=1e-3
@@ -81,33 +83,39 @@ uv run cli few-shot \
 
 # uv run cli fine-tune \
 #     --run-name $NAME-cls-head-$N_SHOT-shot-$DATASET \
+#     --n-train-samples $N_TRAIN_SAMPLES \
+#     --n-dev-samples $N_DEV_SAMPLES \
 #     --experiment icftsc-$DATASET \
 #     --batch-size $BATCH_SIZE \
 #     --log-level $LOG_LEVEL \
 #     --dataset $DATASET \
 #     --epochs $EPOCHS \
 #     --n-shot $N_SHOT \
-#     --no-grad-chkpts \
 #     --model $BASE \
 #     --task $TASK \
+#     --no-do-eval \
 #     --head-only
 
 uv run cli fine-tune \
     --run-name $NAME-fine-tune-$N_SHOT-shot-$DATASET \
+    --n-train-samples $N_TRAIN_SAMPLES \
+    --n-dev-samples $N_DEV_SAMPLES \
     --experiment icftsc-$DATASET \
     --batch-size $BATCH_SIZE \
     --log-level $LOG_LEVEL \
     --dataset $DATASET \
     --epochs $EPOCHS \
     --n-shot $N_SHOT \
-    --no-grad-chkpts \
     --no-head-only \
     --model $BASE \
-    --task $TASK
+    --task $TASK \
+    --no-do-eval
 
 for PREFIX_INIT in "pretrained" "random"; do
     uv run cli prompt-tune \
         --run-name $NAME-$PREFIX_INIT-prefix-$N_SHOT-shot-$DATASET \
+        --n-train-samples $N_TRAIN_SAMPLES \
+        --n-dev-samples $N_DEV_SAMPLES \
         --experiment icftsc-$DATASET \
         --learning-rate $PREFIX_LR \
         --prefix-init $PREFIX_INIT \
@@ -116,7 +124,7 @@ for PREFIX_INIT in "pretrained" "random"; do
         --dataset $DATASET \
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
-        --no-grad-chkpts \
         --model $BASE \
-        --task $TASK
+        --task $TASK \
+        --no-do-eval
 done

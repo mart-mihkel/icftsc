@@ -71,7 +71,7 @@ def test_gpt2_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(gpt2_tokenizer, "gpt2", "causal", 0, 1, False)
+        data, _ = load_multinerd(gpt2_tokenizer, "gpt2", "causal", 0, False)
 
     examples = [data["train"][i] for i in range(4)]
     collator = get_collator(gpt2_tokenizer, "causal")
@@ -143,7 +143,7 @@ def test_pt_gpt2_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(gpt2_tokenizer, "gpt2", "causal", 0, 1, False)
+        data, _ = load_multinerd(gpt2_tokenizer, "gpt2", "causal", 0, False)
 
     examples = [data["train"][i] for i in range(4)]
     collator = get_collator(gpt2_tokenizer, "causal")

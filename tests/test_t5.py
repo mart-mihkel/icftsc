@@ -71,7 +71,7 @@ def test_t5_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(t5_tokenizer, "t5", "seq2seq", 0, 1, False)
+        data, _ = load_multinerd(t5_tokenizer, "t5", "seq2seq", 0, False)
 
     examples = [data["train"][i] for i in range(4)]
     collator = get_collator(t5_tokenizer, "seq2seq")
@@ -143,7 +143,7 @@ def test_pt_t5_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(t5_tokenizer, "t5", "seq2seq", 0, 1, False)
+        data, _ = load_multinerd(t5_tokenizer, "t5", "seq2seq", 0, False)
 
     examples = [data["train"][i] for i in range(4)]
     collator = get_collator(t5_tokenizer, "seq2seq")

@@ -59,21 +59,51 @@ def load_data(
     model_type: str,
     task: Task,
     n_shot: int,
+    n_train_samples: int | None = None,
+    n_dev_samples: int | None = None,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
     if dataset == "multinerd":
-        return load_multinerd(tokenizer, model_type, task, n_shot, split=split)
+        data, info = load_multinerd(tokenizer, model_type, task, n_shot, split=split)
+    elif dataset == "estner":
+        data, info = load_estner(tokenizer, model_type, task, n_shot, split)
+    elif dataset == "boolq":
+        data, info = load_boolq(tokenizer, model_type, task, n_shot, split)
+    elif dataset == "wic":
+        data, info = load_wic(tokenizer, model_type, task, n_shot, split)
+    else:
+        raise NotImplementedError(f"Dataset '{dataset}'")
 
-    if dataset == "estner":
-        return load_estner(tokenizer, model_type, task, n_shot, split)
+    if n_train_samples is not None:
+        assert n_train_samples <= len(data["train"]), "requested too many train samples"
+        logger.warning(
+            "using %d of %d train samples",
+            n_train_samples,
+            len(data["train"]),
+        )
 
-    if dataset == "boolq":
-        return load_boolq(tokenizer, model_type, task, n_shot, split)
+        data["train"] = data["train"].select(range(n_train_samples))
 
-    if dataset == "wic":
-        return load_wic(tokenizer, model_type, task, n_shot, split)
+    if n_dev_samples is not None:
+        assert n_dev_samples <= len(data["dev"]), "requested too many dev samples"
+        logger.warning(
+            "using %d of %d dev samples",
+            n_dev_samples,
+            len(data["dev"]),
+        )
 
-    raise NotImplementedError(f"Dataset '{dataset}'")
+        data["dev"] = data["dev"].select(range(n_dev_samples))
+
+    if "train" in data:
+        logger.info("%d train samples", len(data["train"]))
+
+    if "dev" in data:
+        logger.info("%d dev samples", len(data["dev"]))
+
+    if "test" in data:
+        logger.info("%d test samples", len(data["test"]))
+
+    return data, info
 
 
 def load_tokenizer(model_path: str) -> PreTrainedTokenizerFast:

@@ -81,7 +81,7 @@ def test_bert_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, info = load_multinerd(bert_tokenizer, "bert", "seqcls", 0, 1, False)
+        data, info = load_multinerd(bert_tokenizer, "bert", "seqcls", 0, False)
 
     num_labels = len(info["id2label"])
     bert.num_labels = num_labels
@@ -164,7 +164,7 @@ def test_pt_bert_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, info = load_multinerd(bert_tokenizer, "bert", "seqcls", 0, 1, False)
+        data, info = load_multinerd(bert_tokenizer, "bert", "seqcls", 0, False)
 
     num_labels = len(info["id2label"])
     bert = cast(BertForSequenceClassification, pt_bert.base_model)

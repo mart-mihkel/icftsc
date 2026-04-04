@@ -19,6 +19,9 @@ def prompt_tune(
     task: Task,
     prefix_init: PrefixInit,
     n_shot: int,
+    n_train_samples: int | None,
+    n_dev_samples: int | None,
+    do_eval: bool,
     epochs: int,
     batch_size: int,
     learning_rate: float,
@@ -34,7 +37,15 @@ def prompt_tune(
 
     logger.info("load '%s' dataset", dataset)
     model_type = config.model_type
-    data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
+    data, info = load_data(
+        tokenizer,
+        dataset,
+        model_type,
+        task,
+        n_shot,
+        n_train_samples,
+        n_dev_samples,
+    )
 
     if dataset == "boolq" or dataset == "wic":
         logger.warning("using superglue dev data for test, labels are private")
@@ -80,6 +91,7 @@ def prompt_tune(
         data=data,
         collate_fn=collate_fn,
         metrics_fn=metrics_fn,
+        do_eval=do_eval,
         epochs=epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,

@@ -84,7 +84,7 @@ def test_wic_invalid_n_shot(
     wic: DatasetDict,
 ):
     with (
-        pytest.raises(ValueError, match="Requested more examples than exist"),
+        pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("icftsc.datasets.wic.load_dataset", return_value=wic),
     ):
         load_wic(bert_tokenizer, "bert", "seqcls", 100)

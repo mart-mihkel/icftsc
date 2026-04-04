@@ -157,8 +157,7 @@ def _get_sys_prompt(
     model_type: str,
     n_shot: int,
 ) -> str:
-    if n_shot > len(examples):
-        raise ValueError("Requested more examples than exist")
+    assert n_shot <= len(examples), "requested more examples than exist"
 
     if model_type in encoder_model_types:
         prompt = _enc_sys_prompt(sep=tokenizer.sep_token)

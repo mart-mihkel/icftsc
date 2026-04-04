@@ -97,7 +97,7 @@ def test_estner_invalid_n_shot(
     estner: DatasetDict,
 ):
     with (
-        pytest.raises(ValueError, match="Requested more examples than exist"),
+        pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("icftsc.datasets.estner.load_dataset", return_value=estner),
     ):
         load_estner(bert_tokenizer, "bert", "seqcls", 100)

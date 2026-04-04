@@ -218,8 +218,7 @@ def _get_sys_prompt(
     model_type: str,
     n_shot: int,
 ) -> str:
-    if n_shot > len(examples):
-        raise ValueError("Requested more examples than exist")
+    assert n_shot <= len(examples), "requested more examples than exist"
 
     if model_type in encoder_model_types:
         prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
@@ -338,7 +337,6 @@ def load_multinerd(
     model_type: str,
     task: Task,
     n_shot: int,
-    subset: float = 0.1,
     filter_en: bool = True,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
@@ -368,15 +366,6 @@ def load_multinerd(
         logger.info("using english only subset")
         data = data.filter(_filter_english, batched=True)
 
-    logger.warning("using %d%% of dev and train data", int(subset * 100))
-    if "train" in data:
-        idx_train = range(int(subset * len(data["train"])))
-        data["train"] = data["train"].select(idx_train)
-
-    if "dev" in data:
-        idx_dev = range(int(subset * len(data["dev"])))
-        data["dev"] = data["dev"].select(idx_dev)
-
     cols = ["tokens", "ner_tags", "lang"]
     fn_kwargs = {
         "model_type": model_type,
@@ -387,19 +376,11 @@ def load_multinerd(
 
     data = data.map(
         _tokenize_batch,
+        num_proc=4,
         batched=True,
         remove_columns=cols,
         fn_kwargs=fn_kwargs,
     )
-
-    if "train" in data:
-        logger.info("%d train samples", len(data["train"]))
-
-    if "dev" in data:
-        logger.info("%d dev samples", len(data["dev"]))
-
-    if "test" in data:
-        logger.info("%d test samples", len(data["test"]))
 
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
