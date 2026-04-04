@@ -65,7 +65,6 @@ def fine_tune(
     mlflow.log_param("task", task)
     mlflow.log_param("n_shot", n_shot)
     mlflow.log_param("dataset", dataset)
-    mlflow.log_param("method", "fine-tune")
     mlflow.log_param("head_only", head_only)
     mlflow.log_param("base_model", model_path)
     mlflow.log_param("architecture", get_arch(model_type))

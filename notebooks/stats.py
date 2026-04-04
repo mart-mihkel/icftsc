@@ -11,66 +11,11 @@ with app.setup:
     import polars as pl
 
     from icftsc.logging import logger
-    from icftsc.modeling import get_arch
     from icftsc.scripts.tracking import collect_metrics
 
     logger.setLevel("INFO")
     figpath = Path("out/fig/multinerd")
     os.makedirs(figpath, exist_ok=True)
-
-
-@app.function
-def wrangle_metadata(df: pl.DataFrame) -> pl.DataFrame:
-    """
-    Manually add or modify metadata of old experiments.
-
-    Add 'method', 'base_model' and 'architecture' columns
-    for forwards compatibility.
-    Remove train and eval runtime from few-shot runs.
-    """
-    logger.info("add forwards compatible metadata to old experiment")
-    _method = (
-        pl.when(pl.col("run_name").str.contains("fine-tune"))
-        .then(pl.lit("fine-tune"))
-        .when(pl.col("run_name").str.contains("pretrained-prefix"))
-        .then(pl.lit("prompt-tune-pretrained"))
-        .when(pl.col("run_name").str.contains("random-prefix"))
-        .then(pl.lit("prompt-tune-random"))
-        .when(pl.col("run_name").str.contains("head"))
-        .then(pl.lit("cls-head"))
-        .otherwise(pl.lit("few-shot"))
-        .alias("method")
-    )
-
-    _train_runtime = (
-        pl.when(pl.col("run_name").str.contains(r"fine|prefix|head"))
-        .then(pl.col("train_runtime"))
-        .otherwise(None)
-        .alias("train_runtime")
-    )
-
-    _eval_runtime = (
-        pl.when(pl.col("run_name").str.contains(r"fine|prefix|head"))
-        .then(pl.col("eval_runtime"))
-        .otherwise(None)
-        .alias("eval_runtime")
-    )
-
-    _base_model = (
-        pl.col("run_name")
-        .str.replace(r"-(fine|pretrained|random|cls|head|few|\d-shot).*", "")
-        .alias("base_model")
-    )
-
-    _arch = pl.col("model_type").map_elements(get_arch, pl.String).alias("architecture")
-
-    return df.with_columns(
-        _method,
-        _train_runtime,
-        _eval_runtime,
-        _base_model,
-        _arch,
-    )
 
 
 @app.cell
@@ -79,7 +24,6 @@ def _():
     _experiment = "icftsc-multinerd"
 
     df = collect_metrics(_tracking_uri, _experiment, write_csv=False)
-    df = wrangle_metadata(df)
     return (df,)
 
 
@@ -88,7 +32,7 @@ def _(df):
     _gpu_hr_cost = 0.5
 
     _df = (
-        df.select("train_runtime", "eval_runtime", "test_runtime")
+        df.select("train_runtime", "test_runtime")
         .sum()
         .unpivot(variable_name="task", value_name="seconds")
         .with_columns(

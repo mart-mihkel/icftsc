@@ -59,7 +59,6 @@ BASE=distilbert/distilbert-base-cased
 # BASE=google/t5gemma-2-1b-1b
 # BASE=google/t5gemma-2-4b-4b
 
-NAME=$(echo $BASE | awk -F / '{print $2}')
 PREFIX_INIT=pretrained
 N_TRAIN_SAMPLES=1024
 N_DEV_SAMPLES=1024
@@ -72,7 +71,7 @@ EPOCHS=3
 
 if [[ $1 = few-shot ]]; then
     uv run cli few-shot \
-        --run-name $NAME-few-shot-$N_SHOT-shot-$DATASET \
+        --run-name $BASE/$N_SHOT-shot \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
@@ -86,9 +85,9 @@ fi
 
 if [[ $1 = cls-head ]]; then
     uv run cli fine-tune \
-        --run-name $NAME-cls-head-$N_SHOT-shot-$DATASET \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
+        --run-name $BASE/cls-head \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
@@ -105,9 +104,9 @@ fi
 
 if [[ $1 = fine-tune ]]; then
     uv run cli fine-tune \
-        --run-name $NAME-fine-tune-$N_SHOT-shot-$DATASET \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
+        --run-name $BASE/fine-tune \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
@@ -124,7 +123,7 @@ fi
 
 if [[ $1 = prompt-tune ]]; then
     uv run cli prompt-tune \
-        --run-name $NAME-$PREFIX_INIT-prefix-$N_SHOT-shot-$DATASET \
+        --run-name $BASE/$PREFIX_INIT-prefix \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
         --learning-rate $PREFIX_LR \

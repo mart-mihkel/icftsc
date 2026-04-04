@@ -1,32 +1,16 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
-from typer import Context, Option, Typer
+from typer import Option, Typer
 
 from icftsc.types import DatasetName, PrefixInit, Task
 
 app = Typer(no_args_is_help=True)
 
 
-def save_params(args: dict[str, Any], run_name: str):
-    import json
-    import os
-
-    from icftsc.logging import logger
-
-    logdir = os.path.join("out", run_name)
-    argpath = os.path.join(logdir, "cli_args.json")
-    logger.debug("save cli args to '%s'", argpath)
-
-    os.makedirs(logdir, exist_ok=True)
-    with open(argpath, "w") as f:
-        json.dump(args, f, indent=2)
-
-
 @app.command(no_args_is_help=True)
 def fine_tune(
-    ctx: Context,
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
     task: Annotated[Task.__value__, Option(help="NLP task type")],
@@ -46,7 +30,7 @@ def fine_tune(
         Option(help="If present take a subset of tokenized dev data"),
     ] = 1024,
     do_eval: Annotated[bool, Option(help="Run evalutaion during training")] = False,
-    epochs: int = 5,
+    epochs: int = 3,
     batch_size: int = 8,
     learning_rate: float = 5e-5,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
@@ -55,7 +39,6 @@ def fine_tune(
     from icftsc.scripts.fine_tune import fine_tune
 
     logger.setLevel(log_level)
-    save_params(ctx.params, run_name)
     fine_tune(
         model_path=model,
         dataset=dataset,
@@ -75,7 +58,6 @@ def fine_tune(
 
 @app.command(no_args_is_help=True)
 def prompt_tune(
-    ctx: Context,
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
     task: Annotated[Task.__value__, Option(help="NLP task type")],
@@ -95,7 +77,7 @@ def prompt_tune(
         Option(help="If present take a subset of tokenized dev data"),
     ] = 1024,
     do_eval: Annotated[bool, Option(help="Run evalutaion during training")] = False,
-    epochs: int = 5,
+    epochs: int = 3,
     batch_size: int = 8,
     learning_rate: float = 1e-3,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
@@ -104,7 +86,6 @@ def prompt_tune(
     from icftsc.scripts.prompt_tune import prompt_tune
 
     logger.setLevel(log_level)
-    save_params(ctx.params, run_name)
     prompt_tune(
         model_path=model,
         dataset=dataset,
@@ -124,7 +105,6 @@ def prompt_tune(
 
 @app.command(no_args_is_help=True)
 def few_shot(
-    ctx: Context,
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
     task: Annotated[Task.__value__, Option(help="NLP task type")],
@@ -138,7 +118,6 @@ def few_shot(
     from icftsc.scripts.few_shot import few_shot
 
     logger.setLevel(log_level)
-    save_params(ctx.params, run_name)
     few_shot(
         model_path=model,
         dataset=dataset,
