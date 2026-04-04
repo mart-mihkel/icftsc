@@ -24,20 +24,22 @@ def save_params(args: dict[str, Any], run_name: str):
         json.dump(args, f, indent=2)
 
 
-@app.command()
+@app.command(no_args_is_help=True)
 def fine_tune(
     ctx: Context,
-    model: Annotated[str, Option()],
-    dataset: Annotated[DatasetName.__value__, Option()],
-    task: Annotated[Task.__value__, Option()],
-    head_only: Annotated[bool, Option()],
-    experiment: Annotated[str, Option()],
-    run_name: Annotated[str, Option()],
-    n_shot: int = 0,
-    epochs: int = 1,
+    model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
+    dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
+    task: Annotated[Task.__value__, Option(help="NLP task type")],
+    head_only: Annotated[
+        bool,
+        Option(help="Freeze all parameters except for classifier head"),
+    ],
+    experiment: Annotated[str, Option(help="Experiment name for MLflow tracking")],
+    run_name: Annotated[str, Option(help="Run name for MLflow tracking")],
+    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
+    epochs: int = 5,
     batch_size: int = 8,
     learning_rate: float = 5e-5,
-    grad_chkpts: bool = False,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
     from icftsc.logging import logger
@@ -54,26 +56,27 @@ def fine_tune(
         epochs=epochs,
         batch_size=batch_size,
         learning_rate=learning_rate,
-        grad_chkpts=grad_chkpts,
         experiment=experiment,
         run_name=run_name,
     )
 
 
-@app.command()
+@app.command(no_args_is_help=True)
 def prompt_tune(
     ctx: Context,
-    model: Annotated[str, Option()],
-    dataset: Annotated[DatasetName.__value__, Option()],
-    task: Annotated[Task.__value__, Option()],
-    prefix_init: Annotated[PrefixInit.__value__, Option()],
-    experiment: Annotated[str, Option()],
-    run_name: Annotated[str, Option()],
-    n_shot: int = 5,
+    model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
+    dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
+    task: Annotated[Task.__value__, Option(help="NLP task type")],
+    prefix_init: Annotated[
+        PrefixInit.__value__,
+        Option(help="Prefix initialization method"),
+    ],
+    experiment: Annotated[str, Option(help="Experiment name for MLflow tracking")],
+    run_name: Annotated[str, Option(help="Run name for MLflow tracking")],
+    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
     epochs: int = 5,
     batch_size: int = 8,
     learning_rate: float = 1e-3,
-    grad_chkpts: bool = False,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
     from icftsc.logging import logger
@@ -90,21 +93,20 @@ def prompt_tune(
         epochs=epochs,
         batch_size=batch_size,
         learning_rate=learning_rate,
-        grad_chkpts=grad_chkpts,
         experiment=experiment,
         run_name=run_name,
     )
 
 
-@app.command()
+@app.command(no_args_is_help=True)
 def few_shot(
     ctx: Context,
-    model: Annotated[str, Option()],
-    dataset: Annotated[DatasetName.__value__, Option()],
-    task: Annotated[Task.__value__, Option()],
-    experiment: Annotated[str, Option()],
-    run_name: Annotated[str, Option()],
-    n_shot: int = 5,
+    model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
+    dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
+    task: Annotated[Task.__value__, Option(help="NLP task type")],
+    experiment: Annotated[str, Option(help="Experiment name for MLflow tracking")],
+    run_name: Annotated[str, Option(help="Run name for MLflow tracking")],
+    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
     batch_size: int = 8,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
@@ -124,9 +126,9 @@ def few_shot(
     )
 
 
-@app.command()
+@app.command(no_args_is_help=True)
 def predict_superglue(
-    checkpoint: Annotated[str, Option()],
+    checkpoint: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
     from icftsc.logging import logger
@@ -136,10 +138,13 @@ def predict_superglue(
     predict_boolq(checkpoint)
 
 
-@app.command()
+@app.command(no_args_is_help=True)
 def collect_metrics(
-    mlflow_tracking_uri: Annotated[str, Option()],
-    experiment: Annotated[str, Option()],
+    experiment: Annotated[str, Option(help="MLflow experiment name")],
+    mlflow_tracking_uri: Annotated[
+        str,
+        Option(help="MLflow tracking server URI"),
+    ] = "sqlite:///mlflow.db",
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
     from icftsc.logging import logger

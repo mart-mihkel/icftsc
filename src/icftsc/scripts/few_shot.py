@@ -40,30 +40,23 @@ def few_shot(
     model = get_model(tokenizer, model_path, info, task, head_only=False)
 
     total = sum(p.numel() for p in model.parameters())
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     logger.info("tracking '%s' of experiment '%s'", run_name, experiment)
 
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
-    mlflow.log_params(
-        {
-            "task": task,
-            "dataset": dataset,
-            "method": "few-shot",
-            "base_model": model_path,
-            "architecture": get_arch(model_type),
-            "system_prompt": info["system_prompt"],
-        }
-    )
-
-    mlflow.log_metrics(
-        {
-            "n_shot": n_shot,
-            "total_parameters": total,
-            "trainable_parameters": trainable,
-        }
-    )
+    mlflow.log_param("task", task)
+    mlflow.log_param("n_shot", n_shot)
+    mlflow.log_param("dataset", dataset)
+    mlflow.log_param("base_model", model_path)
+    mlflow.log_param("method", f"{n_shot}-shot")
+    mlflow.log_param("architecture", get_arch(model_type))
+    mlflow.log_param("system_prompt", info["system_prompt"])
+    mlflow.log_metric("train_samples", len(data["train"]))
+    mlflow.log_metric("dev_samples", len(data["dev"]))
+    mlflow.log_metric("test_samples", len(data["test"]))
+    mlflow.log_metric("total_parameters", total)
+    mlflow.log_metric("trainable_parameters", 0)
 
     trainer = get_trainer(
         model=model,

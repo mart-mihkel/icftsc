@@ -22,7 +22,6 @@ def prompt_tune(
     epochs: int,
     batch_size: int,
     learning_rate: float,
-    grad_chkpts: bool,
     experiment: str,
 ):
     logger.info("load model config")
@@ -61,26 +60,20 @@ def prompt_tune(
 
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
-    mlflow.log_params(
-        {
-            "task": task,
-            "dataset": dataset,
-            "base_model": model_path,
-            "prefix_init": prefix_init,
-            "architecture": get_arch(model_type),
-            "method": f"prompt-tune-{prefix_init}",
-            "system_prompt": info["system_prompt"],
-        }
-    )
-
-    mlflow.log_metrics(
-        {
-            "total_parameters": total,
-            "trainable_parameters": trainable,
-            "num_virtual_tokens": ptcfg.num_virtual_tokens,
-            "n_shot": n_shot,
-        }
-    )
+    mlflow.log_param("task", task)
+    mlflow.log_param("n_shot", n_shot)
+    mlflow.log_param("dataset", dataset)
+    mlflow.log_param("base_model", model_path)
+    mlflow.log_param("prefix_init", prefix_init)
+    mlflow.log_param("architecture", get_arch(model_type))
+    mlflow.log_param("system_prompt", info["system_prompt"])
+    mlflow.log_param("method", f"prompt-tune-{prefix_init}")
+    mlflow.log_param("num_virtual_tokens", ptcfg.num_virtual_tokens)
+    mlflow.log_metric("train_samples", len(data["train"]))
+    mlflow.log_metric("dev_samples", len(data["dev"]))
+    mlflow.log_metric("test_samples", len(data["test"]))
+    mlflow.log_metric("total_parameters", total)
+    mlflow.log_metric("trainable_parameters", trainable)
 
     trainer = get_trainer(
         model=model,
@@ -90,7 +83,6 @@ def prompt_tune(
         epochs=epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
-        grad_chkpts=grad_chkpts,
         run_name=run_name,
         report_to="mlflow",
     )
@@ -98,12 +90,9 @@ def prompt_tune(
     logger.info("start trainer")
     trainer.train()
 
-    if "test" in data:
-        test = cast(Dataset, data["test"])
-        metrics = trainer.evaluate(test, metric_key_prefix="test")
-        logger.info(metrics)
-    else:
-        logger.warning("skip test evalatuaion")
+    test = cast(Dataset, data["test"])
+    metrics = trainer.evaluate(test, metric_key_prefix="test")
+    logger.info(metrics)
 
     logger.info("save checkpoint to %s", trainer.args.output_dir)
     trainer.save_model()
