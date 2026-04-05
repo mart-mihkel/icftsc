@@ -4,7 +4,11 @@
 
 Use [uv](https://docs.astral.sh/uv/) for package management.
 
-Run `uv sync` to setup a local envrionment.
+Setup a virtualenv with your corresponding accelerator
+
+```bash
+uv sync --extra [cpu|cu128]
+```
 
 ## Usage
 

@@ -62,17 +62,11 @@ def get_model(
     elif task == "causal":
         logger.debug("load pretrained model for causal language modeling")
         loading_info = {"missing_keys": set()}
-        model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            device_map="auto",
-        )
+        model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
     elif task == "seq2seq":
         logger.debug("load pretrained model for sequence to sequence")
         loading_info = {"missing_keys": set()}
-        model = AutoModelForSeq2SeqLM.from_pretrained(
-            model_path,
-            device_map="auto",
-        )
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, device_map="auto")
     else:
         raise NotImplementedError(f"Task '{task}'")
 

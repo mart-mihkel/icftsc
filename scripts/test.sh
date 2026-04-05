@@ -33,6 +33,10 @@ BASE=distilbert/distilbert-base-cased
 # BASE=google/gemma-3-4b-it
 # BASE=Qwen/Qwen2.5-0.5B
 # BASE=Qwen/Qwen2.5-1.5B
+# BASE=Qwen/Qwen3-0.6B
+# BASE=Qwen/Qwen3-1.7B
+# BASE=Qwen/Qwen3-4B
+# BASE=Qwen/Qwen3-8B
 # BASE=Qwen/Qwen3.5-0.8B
 # BASE=Qwen/Qwen3.5-2B
 # BASE=Qwen/Qwen3.5-4B
@@ -71,7 +75,7 @@ EPOCHS=3
 
 if [[ $1 = few-shot ]]; then
     uv run cli few-shot \
-        --run-name $BASE/$N_SHOT-shot \
+        --run-name test/$BASE/$N_SHOT-shot \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
@@ -87,7 +91,7 @@ if [[ $1 = cls-head ]]; then
     uv run cli fine-tune \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
-        --run-name $BASE/cls-head \
+        --run-name test/$BASE/cls-head \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
@@ -106,7 +110,7 @@ if [[ $1 = fine-tune ]]; then
     uv run cli fine-tune \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
-        --run-name $BASE/fine-tune \
+        --run-name test/$BASE/fine-tune \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
@@ -123,7 +127,7 @@ fi
 
 if [[ $1 = prompt-tune ]]; then
     uv run cli prompt-tune \
-        --run-name $BASE/$PREFIX_INIT-prefix \
+        --run-name test/$BASE/$PREFIX_INIT-prefix \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
         --learning-rate $PREFIX_LR \

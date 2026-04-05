@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.22.0"
+__generated_with = "0.22.4"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -29,39 +29,30 @@ def _():
 
 @app.cell
 def _(df):
-    _gpu_hr_cost = 0.5
-
-    _df = (
-        df.select("train_runtime", "test_runtime")
+    (
+        df.with_columns(
+            pl.col("end_time")
+            .sub(pl.col("start_time"))
+            .mul(1 / 1000)
+            .alias("total_runtime")
+        )
+        .select("train_runtime", "test_runtime", "total_runtime")
         .sum()
-        .unpivot(variable_name="task", value_name="seconds")
+        .unpivot(variable_name="task", value_name="time")
         .with_columns(
-            [
-                (pl.col("seconds") / 3600 * _gpu_hr_cost).round(2).alias("cost_eur"),
-                (pl.col("seconds") / 3600).round(2).alias("gpu_hours"),
-                pl.col("task").str.replace("_runtime", ""),
-            ]
+            pl.col("time").mul(0.5 / 3600).round(2).alias("cost_eur"),
+            pl.col("time").mul(1 / 3600).round(2).alias("gpu_hours"),
+            pl.col("task").str.replace("_runtime", ""),
         )
         .select("task", "gpu_hours", "cost_eur")
     )
-
-    _totals = pl.DataFrame(
-        {
-            "task": ["total"],
-            "gpu_hours": [round(_df["gpu_hours"].sum(), 2)],
-            "cost_eur": [round(_df["cost_eur"].sum(), 2)],
-        }
-    )
-
-    pl.concat([_df, _totals])
     return
 
 
 @app.cell
 def _(df):
-    _df = df.with_columns(pl.col("total_parameters").mul(1e-6))
     _p = (
-        pn.ggplot(_df)
+        pn.ggplot(df)
         + pn.aes(
             x="total_parameters",
             y="test_f1",
@@ -69,7 +60,7 @@ def _(df):
             shape="architecture",
         )
         + pn.labs(
-            x="Parameters (M)",
+            x="Parameters",
             y="F1",
             title="Performance Scaling",
         )
@@ -80,7 +71,7 @@ def _(df):
         + pn.geom_point(stroke=0.25, size=2)
     )
 
-    _p.save(figpath / "pref_scaling.png")
+    _p.save(figpath / "perf_scaling.png")
     _p
     return
 
