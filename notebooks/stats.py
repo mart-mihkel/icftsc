@@ -51,8 +51,10 @@ def _(df):
 
 @app.cell
 def _(df):
+    _df = df.filter(pl.col("train_samples").ge(20000))
+
     _p = (
-        pn.ggplot(df)
+        pn.ggplot(_df)
         + pn.aes(
             x="total_parameters",
             y="test_f1",

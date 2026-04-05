@@ -8,7 +8,8 @@
 #SBATCH --mem=8GB
 
 TASK=seqcls
-BASE=distilbert/distilbert-base-cased
+BASE=hf-internal-testing/tiny-random-bert
+# BASE=distilbert/distilbert-base-cased
 # BASE=jhu-clsp/mmBERT-small
 # BASE=jhu-clsp/mmBERT-base
 # BASE=EuroBERT/EuroBERT-210m
@@ -16,6 +17,7 @@ BASE=distilbert/distilbert-base-cased
 # BASE=EuroBERT/EuroBERT-2.1B
 
 # TASK=causal
+# BASE=hf-internal-testing/tiny-random-gpt2
 # BASE=openai-community/gpt2
 # BASE=openai-community/gpt2-medium
 # BASE=openai-community/gpt2-large
@@ -49,6 +51,7 @@ BASE=distilbert/distilbert-base-cased
 # BASE=meta-llama/Llama-3.1-8B-Instruct
 
 # TASK=seq2seq
+# BASE=hf-internal-testing/tiny-random-t5
 # BASE=google-t5/t5-small
 # BASE=google-t5/t5-base
 # BASE=google-t5/t5-large

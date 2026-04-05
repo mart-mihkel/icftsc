@@ -11,10 +11,12 @@ from transformers import (
     AutoModelForSequenceClassification,
     DataCollator,
     DistilBertModel,
+    EarlyStoppingCallback,
     EvalPrediction,
     PreTrainedModel,
     PreTrainedTokenizerFast,
     T5Gemma2Model,
+    TrainerCallback,
 )
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
@@ -187,6 +189,7 @@ def get_args(
         eval_on_start=do_eval,
         batch_eval_metrics=True,
         logging_steps=100,
+        metric_for_best_model="f1",
         learning_rate=learning_rate,
         optim=optim,
         num_train_epochs=epochs,
@@ -210,12 +213,19 @@ def get_trainer(
     report_to: str = "none",
 ) -> Trainer:
     args = get_args(do_eval, epochs, learning_rate, batch_size, run_name, report_to)
+    _metrics_fn = cast(Callable, metrics_fn)
+
+    callbacks = None
+    if do_eval:
+        stopper = EarlyStoppingCallback(2, 0.02)
+        callbacks: list[TrainerCallback] = [stopper]
 
     return Trainer(
         args=args,
         model=model,
-        train_dataset=data["train"],
-        eval_dataset=data["dev"],
+        callbacks=callbacks,
         data_collator=collate_fn,
-        compute_metrics=cast(Callable, metrics_fn),
+        eval_dataset=data["dev"],
+        train_dataset=data["train"],
+        compute_metrics=_metrics_fn,
     )

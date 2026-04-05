@@ -3,7 +3,7 @@
 #SBATCH --output=out/slurm/%j-%x.out
 #SBATCH --cpus-per-task=32
 #SBATCH --job-name="bert"
-#SBATCH --time=48:00:00
+#SBATCH --time=24:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --mem=32GB
