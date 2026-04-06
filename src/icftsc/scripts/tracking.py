@@ -1,3 +1,5 @@
+import os
+
 from mlflow.tracking import MlflowClient
 from polars import DataFrame
 
@@ -37,9 +39,11 @@ def collect_metrics(
 
         rows.append(run_data)
 
-    path = f"out/metrics-{experiment}.csv"
-    df = DataFrame(rows)
+    logdir = os.path.join("log", "metrics")
+    path = os.path.join(logdir, f"{experiment}.csv")
+    os.makedirs(logdir, exist_ok=True)
 
+    df = DataFrame(rows)
     logger.info("found %d runs with %d params", df.shape[0], df.shape[1])
     if write_csv:
         df.write_csv(path)

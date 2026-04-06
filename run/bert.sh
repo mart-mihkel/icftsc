@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-#SBATCH --nodelist=firefly1,firefly2
-#SBATCH --output=out/slurm/%j-%x.out
+#SBATCH --output=log/slurm/%j-%x.out
+#SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
 #SBATCH --job-name="bert"
-#SBATCH --time=24:00:00
+#SBATCH --time=08:00:00
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
 #SBATCH --mem=32GB
-#SBATCH --nodes=1
 
 BASE_MODELS=(
     distilbert/distilbert-base-cased
@@ -29,11 +27,9 @@ N_SHOT=3
 EPOCHS=3
 
 for BASE in "${BASE_MODELS[@]}"; do
-    uv run cli fine-tune \
+    uv run --no-sync cli fine-tune \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
-        --experiment icftsc-$DATASET \
-        --run-name $BASE/cls-head \
         --batch-size $BATCH_SIZE \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
@@ -44,11 +40,9 @@ for BASE in "${BASE_MODELS[@]}"; do
         --no-do-eval \
         --head-only
 
-    uv run cli fine-tune \
+    uv run --no-sync cli fine-tune \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
-        --experiment icftsc-$DATASET \
-        --run-name $BASE/fine-tune \
         --batch-size $BATCH_SIZE \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
@@ -60,11 +54,9 @@ for BASE in "${BASE_MODELS[@]}"; do
         --no-do-eval
 
     for PREFIX_INIT in "pretrained" "random"; do
-        uv run cli prompt-tune \
-            --run-name $BASE/$PREFIX_INIT-prefix \
+        uv run --no-sync cli prompt-tune \
             --n-train-samples $N_TRAIN_SAMPLES \
             --n-dev-samples $N_DEV_SAMPLES \
-            --experiment icftsc-$DATASET \
             --learning-rate $PREFIX_LR \
             --prefix-init $PREFIX_INIT \
             --batch-size $BATCH_SIZE \

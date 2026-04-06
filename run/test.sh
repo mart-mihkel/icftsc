@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-#SBATCH --output=out/slurm/%j-%x.out
+#SBATCH --output=log/slurm/%j-%x.out
 #SBATCH --job-name="test"
 #SBATCH --cpus-per-task=4
 #SBATCH --time=01:00:00
-#SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --mem=8GB
 
-TASK=seqcls
-BASE=hf-internal-testing/tiny-random-bert
+# TASK=seqcls
+# BASE=hf-internal-testing/tiny-random-bert
 # BASE=distilbert/distilbert-base-cased
 # BASE=jhu-clsp/mmBERT-small
 # BASE=jhu-clsp/mmBERT-base
@@ -50,8 +49,8 @@ BASE=hf-internal-testing/tiny-random-bert
 # BASE=meta-llama/Llama-3.1-8B
 # BASE=meta-llama/Llama-3.1-8B-Instruct
 
-# TASK=seq2seq
-# BASE=hf-internal-testing/tiny-random-t5
+TASK=seq2seq
+BASE=hf-internal-testing/tiny-random-t5
 # BASE=google-t5/t5-small
 # BASE=google-t5/t5-base
 # BASE=google-t5/t5-large
@@ -77,7 +76,7 @@ N_SHOT=3
 EPOCHS=3
 
 if [[ $1 = few-shot ]]; then
-    uv run cli few-shot \
+    uv run --no-sync cli few-shot \
         --run-name test/$BASE/$N_SHOT-shot \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
@@ -91,10 +90,10 @@ if [[ $1 = few-shot ]]; then
 fi
 
 if [[ $1 = cls-head ]]; then
-    uv run cli fine-tune \
+    uv run --no-sync cli fine-tune \
+        --run-name test/$BASE/cls-head/$TASK \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
-        --run-name test/$BASE/cls-head \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
@@ -110,10 +109,10 @@ if [[ $1 = cls-head ]]; then
 fi
 
 if [[ $1 = fine-tune ]]; then
-    uv run cli fine-tune \
+    uv run --no-sync cli fine-tune \
+        --run-name test/$BASE/fine-tune/$TASK \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
-        --run-name test/$BASE/fine-tune \
         --batch-size $BATCH_SIZE \
         --experiment icftsc-test \
         --log-level $LOG_LEVEL \
@@ -129,8 +128,8 @@ if [[ $1 = fine-tune ]]; then
 fi
 
 if [[ $1 = prompt-tune ]]; then
-    uv run cli prompt-tune \
-        --run-name test/$BASE/$PREFIX_INIT-prefix \
+    uv run --no-sync cli prompt-tune \
+        --run-name test/$BASE/$PREFIX_INIT-prefix/$TASK \
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
         --learning-rate $PREFIX_LR \

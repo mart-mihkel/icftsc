@@ -1,6 +1,7 @@
 from typing import cast
 
 import mlflow
+from datasets.splits import Split
 from torch.utils.data import Dataset
 from transformers import AutoConfig
 
@@ -13,12 +14,12 @@ from icftsc.types import DatasetName, Task
 
 def few_shot(
     model_path: str,
-    run_name: str,
     dataset: DatasetName,
     task: Task,
     n_shot: int,
     batch_size: int,
-    experiment: str,
+    experiment: str | None,
+    run_name: str | None,
 ):
     logger.info("load model config")
     config = AutoConfig.from_pretrained(model_path)
@@ -30,7 +31,8 @@ def few_shot(
 
     logger.info("load '%s' dataset", dataset)
     model_type = config.model_type
-    data, info = load_data(tokenizer, dataset, model_type, task, n_shot)
+    split = cast(Split, {"test": "test"})
+    data, info = load_data(tokenizer, dataset, model_type, task, n_shot, split=split)
 
     if dataset == "boolq" or dataset == "wic":
         logger.warning("using superglue dev data, test labels are private")
@@ -40,6 +42,11 @@ def few_shot(
     model = get_model(tokenizer, model_path, info, task, head_only=False)
 
     total = sum(p.numel() for p in model.parameters())
+    if experiment is None:
+        experiment = f"icftsc-{dataset}"
+
+    if run_name is None:
+        run_name = f"{model_path}/few-shot/{task}"
 
     logger.info("tracking '%s' of experiment '%s'", run_name, experiment)
 
@@ -52,8 +59,8 @@ def few_shot(
     mlflow.log_param("method", f"{n_shot}-shot")
     mlflow.log_param("architecture", get_arch(model_type))
     mlflow.log_param("system_prompt", info["system_prompt"])
-    mlflow.log_metric("train_samples", len(data["train"]))
-    mlflow.log_metric("dev_samples", len(data["dev"]))
+    mlflow.log_metric("train_samples", 0)
+    mlflow.log_metric("dev_samples", 0)
     mlflow.log_metric("test_samples", len(data["test"]))
     mlflow.log_metric("total_parameters", total)
     mlflow.log_metric("trainable_parameters", 0)

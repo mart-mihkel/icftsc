@@ -4,8 +4,7 @@ build/
 dist/
 wheels/
 *.egg-info
-out/
-logs/
+log/
 typings/
 .venv/
 .envrc

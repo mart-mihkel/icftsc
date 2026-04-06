@@ -14,7 +14,7 @@ with app.setup:
     from icftsc.scripts.tracking import collect_metrics
 
     logger.setLevel("INFO")
-    figpath = Path("out/fig/multinerd")
+    figpath = Path("log/fig/multinerd")
     os.makedirs(figpath, exist_ok=True)
 
 
@@ -22,7 +22,6 @@ with app.setup:
 def _():
     _tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     _experiment = "icftsc-multinerd"
-
     df = collect_metrics(_tracking_uri, _experiment, write_csv=False)
     return (df,)
 
@@ -51,7 +50,7 @@ def _(df):
 
 @app.cell
 def _(df):
-    _df = df.filter(pl.col("train_samples").ge(20000))
+    _df = df  # .filter(pl.col("train_samples").eq(20000))
 
     _p = (
         pn.ggplot(_df)
@@ -80,7 +79,7 @@ def _(df):
 
 @app.cell
 def _(df):
-    _df = df.with_columns(
+    _df = df.filter(pl.col("train_samples").eq(20000)).with_columns(
         pl.col("train_runtime").mul(1 / 3600),
         pl.col("trainable_parameters").mul(1e-6),
     )
@@ -111,7 +110,10 @@ def _(df):
 @app.cell
 def _(df):
     _df = (
-        df.filter(pl.col("method").is_in(("fine-tune", "prompt-tune-pretrained")))
+        df.filter(
+            pl.col("method").is_in(("fine-tune", "prompt-tune-pretrained")),
+            pl.col("train_samples").eq(20000),
+        )
         .sort("base_model", "method")
         .group_by("base_model")
         .agg(

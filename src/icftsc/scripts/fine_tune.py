@@ -13,7 +13,6 @@ from icftsc.types import DatasetName, Task
 
 def fine_tune(
     model_path: str,
-    run_name: str,
     dataset: DatasetName,
     task: Task,
     head_only: bool,
@@ -24,7 +23,8 @@ def fine_tune(
     epochs: int,
     batch_size: int,
     learning_rate: float,
-    experiment: str,
+    experiment: str | None,
+    run_name: str | None,
 ):
     logger.info("load model config")
     config = AutoConfig.from_pretrained(model_path)
@@ -55,6 +55,12 @@ def fine_tune(
 
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    if experiment is None:
+        experiment = f"icftsc-{dataset}"
+
+    if run_name is None:
+        ft_task = "cls-head" if head_only else "fine-tune"
+        run_name = f"{model_path}/{ft_task}/{task}"
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
@@ -71,7 +77,7 @@ def fine_tune(
     mlflow.log_param("system_prompt", info["system_prompt"])
     mlflow.log_param("method", "cls-head" if head_only else "fine-tune")
     mlflow.log_metric("train_samples", len(data["train"]))
-    mlflow.log_metric("dev_samples", len(data["dev"]))
+    mlflow.log_metric("dev_samples", len(data["dev"]) if do_eval else 0)
     mlflow.log_metric("test_samples", len(data["test"]))
     mlflow.log_metric("total_parameters", total)
     mlflow.log_metric("trainable_parameters", trainable)

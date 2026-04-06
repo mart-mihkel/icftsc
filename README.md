@@ -4,17 +4,18 @@
 
 Use [uv](https://docs.astral.sh/uv/) for package management.
 
-Setup a virtualenv with your corresponding accelerator
+Setup a virtualenv with torch backend for cpu or cuda. When using cuda you
+should also have cuda-toolkit available on the system to compile `flash-attn`.
 
 ```bash
-uv sync --extra [cpu|cu128]
+MAX_JOBS=[n-jobs] uv sync --compile-bytecode --extra [cpu|cu128]
 ```
 
 ## Usage
 
-The cli contains scripts for fine-tuning, prefix-tuning, few-shot learning and
-utilities.
+The cli installed in the virtualenv contains scripts for fine-tuning,
+prompt-tuning, few-shot learning and utilities.
 
 ```bash
-uv run cli --help
+cli --help
 ```

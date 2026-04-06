@@ -174,7 +174,7 @@ def get_args(
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
     eval_strategy = "epoch" if do_eval else "no"
-    out_dir = f"out/{run_name}"
+    out_dir = f"log/{run_name}"
 
     logger.debug("optimizer '%s'", optim)
     logger.debug("checkpoint dir '%s'", out_dir)
@@ -215,9 +215,12 @@ def get_trainer(
     args = get_args(do_eval, epochs, learning_rate, batch_size, run_name, report_to)
     _metrics_fn = cast(Callable, metrics_fn)
 
+    train_dataset = data.get("train")
+    eval_dataset = data.get("dev")
+
     callbacks = None
     if do_eval:
-        stopper = EarlyStoppingCallback(2, 0.02)
+        stopper = EarlyStoppingCallback(3, 0.02)
         callbacks: list[TrainerCallback] = [stopper]
 
     return Trainer(
@@ -225,7 +228,7 @@ def get_trainer(
         model=model,
         callbacks=callbacks,
         data_collator=collate_fn,
-        eval_dataset=data["dev"],
-        train_dataset=data["train"],
+        eval_dataset=eval_dataset,
+        train_dataset=train_dataset,
         compute_metrics=_metrics_fn,
     )

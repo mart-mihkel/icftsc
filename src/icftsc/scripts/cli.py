@@ -17,9 +17,7 @@ def fine_tune(
     head_only: Annotated[
         bool,
         Option(help="Freeze all parameters except for classifier head"),
-    ],
-    experiment: Annotated[str, Option(help="Experiment name for MLflow tracking")],
-    run_name: Annotated[str, Option(help="Run name for MLflow tracking")],
+    ] = False,
     n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
     n_train_samples: Annotated[
         int | None,
@@ -28,11 +26,19 @@ def fine_tune(
     n_dev_samples: Annotated[
         int | None,
         Option(help="If present take a subset of tokenized dev data"),
-    ] = 1024,
+    ] = None,
     do_eval: Annotated[bool, Option(help="Run evalutaion during training")] = False,
     epochs: int = 3,
     batch_size: int = 8,
     learning_rate: float = 5e-5,
+    experiment: Annotated[
+        str | None,
+        Option(help="Experiment for tracking, inferred from parameters by default"),
+    ] = None,
+    run_name: Annotated[
+        str | None,
+        Option(help="Run name for tracking, inferred from parameters by default"),
+    ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
     from icftsc.logging import logger
@@ -65,8 +71,6 @@ def prompt_tune(
         PrefixInit.__value__,
         Option(help="Prefix initialization method"),
     ],
-    experiment: Annotated[str, Option(help="Experiment name for MLflow tracking")],
-    run_name: Annotated[str, Option(help="Run name for MLflow tracking")],
     n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
     n_train_samples: Annotated[
         int | None,
@@ -75,11 +79,19 @@ def prompt_tune(
     n_dev_samples: Annotated[
         int | None,
         Option(help="If present take a subset of tokenized dev data"),
-    ] = 1024,
+    ] = None,
     do_eval: Annotated[bool, Option(help="Run evalutaion during training")] = False,
     epochs: int = 3,
     batch_size: int = 8,
     learning_rate: float = 1e-3,
+    experiment: Annotated[
+        str | None,
+        Option(help="Experiment for tracking, inferred from parameters by default"),
+    ] = None,
+    run_name: Annotated[
+        str | None,
+        Option(help="Run name for tracking, inferred from parameters by default"),
+    ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
     from icftsc.logging import logger
@@ -108,10 +120,16 @@ def few_shot(
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
     task: Annotated[Task.__value__, Option(help="NLP task type")],
-    experiment: Annotated[str, Option(help="Experiment name for MLflow tracking")],
-    run_name: Annotated[str, Option(help="Run name for MLflow tracking")],
     n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
     batch_size: int = 8,
+    experiment: Annotated[
+        str | None,
+        Option(help="Experiment for tracking, inferred from parameters by default"),
+    ] = None,
+    run_name: Annotated[
+        str | None,
+        Option(help="Run name for tracking, inferred from parameters by default"),
+    ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
     from icftsc.logging import logger

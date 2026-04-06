@@ -14,7 +14,6 @@ from icftsc.types import DatasetName, PrefixInit, Task
 
 def prompt_tune(
     model_path: str,
-    run_name: str,
     dataset: DatasetName,
     task: Task,
     prefix_init: PrefixInit,
@@ -25,7 +24,8 @@ def prompt_tune(
     epochs: int,
     batch_size: int,
     learning_rate: float,
-    experiment: str,
+    experiment: str | None,
+    run_name: str | None,
 ):
     logger.info("load model config")
     config = AutoConfig.from_pretrained(model_path)
@@ -63,6 +63,11 @@ def prompt_tune(
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     ptcfg = cast(PromptTuningConfig, model.peft_config["default"])
+    if experiment is None:
+        experiment = f"icftsc-{dataset}"
+
+    if run_name is None:
+        run_name = f"{model_path}/{prefix_init}-prefix/{task}"
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
@@ -81,7 +86,7 @@ def prompt_tune(
     mlflow.log_param("method", f"prompt-tune-{prefix_init}")
     mlflow.log_param("num_virtual_tokens", ptcfg.num_virtual_tokens)
     mlflow.log_metric("train_samples", len(data["train"]))
-    mlflow.log_metric("dev_samples", len(data["dev"]))
+    mlflow.log_metric("dev_samples", len(data["dev"]) if do_eval else 0)
     mlflow.log_metric("test_samples", len(data["test"]))
     mlflow.log_metric("total_parameters", total)
     mlflow.log_metric("trainable_parameters", trainable)
