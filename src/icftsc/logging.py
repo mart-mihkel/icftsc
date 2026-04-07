@@ -27,9 +27,10 @@ _suppress = [
     peft,
 ]
 
-_console = Console()
+_console = Console(width=80)
 _handler = RichHandler(
     show_path=False,
+    show_time=False,
     console=_console,
     rich_tracebacks=True,
     tracebacks_show_locals=True,

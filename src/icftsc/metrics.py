@@ -212,6 +212,7 @@ def get_metrics_fn(
     tokenizer: PreTrainedTokenizerFast,
     task: Task,
 ) -> Callable[[EvalPrediction, bool], dict[str, int | float]]:
+    logger.debug("init compute metrics for %s", task)
     if task == "seqcls":
         return compute_metrics_seq_cls
 

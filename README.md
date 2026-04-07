@@ -13,7 +13,7 @@ MAX_JOBS=[n-jobs] uv sync --compile-bytecode --extra [cpu|cu128]
 
 ## Usage
 
-The cli installed in the virtualenv contains scripts for fine-tuning,
+The `cli` installed in the virtualenv contains scripts for fine-tuning,
 prompt-tuning, few-shot learning and utilities.
 
 ```bash

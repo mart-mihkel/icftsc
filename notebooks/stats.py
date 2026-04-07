@@ -105,16 +105,13 @@ def _(df):
 
 @app.cell
 def _(df):
-    _df = (
-        df.filter(
-            pl.col("train_samples").eq(20000),
-            pl.col("method").str.contains(r"fine-tune|prompt-tune-pretrained"),
-        )
-        .pivot(
-            index=["base_model", "model_type", "architecture"],
-            values=["train_runtime", "total_parameters"],
-            columns="method",
-        )
+    _df = df.filter(
+        pl.col("train_samples").eq(20000),
+        pl.col("method").str.contains(r"fine-tune|prompt-tune-pretrained"),
+    ).pivot(
+        index=["base_model", "model_type", "architecture"],
+        values=["train_runtime", "total_parameters"],
+        columns="method",
     )
 
     (
@@ -124,7 +121,7 @@ def _(df):
             y="train_runtime_prompt-tune-pretrained",
             shape="model_type",
             fill="architecture",
-            size="total_parameters_fine-tune"
+            size="total_parameters_fine-tune",
         )
         + pn.labs(
             title="Train Runtime",

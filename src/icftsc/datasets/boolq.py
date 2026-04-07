@@ -209,14 +209,8 @@ def load_boolq(
 
     data = data.map(_tokenize, remove_columns=cols, fn_kwargs=fn_kwargs)
 
-    if "train" in data:
-        logger.info("%d train samples", len(data["train"]))
-
-    if "dev" in data:
-        logger.info("%d dev samples", len(data["dev"]))
-
-    if "test" in data:
-        logger.info("%d test samples", len(data["test"]))
+    for subsplit in data:
+        logger.debug("tokenized %d %s samples", len(data[subsplit]), subsplit)
 
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),

@@ -63,6 +63,7 @@ def load_data(
     n_dev_samples: int | None = None,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
+    logger.info("load '%s'", dataset)
     if dataset == "multinerd":
         data, info = load_multinerd(tokenizer, model_type, task, n_shot, split=split)
     elif dataset == "estner":
@@ -94,19 +95,11 @@ def load_data(
 
         data["dev"] = data["dev"].select(range(n_dev_samples))
 
-    if "train" in data:
-        logger.info("%d train samples", len(data["train"]))
-
-    if "dev" in data:
-        logger.info("%d dev samples", len(data["dev"]))
-
-    if "test" in data:
-        logger.info("%d test samples", len(data["test"]))
-
     return data, info
 
 
 def load_tokenizer(model_path: str) -> PreTrainedTokenizerFast:
+    logger.info("load pretrained tokenizer for '%s'", model_path)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer = cast(PreTrainedTokenizerFast, tokenizer)
 
@@ -119,6 +112,7 @@ def load_tokenizer(model_path: str) -> PreTrainedTokenizerFast:
 
 
 def get_collator(tokenizer: PreTrainedTokenizerFast, task: Task) -> DataCollator:
+    logger.debug("init data collator for %s", task)
     if task == "seqcls":
         return DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
 

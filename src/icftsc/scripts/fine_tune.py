@@ -26,20 +26,15 @@ def fine_tune(
     experiment: str | None,
     run_name: str | None,
 ):
-    logger.info("load model config")
+    logger.info("load config for '%s'", model_path)
     config = AutoConfig.from_pretrained(model_path)
-
-    logger.info("load pretrained tokenizer")
     tokenizer = load_tokenizer(model_path)
     collate_fn = get_collator(tokenizer, task)
     metrics_fn = get_metrics_fn(tokenizer, task)
-
-    logger.info("load '%s' dataset", dataset)
-    model_type = config.model_type
     data, info = load_data(
         tokenizer,
         dataset,
-        model_type,
+        config.model_type,
         task,
         n_shot,
         n_train_samples,
@@ -50,7 +45,7 @@ def fine_tune(
         logger.warning("using superglue dev data for test, labels are private")
         data["test"] = data["dev"]
 
-    logger.info("load pretrained '%s' for '%s'", model_path, task)
+    logger.info("load '%s'", model_path)
     model = get_model(tokenizer, model_path, info, task, head_only)
 
     total = sum(p.numel() for p in model.parameters())
@@ -73,7 +68,7 @@ def fine_tune(
     mlflow.log_param("dataset", dataset)
     mlflow.log_param("head_only", head_only)
     mlflow.log_param("base_model", model_path)
-    mlflow.log_param("architecture", get_arch(model_type))
+    mlflow.log_param("architecture", get_arch(config.model_type))
     mlflow.log_param("system_prompt", info["system_prompt"])
     mlflow.log_param("method", "cls-head" if head_only else "fine-tune")
     mlflow.log_metric("train_samples", len(data["train"]))
@@ -95,14 +90,12 @@ def fine_tune(
         report_to="mlflow",
     )
 
-    logger.info("start trainer")
+    logger.debug("start trainer")
     trainer.train()
 
+    logger.debug("start test eval")
     test = cast(Dataset, data["test"])
     metrics = trainer.evaluate(test, metric_key_prefix="test")
-    logger.info(metrics)
-
-    logger.info("save checkpoint to %s", trainer.args.output_dir)
-    trainer.save_model()
+    logger.debug(metrics)
 
     mlflow.end_run()

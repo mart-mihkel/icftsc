@@ -52,7 +52,7 @@ def get_model(
     head_only: bool,
 ) -> PreTrainedModel:
     if task == "seqcls":
-        logger.debug("load pretrained model for sequence classification")
+        logger.debug("load '%s' for sequence classification", model_path)
         model, loading_info = AutoModelForSequenceClassification.from_pretrained(
             model_path,
             output_loading_info=True,
@@ -62,11 +62,11 @@ def get_model(
             device_map="auto",
         )
     elif task == "causal":
-        logger.debug("load pretrained model for causal language modeling")
+        logger.debug("load '%s' for causal language modeling", model_path)
         loading_info = {"missing_keys": set()}
         model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
     elif task == "seq2seq":
-        logger.debug("load pretrained model for sequence to sequence")
+        logger.debug("load '%s' for sequence to sequence", model_path)
         loading_info = {"missing_keys": set()}
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path, device_map="auto")
     else:
@@ -129,13 +129,13 @@ def get_pt_model(
     else:
         raise NotImplementedError(f"Prefix init '{prefix_init}'")
 
-    edge_case_kwargs = {}
+    special_kwargs = {}
     if "distilbert" in model_path:
         base = cast(DistilBertModel, base)
-        edge_case_kwargs = _distiblert_prompt_tuning_kwargs(base)
+        special_kwargs = _distiblert_prompt_tuning_kwargs(base)
     elif "t5gemma-2" in model_path:
         base = cast(T5Gemma2Model, base)
-        edge_case_kwargs = _t5gemma2_prompt_tuning_kwargs(base)
+        special_kwargs = _t5gemma2_prompt_tuning_kwargs(base)
 
     config = PromptTuningConfig(
         task_type=task_type,
@@ -143,10 +143,10 @@ def get_pt_model(
         tokenizer_name_or_path=model_path,
         prompt_tuning_init_text=sys_prompt,
         num_virtual_tokens=num_virtual_tokens,
-        **edge_case_kwargs,
+        **special_kwargs,
     )
 
-    logger.debug("init prompt tuning model for %s", model_path)
+    logger.debug("get peft model for '%s'", model_path)
     return cast(PeftModel, get_peft_model(base, config))
 
 
@@ -175,11 +175,6 @@ def get_args(
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
     eval_strategy = "epoch" if do_eval else "no"
     out_dir = f"log/{run_name}"
-
-    logger.debug("optimizer '%s'", optim)
-    logger.debug("checkpoint dir '%s'", out_dir)
-    logger.debug("eval strategy '%s'", eval_strategy)
-
     return TrainingArguments(
         run_name=run_name,
         report_to=report_to,
@@ -195,6 +190,7 @@ def get_args(
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
+        use_cpu=not have_cuda,
         bf16_full_eval=have_cuda,
         bf16=have_cuda,
     )

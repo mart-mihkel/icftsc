@@ -382,6 +382,9 @@ def load_multinerd(
         fn_kwargs=fn_kwargs,
     )
 
+    for subsplit in data:
+        logger.debug("tokenized %d %s samples", len(data[subsplit]), subsplit)
+
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),

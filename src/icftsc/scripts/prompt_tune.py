@@ -27,20 +27,15 @@ def prompt_tune(
     experiment: str | None,
     run_name: str | None,
 ):
-    logger.info("load model config")
+    logger.info("load config for '%s'", model_path)
     config = AutoConfig.from_pretrained(model_path)
-
-    logger.info("load pretrained tokenizer")
     tokenizer = load_tokenizer(model_path)
     collate_fn = get_collator(tokenizer, task)
     metrics_fn = get_metrics_fn(tokenizer, task)
-
-    logger.info("load '%s' dataset", dataset)
-    model_type = config.model_type
     data, info = load_data(
         tokenizer,
         dataset,
-        model_type,
+        config.model_type,
         task,
         n_shot,
         n_train_samples,
@@ -52,10 +47,9 @@ def prompt_tune(
         data["test"] = data["dev"]
 
     logger.info(
-        "init pt-model from '%s' with %s prefix initialization for '%s'",
+        "init prompt tuning model from '%s' with %s prefix initialization",
         model_path,
         prefix_init,
-        task,
     )
 
     model = get_pt_model(prefix_init, tokenizer, model_path, task, info)
@@ -81,7 +75,7 @@ def prompt_tune(
     mlflow.log_param("dataset", dataset)
     mlflow.log_param("base_model", model_path)
     mlflow.log_param("prefix_init", prefix_init)
-    mlflow.log_param("architecture", get_arch(model_type))
+    mlflow.log_param("architecture", get_arch(config.model_type))
     mlflow.log_param("system_prompt", info["system_prompt"])
     mlflow.log_param("method", f"prompt-tune-{prefix_init}")
     mlflow.log_param("num_virtual_tokens", ptcfg.num_virtual_tokens)
@@ -104,14 +98,17 @@ def prompt_tune(
         report_to="mlflow",
     )
 
-    logger.info("start trainer")
+    logger.debug("start trainer")
     trainer.train()
 
+    logger.debug("start test eval")
     test = cast(Dataset, data["test"])
     metrics = trainer.evaluate(test, metric_key_prefix="test")
-    logger.info(metrics)
+    logger.debug(metrics)
 
-    logger.info("save checkpoint to %s", trainer.args.output_dir)
-    trainer.save_model()
+    logger.info("save peft adapter to %s", trainer.args.output_dir)
+    logdir = trainer.args.output_dir
+    assert logdir is not None, "no trainer arguments logdir configured"
+    model.save_pretrained(logdir)
 
     mlflow.end_run()

@@ -21,15 +21,12 @@ def few_shot(
     experiment: str | None,
     run_name: str | None,
 ):
-    logger.info("load model config")
+    logger.info("load config for '%s'", model_path)
     config = AutoConfig.from_pretrained(model_path)
-
-    logger.info("load pretrained tokenizer")
     tokenizer = load_tokenizer(model_path)
     collate_fn = get_collator(tokenizer, task)
     metrics_fn = get_metrics_fn(tokenizer, task)
 
-    logger.info("load '%s' dataset", dataset)
     model_type = config.model_type
     split = cast(Split, {"test": "test"})
     data, info = load_data(tokenizer, dataset, model_type, task, n_shot, split=split)
@@ -38,7 +35,7 @@ def few_shot(
         logger.warning("using superglue dev data, test labels are private")
         data["test"] = data["dev"]
 
-    logger.info("load pretrained '%s' for '%s'", model_path, task)
+    logger.info("load '%s'", model_path)
     model = get_model(tokenizer, model_path, info, task, head_only=False)
 
     total = sum(p.numel() for p in model.parameters())
@@ -76,9 +73,9 @@ def few_shot(
         report_to="mlflow",
     )
 
-    logger.info("start test evaluation")
+    logger.debug("start test eval")
     test = cast(Dataset, data["test"])
     metrics = trainer.evaluate(test, metric_key_prefix="test")
-    logger.info(metrics)
+    logger.debug(metrics)
 
     mlflow.end_run()
