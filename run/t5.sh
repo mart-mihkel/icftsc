@@ -18,6 +18,11 @@ BASE_MODELS=(
     google/t5gemma-2-4b-4b
 )
 
+PREFIX_INITS=(
+    pretrained
+    random
+)
+
 N_TRAIN_SAMPLES=20000
 N_DEV_SAMPLES=1024
 DATASET=multinerd
@@ -28,7 +33,7 @@ TASK=seq2seq
 N_SHOT=3
 EPOCHS=3
 
-for BASE in "${BASE_MODELS[@]}"; do
+for BASE in ${BASE_MODELS[@]}; do
     uv run --no-sync cli few-shot \
         --batch-size $BATCH_SIZE \
         --log-level $LOG_LEVEL \
@@ -50,7 +55,7 @@ for BASE in "${BASE_MODELS[@]}"; do
         --task $TASK \
         --no-do-eval
 
-    for PREFIX_INIT in "pretrained" "random"; do
+    for PREFIX_INIT in ${PREFIX_INITS[@]}; do
         uv run --no-sync cli prompt-tune \
             --n-train-samples $N_TRAIN_SAMPLES \
             --n-dev-samples $N_DEV_SAMPLES \

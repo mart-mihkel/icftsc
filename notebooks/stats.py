@@ -52,7 +52,7 @@ def _(df):
 def _(df):
     _df = df  # .filter(pl.col("train_samples").eq(20000))
 
-    _p = (
+    (
         pn.ggplot(_df)
         + pn.aes(
             x="total_parameters",
@@ -71,20 +71,17 @@ def _(df):
         + pn.geom_line(pn.aes(color="method"))
         + pn.geom_point(stroke=0.25, size=2)
     )
-
-    _p.save(figpath / "perf_scaling.png")
-    _p
     return
 
 
 @app.cell
 def _(df):
-    _df = df.filter(pl.col("train_samples").eq(20000)).with_columns(
-        pl.col("train_runtime").mul(1 / 3600),
-        pl.col("trainable_parameters").mul(1e-6),
+    _df = df.filter(
+        pl.col("train_samples").eq(20000),
+        pl.col("method").str.contains(r"fine-tune|prompt-tune-pretrained"),
     )
 
-    _p = (
+    (
         pn.ggplot(_df)
         + pn.aes(
             x="trainable_parameters",
@@ -93,17 +90,50 @@ def _(df):
             shape="model_type",
         )
         + pn.labs(
-            x="Trainable Parameters (M)",
-            y="Train Runtime (h)",
+            x="Trainable Parameters",
+            y="Train Runtime",
             title="Compute Time Scaling",
         )
-        + pn.scale_x_log10()
-        + pn.scale_y_log10()
+        + pn.scale_x_log10(
+            breaks=[10**i for i in range(20)],
+            labels=[rf"$10^{{{i}}}$" for i in range(20)],
+        )
         + pn.geom_point(stroke=0.25, size=2)
     )
+    return
 
-    _p.save(figpath / "compute_scaling.png")
-    _p
+
+@app.cell
+def _(df):
+    _df = (
+        df.filter(
+            pl.col("train_samples").eq(20000),
+            pl.col("method").str.contains(r"fine-tune|prompt-tune-pretrained"),
+        )
+        .pivot(
+            index=["base_model", "model_type", "architecture"],
+            values=["train_runtime", "total_parameters"],
+            columns="method",
+        )
+    )
+
+    (
+        pn.ggplot(_df)
+        + pn.aes(
+            x="train_runtime_fine-tune",
+            y="train_runtime_prompt-tune-pretrained",
+            shape="model_type",
+            fill="architecture",
+            size="total_parameters_fine-tune"
+        )
+        + pn.labs(
+            title="Train Runtime",
+            x="FT",
+            y="PT",
+        )
+        + pn.geom_point(stroke=0.25)
+        # + pn.geom_line(pn.aes(color="model_type"))
+    )
     return
 
 
@@ -129,7 +159,7 @@ def _(df):
         )
     )
 
-    _p = (
+    (
         pn.ggplot(_df)
         + pn.aes(
             x="f1_gain_abs",
@@ -145,9 +175,6 @@ def _(df):
         )
         + pn.geom_point(stroke=0.25)
     )
-
-    _p.save(figpath / "pt_vs_ft.png")
-    _p
     return
 
 
