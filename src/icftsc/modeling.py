@@ -51,6 +51,13 @@ def get_model(
     task: Task,
     head_only: bool,
 ) -> PreTrainedModel:
+    if torch.cuda.is_available():
+        dtype = torch.bfloat16
+        logger.debug("have accelerator, using brain float 16")
+    else:
+        dtype = torch.float32
+        logger.debug("no accelerator, using full precision floating point")
+
     if task == "seqcls":
         logger.debug("load '%s' for sequence classification", model_path)
         model, loading_info = AutoModelForSequenceClassification.from_pretrained(
@@ -60,15 +67,24 @@ def get_model(
             id2label=data_info["id2label"],
             label2id=data_info["label2id"],
             device_map="auto",
+            dtype=dtype,
         )
     elif task == "causal":
         logger.debug("load '%s' for causal language modeling", model_path)
         loading_info = {"missing_keys": set()}
-        model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            device_map="auto",
+            dtype=dtype,
+        )
     elif task == "seq2seq":
         logger.debug("load '%s' for sequence to sequence", model_path)
         loading_info = {"missing_keys": set()}
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, device_map="auto")
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            model_path,
+            device_map="auto",
+            dtype=dtype,
+        )
     else:
         raise NotImplementedError(f"Task '{task}'")
 
@@ -216,7 +232,7 @@ def get_trainer(
 
     callbacks = None
     if do_eval:
-        stopper = EarlyStoppingCallback(3, 0.02)
+        stopper = EarlyStoppingCallback(4, 0.01)
         callbacks: list[TrainerCallback] = [stopper]
 
     return Trainer(
