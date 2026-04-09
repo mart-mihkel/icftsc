@@ -33,11 +33,10 @@ _handler = RichHandler(
     show_time=False,
     console=_console,
     rich_tracebacks=True,
-    tracebacks_show_locals=True,
     tracebacks_suppress=_suppress,
 )
 
-install(show_locals=True, console=_console, suppress=_suppress)
+install(console=_console, suppress=_suppress)
 
 logging.basicConfig(format="%(message)s", handlers=[_handler])
 logger = logging.getLogger("icftsc")

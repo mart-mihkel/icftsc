@@ -2,28 +2,22 @@
 #SBATCH --output=log/slurm/%j-%x.out
 #SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
-#SBATCH --job-name="gpt"
-#SBATCH --time=24:00:00
+#SBATCH --job-name="gemma3"
+#SBATCH --time=12:00:00
 #SBATCH --partition=gpu
 #SBATCH --mem=32GB
 
 BASE_MODELS=(
-    EleutherAI/pythia-70m
-    EleutherAI/pythia-160m
-    EleutherAI/pythia-410m
-    EleutherAI/pythia-1b
-    EleutherAI/pythia-1.4b
-    EleutherAI/pythia-2.8b
-    EleutherAI/pythia-6.9b
+    Qwen/Qwen3.5-0.8B
+    Qwen/Qwen3.5-2B
+    Qwen/Qwen3.5-4B
+    Qwen/Qwen3.5-9B
+    meta-llama/Llama-3.2-1B-Instruct
+    meta-llama/Llama-3.2-3B-Instruct
+    meta-llama/Llama-3.1-8B-Instruct
     google/gemma-3-270m-it
     google/gemma-3-1b-it
     google/gemma-3-4b-it
-    Qwen/Qwen3-0.6B
-    Qwen/Qwen3-1.7B
-    Qwen/Qwen3-4B
-    Qwen/Qwen3-8B
-    meta-llama/Llama-3.2-1B
-    meta-llama/Llama-3.2-3B
 )
 
 PREFIX_INITS=(
@@ -37,7 +31,6 @@ DATASET=multinerd
 LOG_LEVEL=DEBUG
 PREFIX_LR=1e-3
 BATCH_SIZE=8
-TASK=causal
 N_SHOT=3
 EPOCHS=3
 
@@ -47,8 +40,7 @@ for BASE in ${BASE_MODELS[@]}; do
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
         --n-shot $N_SHOT \
-        --model $BASE \
-        --task $TASK
+        --model $BASE
 
     uv run --no-sync cli fine-tune \
         --n-train-samples $N_TRAIN_SAMPLES \
@@ -60,7 +52,6 @@ for BASE in ${BASE_MODELS[@]}; do
         --n-shot $N_SHOT \
         --no-head-only \
         --model $BASE \
-        --task $TASK \
         --no-do-eval
 
     for PREFIX_INIT in ${PREFIX_INITS[@]}; do
@@ -75,7 +66,6 @@ for BASE in ${BASE_MODELS[@]}; do
             --epochs $EPOCHS \
             --n-shot $N_SHOT \
             --model $BASE \
-            --task $TASK \
             --no-do-eval
     done
 done

@@ -16,7 +16,9 @@ from transformers import (
     PreTrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerFast,
+    T5Gemma2EncoderConfig,
     T5Gemma2Model,
+    T5Gemma2TextConfig,
     TrainerCallback,
 )
 from transformers.trainer import Trainer
@@ -56,10 +58,10 @@ def get_model(
 ) -> PreTrainedModel:
     if torch.cuda.is_available():
         dtype = torch.bfloat16
-        logger.debug("have accelerator, using brain float 16")
+        logger.debug("using half precision brain float")
     else:
         dtype = torch.float32
-        logger.debug("no accelerator, using full precision floating point")
+        logger.debug("using full precision floating point")
 
     if arch == "encoder":
         logger.debug("load '%s' for sequence classification", model_path)
@@ -91,9 +93,13 @@ def get_model(
     else:
         raise NotImplementedError(f"architecture '{arch}'")
 
-    if model.config.pad_token_id is None:
+    config = model.config
+    if "text_config" in config:
+        config = config.text_config
+
+    if config.pad_token_id is None:
         logger.warning("model doesn't have a padding token, using eos")
-        model.config.pad_token_id = tokenizer.eos_token_id
+        config.pad_token_id = tokenizer.eos_token_id
 
     if head_only:
         freeze(model=model, skip=loading_info["missing_keys"])
@@ -111,11 +117,12 @@ def _distiblert_prompt_tuning_kwargs(model: DistilBertModel) -> dict[str, Any]:
 
 
 def _t5gemma2_prompt_tuning_kwargs(model: T5Gemma2Model) -> dict[str, Any]:
-    cfg = model.config
+    cfg = cast(T5Gemma2EncoderConfig, model.config.encoder)
+    cfg = cast(T5Gemma2TextConfig, cfg.text_config)
     return {
-        "token_dim": cfg.encoder.text_config.hidden_size,
-        "num_layers": cfg.encoder.text_config.num_hidden_layers,
-        "num_attention_heads": cfg.encoder.text_config.num_attention_heads,
+        "token_dim": cfg.hidden_size,
+        "num_layers": cfg.num_hidden_layers,
+        "num_attention_heads": cfg.num_attention_heads,
     }
 
 

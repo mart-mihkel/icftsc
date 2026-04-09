@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.22.4"
+__generated_with = "0.22.5"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -50,7 +50,7 @@ def _(df):
 
 @app.cell
 def _(df):
-    _df = df  # .filter(pl.col("train_samples").eq(20000))
+    _df = df.filter(pl.col("train_samples").is_in([0, 20000]))
 
     (
         pn.ggplot(_df)
@@ -129,7 +129,6 @@ def _(df):
             y="PT",
         )
         + pn.geom_point(stroke=0.25)
-        # + pn.geom_line(pn.aes(color="model_type"))
     )
     return
 

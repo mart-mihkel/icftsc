@@ -2,19 +2,19 @@
 #SBATCH --output=log/slurm/%j-%x.out
 #SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
-#SBATCH --job-name="deberta"
-#SBATCH --time=08:00:00
+#SBATCH --job-name="gptneo"
+#SBATCH --time=12:00:00
 #SBATCH --partition=gpu
 #SBATCH --mem=32GB
 
 BASE_MODELS=(
-    distilbert/distilbert-base-cased
-    jhu-clsp/mmBERT-small
-    jhu-clsp/mmBERT-base
-    microsoft/deberta-v3-xsmall
-    microsoft/deberta-v3-small
-    microsoft/deberta-v3-base
-    microsoft/deberta-v3-large
+    EleutherAI/pythia-70m
+    EleutherAI/pythia-160m
+    EleutherAI/pythia-410m
+    EleutherAI/pythia-1b
+    EleutherAI/pythia-1.4b
+    EleutherAI/pythia-2.8b
+    EleutherAI/pythia-6.9b
 )
 
 PREFIX_INITS=(
@@ -32,17 +32,12 @@ N_SHOT=3
 EPOCHS=3
 
 for BASE in ${BASE_MODELS[@]}; do
-    uv run --no-sync cli fine-tune \
-        --n-train-samples $N_TRAIN_SAMPLES \
-        --n-dev-samples $N_DEV_SAMPLES \
+    uv run --no-sync cli few-shot \
         --batch-size $BATCH_SIZE \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
-        --epochs $EPOCHS \
         --n-shot $N_SHOT \
-        --model $BASE \
-        --no-do-eval \
-        --head-only
+        --model $BASE
 
     uv run --no-sync cli fine-tune \
         --n-train-samples $N_TRAIN_SAMPLES \

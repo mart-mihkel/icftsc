@@ -2,7 +2,7 @@
 #SBATCH --output=log/slurm/%j-%x.out
 #SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
-#SBATCH --job-name="t5"
+#SBATCH --job-name="t5gemma"
 #SBATCH --time=12:00:00
 #SBATCH --partition=gpu
 #SBATCH --mem=32GB
@@ -29,7 +29,6 @@ DATASET=multinerd
 LOG_LEVEL=DEBUG
 PREFIX_LR=1e-3
 BATCH_SIZE=8
-TASK=seq2seq
 N_SHOT=3
 EPOCHS=3
 
@@ -39,8 +38,7 @@ for BASE in ${BASE_MODELS[@]}; do
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
         --n-shot $N_SHOT \
-        --model $BASE \
-        --task $TASK
+        --model $BASE
 
     uv run --no-sync cli fine-tune \
         --n-train-samples $N_TRAIN_SAMPLES \
@@ -52,7 +50,6 @@ for BASE in ${BASE_MODELS[@]}; do
         --n-shot $N_SHOT \
         --no-head-only \
         --model $BASE \
-        --task $TASK \
         --no-do-eval
 
     for PREFIX_INIT in ${PREFIX_INITS[@]}; do
@@ -67,7 +64,6 @@ for BASE in ${BASE_MODELS[@]}; do
             --epochs $EPOCHS \
             --n-shot $N_SHOT \
             --model $BASE \
-            --task $TASK \
             --no-do-eval
     done
 done

@@ -211,7 +211,7 @@ def get_metrics_fn(
     tokenizer: PreTrainedTokenizerFast,
     arch: Architecture,
 ) -> Callable[[EvalPrediction, bool], dict[str, int | float]]:
-    logger.debug("init compute metrics for %s", arch)
+    logger.debug("init compute metrics for '%s'", arch)
     if arch == "encoder":
         return compute_metrics_seq_cls
 

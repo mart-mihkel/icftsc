@@ -6,7 +6,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mem=8GB
 
-# TASK=seqcls
 # BASE=hf-internal-testing/tiny-random-bert
 # BASE=distilbert/distilbert-base-cased
 # BASE=jhu-clsp/mmBERT-small
@@ -14,8 +13,11 @@
 # BASE=EuroBERT/EuroBERT-210m
 # BASE=EuroBERT/EuroBERT-610m
 # BASE=EuroBERT/EuroBERT-2.1B
+# BASE=microsoft/deberta-v3-xsmall
+# BASE=microsoft/deberta-v3-small
+# BASE=microsoft/deberta-v3-base
+# BASE=microsoft/deberta-v3-large
 
-# TASK=causal
 # BASE=hf-internal-testing/tiny-random-gpt2
 # BASE=openai-community/gpt2
 # BASE=openai-community/gpt2-medium
@@ -44,13 +46,14 @@
 # BASE=Qwen/Qwen3.5-9B
 # BASE=meta-llama/Llama-3.2-1B
 # BASE=meta-llama/Llama-3.2-3B
+# BASE=meta-llama/Llama-3.1-8B
 # BASE=meta-llama/Llama-3.2-1B-Instruct
 # BASE=meta-llama/Llama-3.2-3B-Instruct
-# BASE=meta-llama/Llama-3.1-8B
 # BASE=meta-llama/Llama-3.1-8B-Instruct
+# BASE=google/gemma-4-E2B-it
+# BASE=google/gemma-4-E4B-it
 
-TASK=seq2seq
-BASE=hf-internal-testing/tiny-random-t5
+# BASE=hf-internal-testing/tiny-random-t5
 # BASE=google-t5/t5-small
 # BASE=google-t5/t5-base
 # BASE=google-t5/t5-large
@@ -67,13 +70,13 @@ BASE=hf-internal-testing/tiny-random-t5
 
 PREFIX_INIT=pretrained
 N_TRAIN_SAMPLES=1024
-N_DEV_SAMPLES=1024
+N_DEV_SAMPLES=128
 DATASET=multinerd
 LOG_LEVEL=DEBUG
 PREFIX_LR=1e-3
 BATCH_SIZE=8
 N_SHOT=3
-EPOCHS=3
+EPOCHS=5
 
 if [[ $1 = few-shot ]]; then
     uv run --no-sync cli few-shot \
@@ -83,8 +86,7 @@ if [[ $1 = few-shot ]]; then
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
         --n-shot $N_SHOT \
-        --model $BASE \
-        --task $TASK
+        --model $BASE
 
     exit 0
 fi
@@ -101,7 +103,6 @@ if [[ $1 = cls-head ]]; then
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
         --model $BASE \
-        --task $TASK \
         --head-only \
         --do-eval
 
@@ -121,7 +122,6 @@ if [[ $1 = fine-tune ]]; then
         --n-shot $N_SHOT \
         --no-head-only \
         --model $BASE \
-        --task $TASK \
         --do-eval
 
     exit 0
@@ -141,7 +141,6 @@ if [[ $1 = prompt-tune ]]; then
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
         --model $BASE \
-        --task $TASK \
         --do-eval
 
     exit 0

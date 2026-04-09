@@ -114,7 +114,7 @@ def get_collator(
     tokenizer: PreTrainedTokenizerFast,
     arch: Architecture,
 ) -> DataCollator:
-    logger.debug("init data collator for %s", arch)
+    logger.debug("init data collator for '%s'", arch)
     if arch == "encoder":
         return DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
 
