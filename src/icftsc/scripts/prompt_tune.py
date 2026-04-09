@@ -9,13 +9,12 @@ from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
 from icftsc.modeling import get_arch, get_pt_model, get_trainer
-from icftsc.types import DatasetName, PrefixInit, Task
+from icftsc.types import DatasetName, PrefixInit
 
 
 def prompt_tune(
     model_path: str,
     dataset: DatasetName,
-    task: Task,
     prefix_init: PrefixInit,
     n_shot: int,
     n_train_samples: int | None,
@@ -29,14 +28,15 @@ def prompt_tune(
 ):
     logger.info("load config for '%s'", model_path)
     config = AutoConfig.from_pretrained(model_path)
+    arch = get_arch(config)
+
     tokenizer = load_tokenizer(model_path)
-    collate_fn = get_collator(tokenizer, task)
-    metrics_fn = get_metrics_fn(tokenizer, task)
+    collate_fn = get_collator(tokenizer, arch)
+    metrics_fn = get_metrics_fn(tokenizer, arch)
     data, info = load_data(
         tokenizer,
         dataset,
-        config.model_type,
-        task,
+        arch,
         n_shot,
         n_train_samples,
         n_dev_samples,
@@ -52,7 +52,7 @@ def prompt_tune(
         prefix_init,
     )
 
-    model = get_pt_model(prefix_init, tokenizer, model_path, task, info)
+    model = get_pt_model(prefix_init, tokenizer, model_path, arch, info)
 
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -61,7 +61,7 @@ def prompt_tune(
         experiment = f"icftsc-{dataset}"
 
     if run_name is None:
-        run_name = f"{model_path}/{prefix_init}-prefix/{task}"
+        run_name = f"{model_path}/{prefix_init}-prefix"
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
@@ -70,12 +70,11 @@ def prompt_tune(
 
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
-    mlflow.log_param("task", task)
     mlflow.log_param("n_shot", n_shot)
     mlflow.log_param("dataset", dataset)
+    mlflow.log_param("architecture", arch)
     mlflow.log_param("base_model", model_path)
     mlflow.log_param("prefix_init", prefix_init)
-    mlflow.log_param("architecture", get_arch(config.model_type))
     mlflow.log_param("system_prompt", info["system_prompt"])
     mlflow.log_param("method", f"prompt-tune-{prefix_init}")
     mlflow.log_param("num_virtual_tokens", ptcfg.num_virtual_tokens)

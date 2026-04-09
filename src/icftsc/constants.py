@@ -3,6 +3,7 @@ encoder_model_types = frozenset(
         "bert",
         "distilbert",
         "roberta",
+        "deberta-v2",
         "eurobert",
         "modernbert",
     )
@@ -16,6 +17,8 @@ decoder_model_types = frozenset(
         "gemma2",
         "gemma3",
         "gemma3_text",
+        "gemma4",
+        "gemma4_text",
         "qwen2",
         "qwen2_5",
         "qwen3",

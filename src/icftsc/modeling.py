@@ -13,6 +13,7 @@ from transformers import (
     DistilBertModel,
     EarlyStoppingCallback,
     EvalPrediction,
+    PreTrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerFast,
     T5Gemma2Model,
@@ -28,27 +29,29 @@ from icftsc.constants import (
 )
 from icftsc.datasets.util import DatasetInfo
 from icftsc.logging import logger
-from icftsc.types import Architecture, PrefixInit, Task
+from icftsc.types import Architecture, PrefixInit
 
 
-def get_arch(model_type: str) -> Architecture:
-    if model_type in encoder_model_types:
-        return "encoder"
+def get_arch(config: PreTrainedConfig) -> Architecture:
+    mt = config.model_type
+    if config.is_encoder_decoder or mt in encoder_decoder_model_types:
+        arch = "encoder-decoder"
+    elif getattr(config, "is_decoder", False) or mt in decoder_model_types:
+        arch = "decoder"
+    elif mt in encoder_model_types:
+        arch = "encoder"
+    else:
+        raise RuntimeError(f"failed to infer architecture for '{mt}'")
 
-    if model_type in decoder_model_types:
-        return "decoder"
-
-    if model_type in encoder_decoder_model_types:
-        return "encoder-decoder"
-
-    raise NotImplementedError(f"Model type '{model_type}'")
+    logger.debug("inferred model architecture '%s' for '%s'", arch, mt)
+    return arch
 
 
 def get_model(
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
     data_info: DatasetInfo,
-    task: Task,
+    arch: Architecture,
     head_only: bool,
 ) -> PreTrainedModel:
     if torch.cuda.is_available():
@@ -58,7 +61,7 @@ def get_model(
         dtype = torch.float32
         logger.debug("no accelerator, using full precision floating point")
 
-    if task == "seqcls":
+    if arch == "encoder":
         logger.debug("load '%s' for sequence classification", model_path)
         model, loading_info = AutoModelForSequenceClassification.from_pretrained(
             model_path,
@@ -69,7 +72,7 @@ def get_model(
             device_map="auto",
             dtype=dtype,
         )
-    elif task == "causal":
+    elif arch == "decoder":
         logger.debug("load '%s' for causal language modeling", model_path)
         loading_info = {"missing_keys": set()}
         model = AutoModelForCausalLM.from_pretrained(
@@ -77,7 +80,7 @@ def get_model(
             device_map="auto",
             dtype=dtype,
         )
-    elif task == "seq2seq":
+    elif arch == "encoder-decoder":
         logger.debug("load '%s' for sequence to sequence", model_path)
         loading_info = {"missing_keys": set()}
         model = AutoModelForSeq2SeqLM.from_pretrained(
@@ -86,7 +89,7 @@ def get_model(
             dtype=dtype,
         )
     else:
-        raise NotImplementedError(f"Task '{task}'")
+        raise NotImplementedError(f"architecture '{arch}'")
 
     if model.config.pad_token_id is None:
         logger.warning("model doesn't have a padding token, using eos")
@@ -120,30 +123,30 @@ def get_pt_model(
     prefix_init: PrefixInit,
     tokenizer: PreTrainedTokenizerFast,
     model_path: str,
-    task: Task,
+    arch: Architecture,
     data_info: DatasetInfo,
 ) -> PeftModel:
     sys_prompt = data_info["system_prompt"]
     sys_enc = tokenizer(sys_prompt, truncation=True)
     num_virtual_tokens = len(sys_enc["input_ids"])
 
-    base = get_model(tokenizer, model_path, data_info, task, head_only=False)
+    base = get_model(tokenizer, model_path, data_info, arch, head_only=False)
 
-    if task == "seqcls":
+    if arch == "encoder":
         task_type = TaskType.SEQ_CLS
-    elif task == "causal":
+    elif arch == "decoder":
         task_type = TaskType.CAUSAL_LM
-    elif task == "seq2seq":
+    elif arch == "encoder-decoder":
         task_type = TaskType.SEQ_2_SEQ_LM
     else:
-        raise NotImplementedError(f"Task '{task}'")
+        raise NotImplementedError(f"architecture '{arch}'")
 
     if prefix_init == "pretrained":
         init = "TEXT"
     elif prefix_init == "random":
         init = "RANDOM"
     else:
-        raise NotImplementedError(f"Prefix init '{prefix_init}'")
+        raise NotImplementedError(f"prefix init '{prefix_init}'")
 
     special_kwargs = {}
     if "distilbert" in model_path:

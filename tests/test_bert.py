@@ -16,6 +16,8 @@ from icftsc.datasets.multinerd import load_multinerd
 from icftsc.datasets.util import get_collator
 from icftsc.datasets.wic import load_wic
 
+_arch = "encoder"
+
 
 def test_bert_wic_forward(
     bert: BertForSequenceClassification,
@@ -23,10 +25,10 @@ def test_bert_wic_forward(
     wic: DatasetDict,
 ):
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
-        data, _ = load_wic(bert_tokenizer, "bert", "seqcls", 0)
+        data, _ = load_wic(bert_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(bert_tokenizer, "seqcls")
+    collator = get_collator(bert_tokenizer, _arch)
 
     batch = collator(examples)
     out = bert(**batch)
@@ -41,10 +43,10 @@ def test_bert_boolq_forward(
     boolq: DatasetDict,
 ):
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
-        data, _ = load_boolq(bert_tokenizer, "bert", "seqcls", 0)
+        data, _ = load_boolq(bert_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(bert_tokenizer, "seqcls")
+    collator = get_collator(bert_tokenizer, _arch)
 
     batch = collator(examples)
     out = bert(**batch)
@@ -59,14 +61,14 @@ def test_bert_estner_forward(
     estner: DatasetDict,
 ):
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
-        data, info = load_estner(bert_tokenizer, "bert", "seqcls", 0)
+        data, info = load_estner(bert_tokenizer, _arch, 0)
 
     num_labels = len(info["id2label"])
     bert.num_labels = num_labels
     bert.classifier = Linear(bert.config.hidden_size, num_labels)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(bert_tokenizer, "seqcls")
+    collator = get_collator(bert_tokenizer, _arch)
 
     batch = collator(examples)
     out = bert(**batch)
@@ -81,14 +83,14 @@ def test_bert_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, info = load_multinerd(bert_tokenizer, "bert", "seqcls", 0, False)
+        data, info = load_multinerd(bert_tokenizer, _arch, 0, False)
 
     num_labels = len(info["id2label"])
     bert.num_labels = num_labels
     bert.classifier = Linear(bert.config.hidden_size, num_labels)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(bert_tokenizer, "seqcls")
+    collator = get_collator(bert_tokenizer, _arch)
 
     batch = collator(examples)
     print(batch)
@@ -104,10 +106,10 @@ def test_pt_bert_wic_forward(
     wic: DatasetDict,
 ):
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
-        data, _ = load_wic(bert_tokenizer, "bert", "seqcls", 0)
+        data, _ = load_wic(bert_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(bert_tokenizer, "seqcls")
+    collator = get_collator(bert_tokenizer, _arch)
 
     batch = collator(examples)
     out = pt_bert(**batch)
@@ -123,10 +125,10 @@ def test_pt_bert_boolq_forward(
     boolq: DatasetDict,
 ):
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
-        data, _ = load_boolq(bert_tokenizer, "bert", "seqcls", 0)
+        data, _ = load_boolq(bert_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(bert_tokenizer, "seqcls")
+    collator = get_collator(bert_tokenizer, _arch)
 
     batch = collator(examples)
     out = pt_bert(**batch)
@@ -141,7 +143,7 @@ def test_pt_bert_estner_forward(
     estner: DatasetDict,
 ):
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
-        data, info = load_estner(bert_tokenizer, "bert", "seqcls", 0)
+        data, info = load_estner(bert_tokenizer, _arch, 0)
 
     num_labels = len(info["id2label"])
     bert = cast(BertForSequenceClassification, pt_bert.base_model)
@@ -149,7 +151,7 @@ def test_pt_bert_estner_forward(
     bert.classifier = Linear(pt_bert.config.hidden_size, num_labels)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(bert_tokenizer, "seqcls")
+    collator = get_collator(bert_tokenizer, _arch)
 
     batch = collator(examples)
     out = pt_bert(**batch)
@@ -164,7 +166,7 @@ def test_pt_bert_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, info = load_multinerd(bert_tokenizer, "bert", "seqcls", 0, False)
+        data, info = load_multinerd(bert_tokenizer, _arch, 0, False)
 
     num_labels = len(info["id2label"])
     bert = cast(BertForSequenceClassification, pt_bert.base_model)
@@ -172,7 +174,7 @@ def test_pt_bert_multinerd_forward(
     bert.classifier = Linear(pt_bert.config.hidden_size, num_labels)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(bert_tokenizer, "seqcls")
+    collator = get_collator(bert_tokenizer, _arch)
 
     batch = collator(examples)
     print(batch)

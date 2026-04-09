@@ -21,7 +21,7 @@ def test_multinerd_seqcls(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(bert_tokenizer, "bert", "seqcls", 0, False)
+        data, _ = load_multinerd(bert_tokenizer, "encoder", 0, False)
 
     assert len(data["train"]) > 0
     assert len(data["dev"]) > 0
@@ -40,7 +40,7 @@ def test_multinerd_causal(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(gpt2_tokenizer, "gpt2", "causal", 0, False)
+        data, _ = load_multinerd(gpt2_tokenizer, "decoder", 0, False)
 
     assert len(data["train"]) > 0
     assert len(data["dev"]) > 0
@@ -61,7 +61,7 @@ def test_multinerd_seq2seq(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(t5_tokenizer, "t5", "seq2seq", 0, False)
+        data, _ = load_multinerd(t5_tokenizer, "encoder-decoder", 0, False)
 
     assert len(data["train"]) > 0
     assert len(data["dev"]) > 0
@@ -81,22 +81,11 @@ def test_multinerd_n_shot(
 ):
     n_shot = 3
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        _, info = load_multinerd(bert_tokenizer, "bert", "seqcls", n_shot, False)
+        _, info = load_multinerd(bert_tokenizer, "encoder", n_shot, False)
 
     assert info["system_prompt"].count("sentence:") == n_shot
     assert info["system_prompt"].count("entity:") == n_shot
     assert info["system_prompt"].count("tag:") == n_shot
-
-
-def test_multinerd_invalid_model_type(
-    bert_tokenizer: PreTrainedTokenizerFast,
-    multinerd: DatasetDict,
-):
-    with (
-        pytest.raises(NotImplementedError, match="Model type 'invalid'"),
-        patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd),
-    ):
-        load_multinerd(bert_tokenizer, "invalid", "seqcls", 0, False)
 
 
 def test_multinerd_invalid_n_shot(
@@ -107,4 +96,4 @@ def test_multinerd_invalid_n_shot(
         pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("datasets.load.load_dataset", return_value=multinerd),
     ):
-        load_multinerd(bert_tokenizer, "bert", "seqcls", 100, False)
+        load_multinerd(bert_tokenizer, "encoder", 100, False)

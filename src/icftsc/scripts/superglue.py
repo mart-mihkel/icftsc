@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from datasets.splits import Split
 from torch.utils.data import Dataset
-from transformers import AutoConfig, AutoModel, DataCollatorWithPadding, Trainer
+from transformers import AutoModel, DataCollatorWithPadding, Trainer
 
 from icftsc.datasets.boolq import id2label
 from icftsc.datasets.util import load_data, load_tokenizer
@@ -18,13 +18,11 @@ def predict_boolq(checkpoint: str):
     with open(path / "cli_params.json") as f:
         params = json.load(f)
 
-    config = AutoConfig.from_pretrained(checkpoint)
     tokenizer = load_tokenizer(model_path=checkpoint)
     data, _ = load_data(
         tokenizer=tokenizer,
         dataset="boolq",
-        model_type=config.model_type,
-        task=params["task"],
+        arch=params["architecture"],
         n_shot=params["n_shot"],
         split=cast(Split, {"test": "test"}),
     )

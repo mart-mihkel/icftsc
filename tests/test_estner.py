@@ -18,7 +18,7 @@ def test_join_spans():
 
 def test_estner_seqcls(bert_tokenizer: PreTrainedTokenizerFast, estner: DatasetDict):
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
-        data, _ = load_estner(bert_tokenizer, "bert", "seqcls", 0)
+        data, _ = load_estner(bert_tokenizer, "encoder", 0)
 
     assert len(data["train"]) > 0
     assert len(data["dev"]) > 0
@@ -35,7 +35,7 @@ def test_estner_seqcls(bert_tokenizer: PreTrainedTokenizerFast, estner: DatasetD
 
 def test_estner_causal(gpt2_tokenizer: PreTrainedTokenizerFast, estner: DatasetDict):
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
-        data, _ = load_estner(gpt2_tokenizer, "gpt2", "causal", 0)
+        data, _ = load_estner(gpt2_tokenizer, "decoder", 0)
 
     assert len(data["train"]) > 0
     assert len(data["dev"]) > 0
@@ -57,7 +57,7 @@ def test_estner_causal(gpt2_tokenizer: PreTrainedTokenizerFast, estner: DatasetD
 
 def test_estner_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, estner: DatasetDict):
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
-        data, _ = load_estner(t5_tokenizer, "t5", "seq2seq", 0)
+        data, _ = load_estner(t5_tokenizer, "encoder-decoder", 0)
 
     assert len(data["train"]) > 0
     assert len(data["dev"]) > 0
@@ -74,22 +74,11 @@ def test_estner_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, estner: DatasetDi
 def test_estner_n_shot(bert_tokenizer: PreTrainedTokenizerFast, estner: DatasetDict):
     n_shot = 3
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
-        _, info = load_estner(bert_tokenizer, "bert", "seqcls", n_shot)
+        _, info = load_estner(bert_tokenizer, "encoder", n_shot)
 
     assert info["system_prompt"].count("lause:") == n_shot
     assert info["system_prompt"].count("nimeüksus:") == n_shot
     assert info["system_prompt"].count("märgend:") == n_shot
-
-
-def test_estner_invalid_model_type(
-    bert_tokenizer: PreTrainedTokenizerFast,
-    estner: DatasetDict,
-):
-    with (
-        pytest.raises(NotImplementedError, match="Model type 'invalid'"),
-        patch("icftsc.datasets.estner.load_dataset", return_value=estner),
-    ):
-        load_estner(bert_tokenizer, "invalid", "seqcls", 0)
 
 
 def test_estner_invalid_n_shot(
@@ -100,4 +89,4 @@ def test_estner_invalid_n_shot(
         pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("icftsc.datasets.estner.load_dataset", return_value=estner),
     ):
-        load_estner(bert_tokenizer, "bert", "seqcls", 100)
+        load_estner(bert_tokenizer, "encoder", 100)

@@ -5,13 +5,8 @@ from datasets.load import load_dataset
 from datasets.splits import Split
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.constants import (
-    decoder_model_types,
-    encoder_decoder_model_types,
-    encoder_model_types,
-)
 from icftsc.logging import logger
-from icftsc.types import DatasetInfo, Task
+from icftsc.types import Architecture, DatasetInfo
 
 type EstnerTag = Literal[
     "O",
@@ -154,19 +149,19 @@ def _encdec_prompt(sentence: str, entity: str) -> str:
 
 def _get_sys_prompt(
     tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
+    arch: Architecture,
     n_shot: int,
 ) -> str:
     assert n_shot <= len(examples), "requested more examples than exist"
 
-    if model_type in encoder_model_types:
+    if arch == "encoder":
         prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
-    elif model_type in decoder_model_types:
+    elif arch == "decoder":
         prompt = _dec_sys_prompt()
-    elif model_type in encoder_decoder_model_types:
+    elif arch == "encoder-decoder":
         prompt = _encdec_sys_prompt()
     else:
-        raise NotImplementedError(f"Model type '{model_type}'")
+        raise NotImplementedError(f"architecture '{arch}'")
 
     shots = "\n".join(examples[:n_shot])
     return f"{prompt}\n{shots}"
@@ -174,27 +169,26 @@ def _get_sys_prompt(
 
 def _get_prompt(
     tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
+    arch: Architecture,
     sentence: str,
     entity: str,
 ) -> str:
-    if model_type in encoder_model_types:
+    if arch == "encoder":
         return _enc_prompt(sentence, entity, tokenizer.sep_token)
 
-    if model_type in decoder_model_types:
+    if arch == "decoder":
         return _dec_prompt(sentence, entity)
 
-    if model_type in encoder_decoder_model_types:
+    if arch == "encoder-decoder":
         return _encdec_prompt(sentence, entity)
 
-    raise NotImplementedError(f"Model type '{model_type}'")
+    raise NotImplementedError(f"architecture '{arch}'")
 
 
 def _tokenize_batch(
     examples: EstnerExamples,
     tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
-    task: Task,
+    arch: Architecture,
     n_shot: int,
 ) -> dict[str, list]:
     all_ids, all_attn, all_labels = [], [], []
@@ -204,13 +198,13 @@ def _tokenize_batch(
         entities, tags = _join_spans(tokens, tags)
 
         for entity, tag in zip(entities, tags, strict=True):
-            sys = _get_sys_prompt(tokenizer, model_type, n_shot)
-            prompt = _get_prompt(tokenizer, model_type, sentence, entity)
+            sys = _get_sys_prompt(tokenizer, arch, n_shot)
+            prompt = _get_prompt(tokenizer, arch, sentence, entity)
 
             prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
             prompt_len = len(prompt_enc["input_ids"])
 
-            if task == "seqcls":
+            if arch == "encoder":
                 all_ids.append(prompt_enc["input_ids"])
                 all_attn.append(prompt_enc["attention_mask"])
                 all_labels.append(label2id[tag])
@@ -223,17 +217,17 @@ def _tokenize_batch(
             all_ids.append(answer_enc["input_ids"])
             all_attn.append(answer_enc["attention_mask"])
 
-            if task == "causal":
+            if arch == "decoder":
                 labels_enc[:prompt_len] = [-100] * prompt_len
                 all_labels.append(labels_enc)
                 continue
 
-            if task == "seq2seq":
+            if arch == "encoder-decoder":
                 idx = prompt_len - int(labels_enc[-1] == tokenizer.eos_token_id)
                 all_labels.append(labels_enc[idx:])
                 continue
 
-            raise NotImplementedError(f"Task '{task}'")
+            raise NotImplementedError(f"architecture '{arch}'")
 
     return {"input_ids": all_ids, "attention_mask": all_attn, "labels": all_labels}
 
@@ -261,8 +255,7 @@ def _join_spans(
 
 def load_estner(
     tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
-    task: Task,
+    arch: Architecture,
     n_shot: int,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
@@ -279,13 +272,7 @@ def load_estner(
     data = cast(DatasetDict, load_dataset("tartuNLP/EstNER", split=split))
 
     cols = ["doc_id", "sent_id", "tokens", "ner_tags", "ner_tags_2", "ner_tags_3"]
-    fn_kwargs = {
-        "model_type": model_type,
-        "tokenizer": tokenizer,
-        "n_shot": n_shot,
-        "task": task,
-    }
-
+    fn_kwargs = {"tokenizer": tokenizer, "n_shot": n_shot, "arch": arch}
     data = data.map(
         _tokenize_batch,
         batched=True,
@@ -299,7 +286,7 @@ def load_estner(
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=_get_sys_prompt(tokenizer, model_type, n_shot),
+        system_prompt=_get_sys_prompt(tokenizer, arch, n_shot),
     )
 
     return data, info

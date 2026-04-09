@@ -17,7 +17,7 @@ from icftsc.datasets.estner import load_estner
 from icftsc.datasets.multinerd import load_multinerd
 from icftsc.datasets.wic import load_wic
 from icftsc.logging import logger
-from icftsc.types import DatasetInfo, DatasetName, Task
+from icftsc.types import Architecture, DatasetInfo, DatasetName
 
 
 @dataclass
@@ -56,8 +56,7 @@ class DataCollatorWithPaddingAndLabels:
 def load_data(
     tokenizer: PreTrainedTokenizerFast,
     dataset: DatasetName,
-    model_type: str,
-    task: Task,
+    arch: Architecture,
     n_shot: int,
     n_train_samples: int | None = None,
     n_dev_samples: int | None = None,
@@ -65,15 +64,15 @@ def load_data(
 ) -> tuple[DatasetDict, DatasetInfo]:
     logger.info("load '%s'", dataset)
     if dataset == "multinerd":
-        data, info = load_multinerd(tokenizer, model_type, task, n_shot, split=split)
+        data, info = load_multinerd(tokenizer, arch, n_shot, split=split)
     elif dataset == "estner":
-        data, info = load_estner(tokenizer, model_type, task, n_shot, split)
+        data, info = load_estner(tokenizer, arch, n_shot, split)
     elif dataset == "boolq":
-        data, info = load_boolq(tokenizer, model_type, task, n_shot, split)
+        data, info = load_boolq(tokenizer, arch, n_shot, split)
     elif dataset == "wic":
-        data, info = load_wic(tokenizer, model_type, task, n_shot, split)
+        data, info = load_wic(tokenizer, arch, n_shot, split)
     else:
-        raise NotImplementedError(f"Dataset '{dataset}'")
+        raise NotImplementedError(f"dataset '{dataset}'")
 
     if n_train_samples is not None:
         assert n_train_samples <= len(data["train"]), "requested too many train samples"
@@ -111,15 +110,18 @@ def load_tokenizer(model_path: str) -> PreTrainedTokenizerFast:
     return tokenizer
 
 
-def get_collator(tokenizer: PreTrainedTokenizerFast, task: Task) -> DataCollator:
-    logger.debug("init data collator for %s", task)
-    if task == "seqcls":
+def get_collator(
+    tokenizer: PreTrainedTokenizerFast,
+    arch: Architecture,
+) -> DataCollator:
+    logger.debug("init data collator for %s", arch)
+    if arch == "encoder":
         return DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
 
-    if task == "causal" or task == "seq2seq":
+    if arch == "decoder" or arch == "encoder-decoder":
         return DataCollatorWithPaddingAndLabels(
             tokenizer=tokenizer,
             pad_to_multiple_of=8,
         )
 
-    raise NotImplementedError(f"Task '{task}'")
+    raise NotImplementedError(f"architecture '{arch}'")

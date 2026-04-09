@@ -48,7 +48,7 @@ def bert() -> BertForSequenceClassification:
 
 @fixture(scope="session")
 def pt_bert(bert_tokenizer: PreTrainedTokenizerFast) -> PeftModel:
-    return get_pt_model("random", bert_tokenizer, _bert, "seqcls", _info)
+    return get_pt_model("random", bert_tokenizer, _bert, "encoder", _info)
 
 
 @fixture(scope="session")
@@ -65,7 +65,7 @@ def gpt2() -> PreTrainedModel:
 
 @fixture(scope="session")
 def pt_gpt2(gpt2_tokenizer: PreTrainedTokenizerFast) -> PeftModel:
-    return get_pt_model("random", gpt2_tokenizer, _gpt2, "causal", _info)
+    return get_pt_model("random", gpt2_tokenizer, _gpt2, "decoder", _info)
 
 
 @fixture(scope="session")
@@ -85,7 +85,7 @@ def t5() -> PreTrainedModel:
 
 @fixture(scope="session")
 def pt_t5(t5_tokenizer: PreTrainedTokenizerFast) -> PeftModel:
-    return get_pt_model("random", t5_tokenizer, _t5, "seq2seq", _info)
+    return get_pt_model("random", t5_tokenizer, _t5, "encoder-decoder", _info)
 
 
 @fixture(scope="session")

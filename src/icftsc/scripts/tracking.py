@@ -16,7 +16,7 @@ def collect_metrics(
     exp = client.get_experiment_by_name(experiment)
 
     if exp is None:
-        raise RuntimeError(f"Experiment '{experiment}' not found")
+        raise RuntimeError(f"experiment '{experiment}' not found")
 
     runs = client.search_runs(exp.experiment_id, "")
     rows = []

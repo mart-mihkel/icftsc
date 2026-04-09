@@ -8,13 +8,12 @@ from icftsc.datasets.util import get_collator, load_data, load_tokenizer
 from icftsc.logging import logger
 from icftsc.metrics import get_metrics_fn
 from icftsc.modeling import get_arch, get_model, get_trainer
-from icftsc.types import DatasetName, Task
+from icftsc.types import DatasetName
 
 
 def fine_tune(
     model_path: str,
     dataset: DatasetName,
-    task: Task,
     head_only: bool,
     n_shot: int,
     n_train_samples: int | None,
@@ -28,14 +27,15 @@ def fine_tune(
 ):
     logger.info("load config for '%s'", model_path)
     config = AutoConfig.from_pretrained(model_path)
+    arch = get_arch(config)
+
     tokenizer = load_tokenizer(model_path)
-    collate_fn = get_collator(tokenizer, task)
-    metrics_fn = get_metrics_fn(tokenizer, task)
+    collate_fn = get_collator(tokenizer, arch)
+    metrics_fn = get_metrics_fn(tokenizer, arch)
     data, info = load_data(
         tokenizer,
         dataset,
-        config.model_type,
-        task,
+        arch,
         n_shot,
         n_train_samples,
         n_dev_samples,
@@ -46,7 +46,7 @@ def fine_tune(
         data["test"] = data["dev"]
 
     logger.info("load '%s'", model_path)
-    model = get_model(tokenizer, model_path, info, task, head_only)
+    model = get_model(tokenizer, model_path, info, arch, head_only)
 
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -55,7 +55,7 @@ def fine_tune(
 
     if run_name is None:
         ft_task = "cls-head" if head_only else "fine-tune"
-        run_name = f"{model_path}/{ft_task}/{task}"
+        run_name = f"{model_path}/{ft_task}"
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)
@@ -63,12 +63,11 @@ def fine_tune(
 
     mlflow.set_experiment(experiment)
     mlflow.start_run(run_name=run_name)
-    mlflow.log_param("task", task)
     mlflow.log_param("n_shot", n_shot)
     mlflow.log_param("dataset", dataset)
+    mlflow.log_param("architecture", arch)
     mlflow.log_param("head_only", head_only)
     mlflow.log_param("base_model", model_path)
-    mlflow.log_param("architecture", get_arch(config.model_type))
     mlflow.log_param("system_prompt", info["system_prompt"])
     mlflow.log_param("method", "cls-head" if head_only else "fine-tune")
     mlflow.log_metric("train_samples", len(data["train"]))

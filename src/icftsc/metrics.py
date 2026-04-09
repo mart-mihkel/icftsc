@@ -9,7 +9,7 @@ from torch.fft import Tensor
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
 from icftsc.logging import logger
-from icftsc.types import Task
+from icftsc.types import Architecture
 
 _bleu = evaluate.load("bleu")
 _rouge = evaluate.load("rouge")
@@ -20,8 +20,7 @@ _preds: list[np.ndarray] = []
 
 
 def _batch_to_numpy(
-    eval_pred: EvalPrediction,
-    task: Task,
+    eval_pred: EvalPrediction, arch: Architecture
 ) -> tuple[np.ndarray, np.ndarray]:
     batch_labels = eval_pred.label_ids
     if isinstance(batch_labels, tuple):
@@ -39,7 +38,7 @@ def _batch_to_numpy(
 
     batch_preds = np.argmax(batch_logits, axis=-1)
 
-    if task == "seqcls" or task == "seq2seq":
+    if arch != "decoder":
         return batch_labels, batch_preds
 
     _, label_dim = batch_labels.shape
@@ -117,7 +116,7 @@ def compute_metrics_seq_cls(
 ) -> dict[str, float]:
     global _labels, _preds
 
-    labels, preds = _batch_to_numpy(eval_pred, task="seqcls")
+    labels, preds = _batch_to_numpy(eval_pred, "encoder")
     _labels.extend(labels)
     _preds.extend(preds)
 
@@ -131,8 +130,8 @@ def compute_metrics_seq_cls(
     _labels = []
     _preds = []
 
-    logger.debug("labels: %s", Counter(all_labels[mask]))
-    logger.debug("predictions: %s", Counter(all_preds[mask]))
+    logger.debug("labels: %s", Counter(all_labels[mask].tolist()))
+    logger.debug("predictions: %s", Counter(all_preds[mask].tolist()))
 
     return _compute_classification_metrics(all_labels[mask], all_preds[mask])
 
@@ -144,7 +143,7 @@ def compute_metrics_seq2seq(
 ) -> dict[str, float]:
     global _labels, _preds
 
-    labels, preds = _batch_to_numpy(eval_pred, task="seq2seq")
+    labels, preds = _batch_to_numpy(eval_pred, "encoder-decoder")
     _labels.extend(labels)
     _preds.extend(preds)
 
@@ -178,7 +177,7 @@ def compute_metrics_causal_lm(
 ) -> dict[str, float]:
     global _labels, _preds
 
-    labels, preds = _batch_to_numpy(eval_pred, task="causal")
+    labels, preds = _batch_to_numpy(eval_pred, "decoder")
     _labels.extend(labels)
     _preds.extend(preds)
 
@@ -210,24 +209,24 @@ def compute_metrics_causal_lm(
 
 def get_metrics_fn(
     tokenizer: PreTrainedTokenizerFast,
-    task: Task,
+    arch: Architecture,
 ) -> Callable[[EvalPrediction, bool], dict[str, int | float]]:
-    logger.debug("init compute metrics for %s", task)
-    if task == "seqcls":
+    logger.debug("init compute metrics for %s", arch)
+    if arch == "encoder":
         return compute_metrics_seq_cls
 
-    if task == "seq2seq":
-        return lambda eval_pred, compute_result: compute_metrics_seq2seq(
-            eval_pred=eval_pred,
-            compute_result=compute_result,
-            tokenizer=tokenizer,
-        )
-
-    if task == "causal":
+    if arch == "decoder":
         return lambda eval_pred, compute_result: compute_metrics_causal_lm(
             eval_pred=eval_pred,
             compute_result=compute_result,
             tokenizer=tokenizer,
         )
 
-    raise NotImplementedError(f"Task '{task}'")
+    if arch == "encoder-decoder":
+        return lambda eval_pred, compute_result: compute_metrics_seq2seq(
+            eval_pred=eval_pred,
+            compute_result=compute_result,
+            tokenizer=tokenizer,
+        )
+
+    raise NotImplementedError(f"architecture '{arch}'")

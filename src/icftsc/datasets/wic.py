@@ -5,13 +5,8 @@ from datasets.load import load_dataset
 from datasets.splits import Split
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from icftsc.constants import (
-    decoder_model_types,
-    encoder_decoder_model_types,
-    encoder_model_types,
-)
 from icftsc.logging import logger
-from icftsc.types import DatasetInfo, Task
+from icftsc.types import Architecture, DatasetInfo
 
 type WiCLabel = Literal["no", "yes"]
 
@@ -123,19 +118,19 @@ def _encdec_prompt(example: WiCExample) -> str:
 
 def _get_sys_prompt(
     tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
+    arch: Architecture,
     n_shot: int,
 ) -> str:
     assert n_shot <= len(examples), "requested more examples than exist"
 
-    if model_type in encoder_model_types:
+    if arch == "encoder":
         prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
-    elif model_type in decoder_model_types:
+    elif arch == "decoder":
         prompt = _dec_sys_prompt()
-    elif model_type in encoder_decoder_model_types:
+    elif arch == "encoder-decoder":
         prompt = _encdec_sys_prompt()
     else:
-        raise NotImplementedError(f"Model type '{model_type}'")
+        raise NotImplementedError(f"architecture '{arch}'")
 
     shots = "\n".join(examples[:n_shot])
     return f"{prompt}\n{shots}"
@@ -143,39 +138,38 @@ def _get_sys_prompt(
 
 def _get_prompt(
     tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
+    arch: Architecture,
     example: WiCExample,
 ) -> str:
-    if model_type in encoder_model_types:
+    if arch == "encoder":
         return _enc_prompt(example, tokenizer.sep_token)
 
-    if model_type in decoder_model_types:
+    if arch == "decoder":
         return _dec_prompt(example)
 
-    if model_type in encoder_decoder_model_types:
+    if arch == "encoder-decoder":
         return _encdec_prompt(example)
 
-    raise NotImplementedError(f"Model type '{model_type}'")
+    raise NotImplementedError(f"architecture '{arch}'")
 
 
 def _tokenize(
     example: WiCExample,
     tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
-    task: Task,
+    arch: Architecture,
     n_shot: int,
 ) -> BatchEncoding:
     _id2label = id2label | {-1: "private"}
 
-    sys = _get_sys_prompt(tokenizer, model_type, n_shot)
-    prompt = _get_prompt(tokenizer, model_type, example)
+    sys = _get_sys_prompt(tokenizer, arch, n_shot)
+    prompt = _get_prompt(tokenizer, arch, example)
     label_id = example["label"]
     label = _id2label[label_id]
 
     prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
     prompt_len = len(prompt_enc["input_ids"])
 
-    if task == "seqcls":
+    if arch == "encoder":
         prompt_enc["label"] = label_id
         return prompt_enc
 
@@ -183,23 +177,22 @@ def _tokenize(
     answer_enc = tokenizer(answer, truncation=True)
     labels_enc = answer_enc["input_ids"].copy()
 
-    if task == "causal":
+    if arch == "decoder":
         labels_enc[:prompt_len] = [-100] * prompt_len
         answer_enc["labels"] = labels_enc
         return answer_enc
 
-    if task == "seq2seq":
+    if arch == "encoder-decoder":
         idx = prompt_len - int(labels_enc[-1] == tokenizer.eos_token_id)
         answer_enc["labels"] = labels_enc[idx:]
         return answer_enc
 
-    raise NotImplementedError(f"Task '{task}'")
+    raise NotImplementedError(f"architecture '{arch}'")
 
 
 def load_wic(
     tokenizer: PreTrainedTokenizerFast,
-    model_type: str,
-    task: Task,
+    arch: Architecture,
     n_shot: int,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
@@ -220,13 +213,7 @@ def load_wic(
         "label",
     ]
 
-    fn_kwargs = {
-        "model_type": model_type,
-        "tokenizer": tokenizer,
-        "n_shot": n_shot,
-        "task": task,
-    }
-
+    fn_kwargs = {"tokenizer": tokenizer, "n_shot": n_shot, "arch": arch}
     data = data.map(_tokenize, remove_columns=cols, fn_kwargs=fn_kwargs)
     for subsplit in data:
         logger.debug("tokenized %d %s samples", len(data[subsplit]), subsplit)
@@ -234,7 +221,7 @@ def load_wic(
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=_get_sys_prompt(tokenizer, model_type, n_shot),
+        system_prompt=_get_sys_prompt(tokenizer, arch, n_shot),
     )
 
     return data, info

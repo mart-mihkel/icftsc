@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
 from icftsc.metrics import (
@@ -57,11 +56,6 @@ def test_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast):
     assert "accuracy" in metrics
 
 
-def test_init_metrics_fn(gpt2_tokenizer: PreTrainedTokenizerFast):
-    metrics_fn = get_metrics_fn(task="seqcls", tokenizer=gpt2_tokenizer)
+def test_init_metrics_fn(bert_tokenizer: PreTrainedTokenizerFast):
+    metrics_fn = get_metrics_fn(bert_tokenizer, "encoder")
     assert metrics_fn == compute_metrics_seq_cls
-
-
-def test_init_metrics_fn_unknown(gpt2_tokenizer: PreTrainedTokenizerFast):
-    with pytest.raises(NotImplementedError):
-        get_metrics_fn(task="unknown", tokenizer=gpt2_tokenizer)  # type: ignore

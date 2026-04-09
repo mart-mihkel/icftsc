@@ -10,6 +10,8 @@ from icftsc.datasets.multinerd import load_multinerd
 from icftsc.datasets.util import get_collator
 from icftsc.datasets.wic import load_wic
 
+_arch = "decoder"
+
 
 def test_gpt2_wic_forward(
     gpt2: PreTrainedModel,
@@ -17,10 +19,10 @@ def test_gpt2_wic_forward(
     wic: DatasetDict,
 ):
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
-        data, _ = load_wic(gpt2_tokenizer, "gpt2", "causal", 0)
+        data, _ = load_wic(gpt2_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(gpt2_tokenizer, "causal")
+    collator = get_collator(gpt2_tokenizer, _arch)
 
     batch = collator(examples)
     out = gpt2(**batch)
@@ -35,10 +37,10 @@ def test_gpt2_boolq_forward(
     boolq: DatasetDict,
 ):
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
-        data, _ = load_boolq(gpt2_tokenizer, "gpt2", "causal", 0)
+        data, _ = load_boolq(gpt2_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(gpt2_tokenizer, "causal")
+    collator = get_collator(gpt2_tokenizer, _arch)
 
     batch = collator(examples)
     out = gpt2(**batch)
@@ -53,10 +55,10 @@ def test_gpt2_estner_forward(
     estner: DatasetDict,
 ):
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
-        data, _ = load_estner(gpt2_tokenizer, "gpt2", "causal", 0)
+        data, _ = load_estner(gpt2_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(gpt2_tokenizer, "causal")
+    collator = get_collator(gpt2_tokenizer, _arch)
 
     batch = collator(examples)
     out = gpt2(**batch)
@@ -71,10 +73,10 @@ def test_gpt2_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(gpt2_tokenizer, "gpt2", "causal", 0, False)
+        data, _ = load_multinerd(gpt2_tokenizer, _arch, 0, False)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(gpt2_tokenizer, "causal")
+    collator = get_collator(gpt2_tokenizer, _arch)
 
     batch = collator(examples)
     out = gpt2(**batch)
@@ -89,10 +91,10 @@ def test_pt_gpt2_wic_forward(
     wic: DatasetDict,
 ):
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
-        data, _ = load_wic(gpt2_tokenizer, "gpt2", "causal", 0)
+        data, _ = load_wic(gpt2_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(gpt2_tokenizer, "causal")
+    collator = get_collator(gpt2_tokenizer, _arch)
 
     batch = collator(examples)
     out = pt_gpt2(**batch)
@@ -107,10 +109,10 @@ def test_pt_gpt2_boolq_forward(
     boolq: DatasetDict,
 ):
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
-        data, _ = load_boolq(gpt2_tokenizer, "gpt2", "causal", 0)
+        data, _ = load_boolq(gpt2_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(gpt2_tokenizer, "causal")
+    collator = get_collator(gpt2_tokenizer, _arch)
 
     batch = collator(examples)
     out = pt_gpt2(**batch)
@@ -125,10 +127,10 @@ def test_pt_gpt2_estner_forward(
     estner: DatasetDict,
 ):
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
-        data, _ = load_estner(gpt2_tokenizer, "gpt2", "causal", 0)
+        data, _ = load_estner(gpt2_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(gpt2_tokenizer, "causal")
+    collator = get_collator(gpt2_tokenizer, _arch)
 
     batch = collator(examples)
     out = pt_gpt2(**batch)
@@ -143,10 +145,10 @@ def test_pt_gpt2_multinerd_forward(
     multinerd: DatasetDict,
 ):
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
-        data, _ = load_multinerd(gpt2_tokenizer, "gpt2", "causal", 0, False)
+        data, _ = load_multinerd(gpt2_tokenizer, _arch, 0, False)
 
     examples = [data["train"][i] for i in range(4)]
-    collator = get_collator(gpt2_tokenizer, "causal")
+    collator = get_collator(gpt2_tokenizer, _arch)
 
     batch = collator(examples)
     out = pt_gpt2(**batch)

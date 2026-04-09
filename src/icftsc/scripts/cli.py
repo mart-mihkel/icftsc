@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from typer import Option, Typer
 
-from icftsc.types import DatasetName, PrefixInit, Task
+from icftsc.types import DatasetName, PrefixInit
 
 app = Typer(no_args_is_help=True)
 
@@ -13,7 +13,6 @@ app = Typer(no_args_is_help=True)
 def fine_tune(
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
-    task: Annotated[Task.__value__, Option(help="NLP task type")],
     head_only: Annotated[
         bool,
         Option(help="Freeze all parameters except for classifier head"),
@@ -48,7 +47,6 @@ def fine_tune(
     fine_tune(
         model_path=model,
         dataset=dataset,
-        task=task,
         head_only=head_only,
         n_shot=n_shot,
         n_train_samples=n_train_samples,
@@ -66,7 +64,6 @@ def fine_tune(
 def prompt_tune(
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
-    task: Annotated[Task.__value__, Option(help="NLP task type")],
     prefix_init: Annotated[
         PrefixInit.__value__,
         Option(help="Prefix initialization method"),
@@ -101,7 +98,6 @@ def prompt_tune(
     prompt_tune(
         model_path=model,
         dataset=dataset,
-        task=task,
         prefix_init=prefix_init,
         n_shot=n_shot,
         n_train_samples=n_train_samples,
@@ -119,7 +115,6 @@ def prompt_tune(
 def few_shot(
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
-    task: Annotated[Task.__value__, Option(help="NLP task type")],
     n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
     batch_size: int = 8,
     experiment: Annotated[
@@ -139,7 +134,6 @@ def few_shot(
     few_shot(
         model_path=model,
         dataset=dataset,
-        task=task,
         n_shot=n_shot,
         batch_size=batch_size,
         experiment=experiment,
