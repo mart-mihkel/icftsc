@@ -1,6 +1,6 @@
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.datasets.util import DataCollatorWithPaddingAndLabels
+from icftsc.datasets.util import get_collator
 
 
 def test_collator_with_labels(gpt2_tokenizer: PreTrainedTokenizerFast):
@@ -9,11 +9,7 @@ def test_collator_with_labels(gpt2_tokenizer: PreTrainedTokenizerFast):
         {"input_ids": [4, 5], "attention_mask": [1, 1], "labels": [30]},
     ]
 
-    collator = DataCollatorWithPaddingAndLabels(
-        tokenizer=gpt2_tokenizer,
-        pad_to_multiple_of=8,
-    )
-
+    collator = get_collator(gpt2_tokenizer, "decoder")
     batch = collator(features)
 
     assert "input_ids" in batch
@@ -35,11 +31,7 @@ def test_collator_with_no_labels(gpt2_tokenizer: PreTrainedTokenizerFast):
         {"input_ids": [4, 5], "attention_mask": [1, 1]},
     ]
 
-    collator = DataCollatorWithPaddingAndLabels(
-        tokenizer=gpt2_tokenizer,
-        pad_to_multiple_of=8,
-    )
-
+    collator = get_collator(gpt2_tokenizer, "decoder")
     batch = collator(features)
 
     assert "input_ids" in batch

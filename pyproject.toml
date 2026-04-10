@@ -27,18 +27,18 @@ dev = [
     "pytest-xdist==3.8.0",
     "plotnine==0.15.3",
     "ipython==9.11.0",
-    "marimo==0.22.5",
-    "pytest==9.0.2",
+    "marimo==0.23.0",
+    "pytest==9.0.3",
     "ruff==0.15.10",
     "ty==0.0.29",
 ]
 
 [project.optional-dependencies]
-cpu = ["torch==2.10.0"]
+cpu = ["torch==2.11.0"]
 cu128 = [
     "causal-conv1d==1.6.1",
     "flash-attn==2.8.3",
-    "torch==2.10.0",
+    "torch==2.11.0",
 ]
 
 [project.scripts]

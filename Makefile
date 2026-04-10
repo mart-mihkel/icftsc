@@ -2,6 +2,8 @@ REMOTE ?=
 MAX_JOBS=4
 BACKEND=cpu
 
+all: install check test
+
 install:
 	@MAX_JOBS=$(MAX_JOBS) uv sync --compile-bytecode --extra $(BACKEND)
 
@@ -11,10 +13,10 @@ check:
 	@uv run --no-sync ty check
 
 test:
-	@uv run --no-sync pytest --quiet --numprocesses 4
+	@uv run --no-sync pytest --quiet --numprocesses auto
 
 sync:
-	rsync --verbose --archive --delete \
+	@rsync --verbose --archive --delete \
 		--exclude-from .gitignore \
 		--exclude .pytest_cache \
 		--exclude .ruff_cache \

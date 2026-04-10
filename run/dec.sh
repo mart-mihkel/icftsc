@@ -3,7 +3,7 @@
 #SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
 #SBATCH --job-name="gemma3"
-#SBATCH --time=12:00:00
+#SBATCH --time=24:00:00
 #SBATCH --partition=gpu
 #SBATCH --mem=32GB
 
@@ -33,6 +33,7 @@ PREFIX_LR=1e-3
 BATCH_SIZE=8
 N_SHOT=3
 EPOCHS=3
+SEED=0
 
 for BASE in ${BASE_MODELS[@]}; do
     uv run --no-sync cli few-shot \
@@ -40,7 +41,8 @@ for BASE in ${BASE_MODELS[@]}; do
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
         --n-shot $N_SHOT \
-        --model $BASE
+        --model $BASE \
+        --seed $SEED
 
     uv run --no-sync cli fine-tune \
         --n-train-samples $N_TRAIN_SAMPLES \
@@ -52,6 +54,7 @@ for BASE in ${BASE_MODELS[@]}; do
         --n-shot $N_SHOT \
         --no-head-only \
         --model $BASE \
+        --seed $SEED \
         --no-do-eval
 
     for PREFIX_INIT in ${PREFIX_INITS[@]}; do
@@ -66,6 +69,7 @@ for BASE in ${BASE_MODELS[@]}; do
             --epochs $EPOCHS \
             --n-shot $N_SHOT \
             --model $BASE \
+            --seed $SEED \
             --no-do-eval
     done
 done

@@ -8,7 +8,7 @@ Setup a virtualenv with torch backend for cpu or cuda. When using cuda you
 should also have cuda-toolkit available on the system to compile `flash-attn`.
 
 ```bash
-MAX_JOBS=[n-jobs] uv sync --compile-bytecode --extra [cpu|cu128]
+make install BACKEND=[cpu|cu128] MAX_JOBS=[n-jobs]
 ```
 
 ## Usage

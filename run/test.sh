@@ -34,6 +34,8 @@
 # BASE=google/gemma-3-270m-it
 # BASE=google/gemma-3-1b-it
 # BASE=google/gemma-3-4b-it
+# BASE=google/gemma-4-E2B-it
+# BASE=google/gemma-4-E4B-it
 # BASE=Qwen/Qwen2.5-0.5B
 # BASE=Qwen/Qwen2.5-1.5B
 # BASE=Qwen/Qwen3-0.6B
@@ -50,8 +52,6 @@
 # BASE=meta-llama/Llama-3.2-1B-Instruct
 # BASE=meta-llama/Llama-3.2-3B-Instruct
 # BASE=meta-llama/Llama-3.1-8B-Instruct
-# BASE=google/gemma-4-E2B-it
-# BASE=google/gemma-4-E4B-it
 
 # BASE=hf-internal-testing/tiny-random-t5
 # BASE=google-t5/t5-small
@@ -77,6 +77,7 @@ PREFIX_LR=1e-3
 BATCH_SIZE=8
 N_SHOT=3
 EPOCHS=5
+SEED=0
 
 if [[ $1 = few-shot ]]; then
     uv run --no-sync cli few-shot \
@@ -86,7 +87,8 @@ if [[ $1 = few-shot ]]; then
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
         --n-shot $N_SHOT \
-        --model $BASE
+        --model $BASE \
+        --seed $SEED
 
     exit 0
 fi
@@ -103,6 +105,7 @@ if [[ $1 = cls-head ]]; then
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
         --model $BASE \
+        --seed $SEED \
         --head-only \
         --do-eval
 
@@ -122,6 +125,7 @@ if [[ $1 = fine-tune ]]; then
         --n-shot $N_SHOT \
         --no-head-only \
         --model $BASE \
+        --seed $SEED \
         --do-eval
 
     exit 0
@@ -141,6 +145,7 @@ if [[ $1 = prompt-tune ]]; then
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
         --model $BASE \
+        --seed $SEED \
         --do-eval
 
     exit 0

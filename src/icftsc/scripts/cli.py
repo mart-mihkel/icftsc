@@ -9,6 +9,18 @@ from icftsc.types import DatasetName, PrefixInit
 app = Typer(no_args_is_help=True)
 
 
+def _set_seed(seed: int) -> None:
+    import random
+
+    import numpy
+    import torch
+
+    random.seed(seed)
+    numpy.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
 @app.command(no_args_is_help=True)
 def fine_tune(
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
@@ -39,9 +51,13 @@ def fine_tune(
         Option(help="Run name for tracking, inferred from parameters by default"),
     ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
+    seed: Annotated[int | None, Option(help="Random seed")] = None,
 ):
     from icftsc.logging import logger
     from icftsc.scripts.fine_tune import fine_tune
+
+    if seed is not None:
+        _set_seed(seed)
 
     logger.setLevel(log_level)
     fine_tune(
@@ -90,9 +106,13 @@ def prompt_tune(
         Option(help="Run name for tracking, inferred from parameters by default"),
     ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
+    seed: Annotated[int | None, Option(help="Random seed")] = None,
 ):
     from icftsc.logging import logger
     from icftsc.scripts.prompt_tune import prompt_tune
+
+    if seed is not None:
+        _set_seed(seed)
 
     logger.setLevel(log_level)
     prompt_tune(
@@ -126,9 +146,13 @@ def few_shot(
         Option(help="Run name for tracking, inferred from parameters by default"),
     ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
+    seed: Annotated[int | None, Option(help="Random seed")] = None,
 ):
     from icftsc.logging import logger
     from icftsc.scripts.few_shot import few_shot
+
+    if seed is not None:
+        _set_seed(seed)
 
     logger.setLevel(log_level)
     few_shot(
@@ -139,18 +163,6 @@ def few_shot(
         experiment=experiment,
         run_name=run_name,
     )
-
-
-@app.command(no_args_is_help=True)
-def predict_superglue(
-    checkpoint: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
-):
-    from icftsc.logging import logger
-    from icftsc.scripts.superglue import predict_boolq
-
-    logger.setLevel(log_level)
-    predict_boolq(checkpoint)
 
 
 @app.command(no_args_is_help=True)

@@ -21,13 +21,12 @@ from icftsc.types import Architecture, DatasetInfo, DatasetName
 
 
 @dataclass
-class DataCollatorWithPaddingAndLabels:
+class Collator:
     tokenizer: PreTrainedTokenizerFast
-    pad_to_multiple_of: int
 
     def __call__(self, features: list[dict[str, Any]]) -> dict[str, Tensor]:
         pad = self.tokenizer.pad_token_id
-        mul = self.pad_to_multiple_of
+        mul = 8
 
         max_len = max(len(feature["input_ids"]) for feature in features)
         max_len = (max_len + mul - 1) // mul * mul
@@ -43,8 +42,6 @@ class DataCollatorWithPaddingAndLabels:
             labels.append(_labels + [-100] * (max_len - len(_labels)))
             inputs.append(_inputs + [pad] * (max_len - len(_inputs)))
             attn.append(_attn + [0] * (max_len - len(_attn)))
-
-            self.tokenizer.pad
 
         return {
             "labels": torch.tensor(labels),
@@ -119,9 +116,6 @@ def get_collator(
         return DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8)
 
     if arch == "decoder" or arch == "encoder-decoder":
-        return DataCollatorWithPaddingAndLabels(
-            tokenizer=tokenizer,
-            pad_to_multiple_of=8,
-        )
+        return Collator(tokenizer=tokenizer)
 
     raise NotImplementedError(f"architecture '{arch}'")
