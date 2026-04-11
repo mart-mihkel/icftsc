@@ -1,3 +1,4 @@
+import os
 from typing import cast
 
 import mlflow
@@ -57,6 +58,10 @@ def prompt_tune(
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     ptcfg = cast(PromptTuningConfig, model.peft_config["default"])
+
+    if os.getenv("MLFLOW_TRACKING_URI") is None:
+        logger.warning("MLFLOW_TRACKING_URI is unset, reporting to sqlite:///mlflow.db")
+
     if experiment is None:
         experiment = f"icftsc-{dataset}"
 

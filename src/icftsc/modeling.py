@@ -32,6 +32,7 @@ from icftsc.constants import (
     decoder_model_types,
     encoder_decoder_model_types,
     encoder_model_types,
+    logdir,
 )
 from icftsc.datasets.util import DatasetInfo
 from icftsc.logging import logger
@@ -45,7 +46,7 @@ class LoggerCallback(TrainerCallback):
         state: TrainerState,
         control: TrainerControl,
         **kwargs,
-    ):
+    ) -> None:
         args, state, control
 
         logs = kwargs.get("logs")
@@ -82,6 +83,7 @@ def get_model(
         dtype = torch.float32
         logger.debug("using full precision floating point")
 
+    skip_freeze = None
     if arch == "encoder":
         logger.debug("load '%s' for sequence classification", model_path)
         model, loading_info = AutoModelForSequenceClassification.from_pretrained(
@@ -93,9 +95,10 @@ def get_model(
             device_map="auto",
             dtype=dtype,
         )
+
+        skip_freeze = loading_info["missing_keys"]
     elif arch == "decoder":
         logger.debug("load '%s' for causal language modeling", model_path)
-        loading_info = {"missing_keys": set()}
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
             device_map="auto",
@@ -103,7 +106,6 @@ def get_model(
         )
     elif arch == "encoder-decoder":
         logger.debug("load '%s' for sequence to sequence", model_path)
-        loading_info = {"missing_keys": set()}
         model = AutoModelForSeq2SeqLM.from_pretrained(
             model_path,
             device_map="auto",
@@ -114,6 +116,7 @@ def get_model(
 
     config = model.config
     if "text_config" in config:
+        logger.debug("using text config of multimodal model")
         config = config.text_config
 
     if config.pad_token_id is None:
@@ -121,12 +124,14 @@ def get_model(
         config.pad_token_id = tokenizer.eos_token_id
 
     if head_only:
-        freeze(model=model, skip=loading_info["missing_keys"])
+        freeze(model, skip_freeze)
 
     return model
 
 
 def _distiblert_prompt_tuning_kwargs(model: DistilBertModel) -> dict[str, Any]:
+    logger.debug("get prompt tuning args for distilbert")
+
     cfg = model.config
     return {
         "token_dim": cfg.dim,
@@ -136,6 +141,8 @@ def _distiblert_prompt_tuning_kwargs(model: DistilBertModel) -> dict[str, Any]:
 
 
 def _t5gemma2_prompt_tuning_kwargs(model: T5Gemma2Model) -> dict[str, Any]:
+    logger.debug("get prompt tuning args for t5gemma-2")
+
     cfg = cast(T5Gemma2EncoderConfig, model.config.encoder)
     cfg = cast(T5Gemma2TextConfig, cfg.text_config)
     return {
@@ -195,7 +202,7 @@ def get_pt_model(
     return cast(PeftModel, get_peft_model(base, config))
 
 
-def freeze(model: Module, skip: set[str] | None = None):
+def freeze(model: Module, skip: set[str] | None = None) -> None:
     if skip is None:
         skip = set()
 
@@ -219,11 +226,11 @@ def get_args(
     have_cuda = torch.cuda.is_available()
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
     eval_strategy = "epoch" if do_eval else "no"
-    out_dir = f"log/{run_name}"
+    out_dir = logdir / run_name
     return TrainingArguments(
         run_name=run_name,
         report_to=report_to,
-        output_dir=out_dir,
+        output_dir=str(out_dir),
         save_strategy="no",
         eval_strategy=eval_strategy,
         eval_on_start=do_eval,

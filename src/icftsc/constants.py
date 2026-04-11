@@ -1,3 +1,7 @@
+from pathlib import Path
+
+logdir = Path("log")
+
 encoder_model_types = frozenset(
     (
         "bert",

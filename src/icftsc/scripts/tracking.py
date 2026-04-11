@@ -3,6 +3,7 @@ import os
 from mlflow.tracking import MlflowClient
 from polars import DataFrame
 
+from icftsc.constants import logdir
 from icftsc.logging import logger
 
 
@@ -39,9 +40,9 @@ def collect_metrics(
 
         rows.append(run_data)
 
-    logdir = os.path.join("log", "metrics")
-    path = os.path.join(logdir, f"{experiment}.csv")
-    os.makedirs(logdir, exist_ok=True)
+    metricdir = logdir / "metrics"
+    path = metricdir / f"{experiment}.csv"
+    os.makedirs(metricdir, exist_ok=True)
 
     df = DataFrame(rows)
     logger.info("found %d runs with %d params", df.shape[0], df.shape[1])

@@ -5,16 +5,16 @@ app = marimo.App(width="medium")
 
 with app.setup:
     import os
-    from pathlib import Path
 
     import plotnine as pn
     import polars as pl
 
+    from icftsc.constants import logdir
     from icftsc.logging import logger
     from icftsc.scripts.tracking import collect_metrics
 
     logger.setLevel("INFO")
-    figpath = Path("log/fig/multinerd")
+    figpath = logdir / "fig" / "multinerd"
     os.makedirs(figpath, exist_ok=True)
 
 

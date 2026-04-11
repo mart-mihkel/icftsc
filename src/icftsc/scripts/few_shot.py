@@ -1,3 +1,4 @@
+import os
 from typing import cast
 
 import mlflow
@@ -39,6 +40,10 @@ def few_shot(
     model = get_model(tokenizer, model_path, info, arch, head_only=False)
 
     total = sum(p.numel() for p in model.parameters())
+
+    if os.getenv("MLFLOW_TRACKING_URI") is None:
+        logger.warning("MLFLOW_TRACKING_URI is unset, reporting to sqlite:///mlflow.db")
+
     if experiment is None:
         experiment = f"icftsc-{dataset}"
 
