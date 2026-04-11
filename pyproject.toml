@@ -34,11 +34,11 @@ dev = [
 ]
 
 [project.optional-dependencies]
-cpu = ["torch==2.11.0"]
+cpu = ["torch==2.10.0"]
 cu128 = [
     "causal-conv1d==1.6.1",
     "flash-attn==2.8.3",
-    "torch==2.11.0",
+    "torch==2.10.0",
 ]
 
 [project.scripts]
