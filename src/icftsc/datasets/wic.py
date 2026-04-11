@@ -1,3 +1,4 @@
+from textwrap import dedent
 from typing import Literal, TypedDict, cast
 
 from datasets.dataset_dict import DatasetDict
@@ -87,33 +88,36 @@ def _enc_prompt(example: WiCExample, sep: str) -> str:
 
 
 def _dec_sys_prompt() -> str:
-    return "Question: Does the word have the same meaning in both sentences?\n"
+    return dedent("""
+        Determine if the word has the same meaning in both sentences.
+        Do not provide any explanation.
+        Answer with only yes or no
+    """).strip()
 
 
 def _dec_prompt(example: WiCExample) -> str:
-    return (
-        f"Word: {example['word']}\n"
-        f"Sentence 1: {example['sentence1']}\n"
-        f"Sentence 2: {example['sentence2']}\n"
-        "Answer (yes/no):"
-    )
+    return dedent(f"""
+        Sentence 1: {example["sentence1"]}
+        Sentence 2: {example["sentence2"]}
+        Word: {example["word"]}
+        Answer (yes/no):
+    """).strip()
 
 
 def _encdec_sys_prompt() -> str:
-    return (
-        "word in context: "
-        "determine if the word has the same meaning in both sentences.\n"
-    )
+    return dedent("""
+        word in context: does the word have the same meaning in both sentences
+        output only yes or no
+    """).strip()
 
 
 def _encdec_prompt(example: WiCExample) -> str:
-    return (
-        "word in context: does the word have the same meaning in both sentences.\n"
-        f"word: {example['word']}\n"
-        f"sentence 1: {example['sentence1']}\n"
-        f"sentence 2: {example['sentence2']}\n"
-        "answer (yes/no):"
-    )
+    return dedent(f"""
+        sentence 1: {example["sentence1"]}
+        sentence 2: {example["sentence2"]}
+        word: {example["word"]}
+        answer (yes/no):
+    """).strip()
 
 
 def _get_sys_prompt(

@@ -1,7 +1,7 @@
 from typing import Literal, TypedDict
 
 type Architecture = Literal["encoder", "decoder", "encoder-decoder"]
-type DatasetName = Literal["multinerd", "estner", "boolq", "wic"]
+type DatasetName = Literal["multinerd", "estner", "boolq", "wic", "obl"]
 type PrefixInit = Literal["pretrained", "random"]
 
 

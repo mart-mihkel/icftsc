@@ -48,7 +48,7 @@ def prompt_tune(
         data["test"] = data["dev"]
 
     logger.info(
-        "init prompt tuning model from '%s' with %s prefix initialization",
+        "get prompt tuning model for '%s' with %s prefix initialization",
         model_path,
         prefix_init,
     )

@@ -1,3 +1,4 @@
+from textwrap import dedent
 from typing import Literal, TypedDict, cast
 
 from datasets.dataset_dict import DatasetDict
@@ -78,33 +79,35 @@ def _enc_prompt(example: BoolqExample, sep: str) -> str:
 
 
 def _dec_sys_prompt() -> str:
-    return (
-        "Answer the question based on the passage. Do not provide any explanation, "
-        'answer with exactly one word: "yes" or "no".\n'
-    )
+    return dedent("""
+        Answer the question based on the passage.
+        Do not provide any explanation.
+        Answer with only yes or no
+    """).strip()
 
 
 def _dec_prompt(example: BoolqExample) -> str:
-    return (
-        f"Passage: {example['passage']}\n"
-        f"Question: {example['question']}\n"
-        "Answer (yes/no):"
-    )
+    return dedent(f"""
+        Passage: {example["passage"]}
+        Question: {example["question"]}
+        Answer (yes/no):
+    """).strip()
 
 
 def _encdec_sys_prompt() -> str:
-    return (
-        "boolean question answering: given a passage and a question, "
-        'answer with "yes" or "no".\n'
-    )
+    return dedent("""
+        boolqa: answer the question based on the passage
+        answers: yes, no
+        output only the answer
+    """)
 
 
 def _encdec_prompt(example: BoolqExample) -> str:
-    return (
-        f"passage: {example['passage']}\n"
-        f"question: {example['question']}\n"
-        "answer (yes/no):"
-    )
+    return dedent(f"""
+        passage: {example["passage"]}
+        question: {example["question"]}
+        answer (yes/no):
+    """).strip()
 
 
 def _get_sys_prompt(

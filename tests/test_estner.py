@@ -76,9 +76,9 @@ def test_estner_n_shot(bert_tokenizer: PreTrainedTokenizerFast, estner: DatasetD
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         _, info = load_estner(bert_tokenizer, "encoder", n_shot)
 
-    assert info["system_prompt"].count("lause:") == n_shot
-    assert info["system_prompt"].count("nimeüksus:") == n_shot
-    assert info["system_prompt"].count("märgend:") == n_shot
+    assert info["system_prompt"].count("Lause:") == n_shot
+    assert info["system_prompt"].count("Nimeüksus:") == n_shot
+    assert info["system_prompt"].count("Märgend:") == n_shot
 
 
 def test_estner_invalid_n_shot(

@@ -15,6 +15,7 @@ from transformers import (
 from icftsc.datasets.boolq import load_boolq
 from icftsc.datasets.estner import load_estner
 from icftsc.datasets.multinerd import load_multinerd
+from icftsc.datasets.obl import load_obl
 from icftsc.datasets.wic import load_wic
 from icftsc.logging import logger
 from icftsc.types import Architecture, DatasetInfo, DatasetName
@@ -68,6 +69,8 @@ def load_data(
         data, info = load_boolq(tokenizer, arch, n_shot, split)
     elif dataset == "wic":
         data, info = load_wic(tokenizer, arch, n_shot, split)
+    elif dataset == "obl":
+        data, info = load_obl(tokenizer, arch, n_shot)
     else:
         raise NotImplementedError(f"dataset '{dataset}'")
 

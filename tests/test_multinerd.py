@@ -83,9 +83,9 @@ def test_multinerd_n_shot(
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         _, info = load_multinerd(bert_tokenizer, "encoder", n_shot, False)
 
-    assert info["system_prompt"].count("sentence:") == n_shot
-    assert info["system_prompt"].count("entity:") == n_shot
-    assert info["system_prompt"].count("tag:") == n_shot
+    assert info["system_prompt"].count("Sentence:") == n_shot
+    assert info["system_prompt"].count("Entity:") == n_shot
+    assert info["system_prompt"].count("Tag:") == n_shot
 
 
 def test_multinerd_invalid_n_shot(

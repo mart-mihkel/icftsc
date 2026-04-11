@@ -1,3 +1,4 @@
+from textwrap import dedent
 from typing import Literal, TypedDict, cast
 
 from datasets.dataset_dict import DatasetDict
@@ -118,66 +119,66 @@ label2id: dict[MultinerdTag, int] = {
 }
 
 examples = [
-    ("sentence: John works at Google in California.\nentity: John\ntag: PER\n"),
-    ("sentence: Paris is the capital of France.\nentity: Paris\ntag: LOC\n"),
-    ("sentence: The dog chased the cat across the garden.\nentity: dog\ntag: ANIM\n"),
-    ("sentence: I love eating sushi and pasta for dinner.\nentity: sushi\ntag: FOOD\n"),
-    ("sentence: The car drove quickly down the highway.\nentity: car\ntag: VEHI\n"),
+    ("Sentence: John works at Google in California.\nEntity: John\nTag: PER\n"),
+    ("Sentence: Paris is the capital of France.\nEntity: Paris\nTag: LOC\n"),
+    ("Sentence: The dog chased the cat across the garden.\nEntity: dog\nTag: ANIM\n"),
+    ("Sentence: I love eating sushi and pasta for dinner.\nEntity: sushi\nTag: FOOD\n"),
+    ("Sentence: The car drove quickly down the highway.\nEntity: car\nTag: VEHI\n"),
     (
-        "sentence: The meeting was held at the United Nations headquarters.\n"
-        "entity: United Nations\n"
-        "tag: ORG\n"
+        "Sentence: The meeting was held at the United Nations headquarters.\n"
+        "Entity: United Nations\n"
+        "Tag: ORG\n"
     ),
     (
-        "sentence: Evolution shaped the diversity of life on Earth.\n"
-        "entity: Evolution\n"
-        "tag: BIO\n"
+        "Sentence: Evolution shaped the diversity of life on Earth.\n"
+        "Entity: Evolution\n"
+        "Tag: BIO\n"
     ),
     (
-        "sentence: Einstein developed the theory of relativity.\n"
-        "entity: Einstein\n"
-        "tag: CEL\n"
+        "Sentence: Einstein developed the theory of relativity.\n"
+        "Entity: Einstein\n"
+        "Tag: CEL\n"
     ),
     (
-        "sentence: The patient was diagnosed with diabetes last year.\n"
-        "entity: diabetes\n"
-        "tag: DIS\n"
+        "Sentence: The patient was diagnosed with diabetes last year.\n"
+        "Entity: diabetes\n"
+        "Tag: DIS\n"
     ),
     (
-        "sentence: The Olympics will be held in Tokyo next summer.\n"
-        "entity: Olympics\n"
-        "tag: EVE\n"
+        "Sentence: The Olympics will be held in Tokyo next summer.\n"
+        "Entity: Olympics\n"
+        "Tag: EVE\n"
     ),
     (
-        "sentence: The telescope was invented several centuries ago.\n"
-        "entity: telescope\n"
-        "tag: INST\n"
+        "Sentence: The telescope was invented several centuries ago.\n"
+        "Entity: telescope\n"
+        "Tag: INST\n"
     ),
     (
-        "sentence: I watched an interesting movie on Netflix last night.\n"
-        "entity: Netflix\n"
-        "tag: MEDIA\n"
+        "Sentence: I watched an interesting movie on Netflix last night.\n"
+        "Entity: Netflix\n"
+        "Tag: MEDIA\n"
     ),
     (
-        "sentence: The dragon guarded the ancient treasure in the cave.\n"
-        "entity: dragon\n"
-        "tag: MYTH\n"
+        "Sentence: The dragon guarded the ancient treasure in the cave.\n"
+        "Entity: dragon\n"
+        "Tag: MYTH\n"
     ),
     (
-        "sentence: Roses bloom beautifully in the garden during spring.\n"
-        "entity: Roses\n"
-        "tag: PLANT\n"
+        "Sentence: Roses bloom beautifully in the garden during spring.\n"
+        "Entity: Roses\n"
+        "Tag: PLANT\n"
     ),
     (
-        "sentence: The meeting is scheduled for Monday morning.\n"
-        "entity: Monday\n"
-        "tag: TIME\n"
+        "Sentence: The meeting is scheduled for Monday morning.\n"
+        "Entity: Monday\n"
+        "Tag: TIME\n"
     ),
 ]
 
 
 def _enc_sys_prompt(sep: str) -> str:
-    return f"Identify the NER tag of the entity in the sentence.{sep}"
+    return f"What is the NER tag of the entity in the sentence?{sep}"
 
 
 def _enc_prompt(sentence: str, entity: str, sep: str) -> str:
@@ -185,27 +186,37 @@ def _enc_prompt(sentence: str, entity: str, sep: str) -> str:
 
 
 def _dec_sys_prompt() -> str:
-    return (
-        "Identify the NER tag of the entity in the sentence. Possible tags are: "
-        "PER, ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, MYTH, "
-        "PLANT, TIME, VEHI.\n"
-    )
+    return dedent(f"""
+        Identify the NER tag of the entity in the sentence.
+        Possible tags are: {", ".join(id2label.values())}.
+
+        Output only the tag.
+    """).strip()
 
 
 def _dec_prompt(sentence: str, entity: str) -> str:
-    return f"sentence: {sentence}\nentity: {entity}\ntag:"
+    return dedent(f"""
+        Sentence: {sentence}
+        Entity: {entity}
+        Tag:
+    """).strip()
 
 
 def _encdec_sys_prompt() -> str:
-    return (
-        "ner: identify the ner tag of the entity in the sentence.\ntags: PER "
-        "ORG, LOC, ANIM, BIO, CEL, DIS, EVE, FOOD, INST, MEDIA, MYTH, PLANT, "
-        "TIME, VEHI.\n"
-    )
+    return dedent(f"""
+        ner: identify the ner tag of the entity in the sentence.
+        tags: {", ".join(id2label.values())}.
+
+        output only the tag.
+    """).strip()
 
 
 def _encdec_prompt(sentence: str, entity: str) -> str:
-    return f"sentence: {sentence}\nentity: {entity}\ntag:"
+    return dedent(f"""
+        sentence: {sentence}
+        entity: {entity}
+        tag:
+    """).strip()
 
 
 def _get_sys_prompt(
@@ -356,6 +367,7 @@ def load_multinerd(
         data["dev"] = data.pop("validation")
 
     if filter_en:
+        logger.debug("rename 'validation' to 'dev'")
         logger.warning("using english only subset")
         data = data.filter(_filter_english, batched=True)
 

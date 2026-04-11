@@ -1,3 +1,4 @@
+from textwrap import dedent
 from typing import Literal, TypedDict, cast
 
 from datasets.dataset_dict import DatasetDict
@@ -90,34 +91,34 @@ label2id: dict[EstnerTag, int] = {
 }
 
 examples = [
-    ("lause: Mari töötab Google'is Californias.\nnimeüksus: Mari\nmärgend: PER\n"),
-    ("lause: Koosolek toimus ÜRO peakorteris.\nnimeüksus: ÜRO\nmärgend: ORG\n"),
-    ("lause: Tallinn on Eesti pealinn.\nnimeüksus: Tallinn\nmärgend: LOC\n"),
-    ("lause: Eesti asub Põhja-Euroopas.\nnimeüksus: Eesti\nmärgend: GPE\n"),
-    ("lause: Ta jõi hommikul kuuma kohvi.\nnimeüksus: kohvi\nmärgend: PROD\n"),
-    ("lause: Võidupüha tähistatakse juunis.\nnimeüksus: Võidupüha\nmärgend: EVENT\n"),
-    ("lause: Ta sündis 1990. aastal.\nnimeüksus: 1990. aastal\nmärgend: DATE\n"),
-    ("lause: Tulemus näitab 75% kasvu.\nnimeüksus: 75%\nmärgend: PERCENT\n"),
+    ("Lause: Mari töötab Google'is Californias.\nNimeüksus: Mari\nMärgend: PER\n"),
+    ("Lause: Koosolek toimus ÜRO peakorteris.\nNimeüksus: ÜRO\nMärgend: ORG\n"),
+    ("Lause: Tallinn on Eesti pealinn.\nNimeüksus: Tallinn\nMärgend: LOC\n"),
+    ("Lause: Eesti asub Põhja-Euroopas.\nNimeüksus: Eesti\nMärgend: GPE\n"),
+    ("Lause: Ta jõi hommikul kuuma kohvi.\nNimeüksus: kohvi\nMärgend: PROD\n"),
+    ("Lause: Võidupüha tähistatakse juunis.\nNimeüksus: Võidupüha\nMärgend: EVENT\n"),
+    ("Lause: Ta sündis 1990. aastal.\nNimeüksus: 1990. aastal\nMärgend: DATE\n"),
+    ("Lause: Tulemus näitab 75% kasvu.\nNimeüksus: 75%\nMärgend: PERCENT\n"),
     (
-        "lause: Koosolek algab kell kolm pärastlõunal.\n"
-        "nimeüksus: kell kolm\n"
-        "märgend: TIME\n"
+        "Lause: Koosolek algab kell kolm pärastlõunal.\n"
+        "Nimeüksus: kell kolm\n"
+        "Märgend: TIME\n"
     ),
     (
-        "lause: Ta kirjutas raamatu pealkirjaga 'Tarkus'.\n"
-        "nimeüksus: Tarkus\n"
-        "märgend: TITLE\n"
+        "Lause: Ta kirjutas raamatu pealkirjaga 'Tarkus'.\n"
+        "Nimeüksus: Tarkus\n"
+        "Märgend: TITLE\n"
     ),
     (
-        "lause: Ta ostis uue auto 25000 euro eest.\n"
-        "nimeüksus: 25000 euro\n"
-        "märgend: MONEY\n"
+        "Lause: Ta ostis uue auto 25000 euro eest.\n"
+        "Nimeüksus: 25000 euro\n"
+        "Märgend: MONEY\n"
     ),
 ]
 
 
 def _enc_sys_prompt(sep: str) -> str:
-    return f"Määra nimeüksuse NER märgen lauses.{sep}"
+    return f"Mis on nimeüksuse NER märgen lauses?{sep}"
 
 
 def _enc_prompt(sentence: str, entity: str, sep: str) -> str:
@@ -125,26 +126,37 @@ def _enc_prompt(sentence: str, entity: str, sep: str) -> str:
 
 
 def _dec_sys_prompt() -> str:
-    return (
-        "Määra nimeüksuse NER märgen lauses. Võimalikut märgendid on: PER, ORG, "
-        "LOC, GPE, PROD, EVENT, DATE, TIME, TITLE, MONEY, PERCENT, O.\n"
-    )
+    return dedent(f"""
+        Määra nimeüksuse NER märgen lauses.
+        Võimalikut märgendid on: {", ".join(id2label.values())}.
+
+        Vasta ainult märgendiga.
+    """).strip()
 
 
 def _dec_prompt(sentence: str, entity: str) -> str:
-    return f"lause: {sentence}\nnimeüksus: {entity}\nmärgend:"
+    return dedent(f"""
+        Lause: {sentence}
+        Nimeüksus: {entity}
+        Märgend:
+    """).strip()
 
 
 def _encdec_sys_prompt() -> str:
-    return (
-        "ner: tuvasta lauses oleva nimeüksuse NER-märgend.\n"
-        "märgendid: PER, ORG, LOC, GPE, PROD, EVENT, DATE, TIME, TITLE, MONEY, "
-        "PERCENT, O.\n"
-    )
+    return dedent(f"""
+        ner: määra nimeüksuse NER märgen lauses.
+        märgendid: {", ".join(id2label.values())}.
+
+        vasta ainult märgendiga.
+    """).strip()
 
 
 def _encdec_prompt(sentence: str, entity: str) -> str:
-    return f"lause: {sentence}\nnimeüksus: {entity}\nmärgend:"
+    return dedent(f"""
+        lause: {sentence}
+        nimeüksus: {entity}
+        märgend:
+    """).strip()
 
 
 def _get_sys_prompt(
