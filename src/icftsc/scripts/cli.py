@@ -169,16 +169,16 @@ def few_shot(
 def collect_metrics(
     experiment: Annotated[str, Option(help="MLflow experiment name")],
     mlflow_tracking_uri: Annotated[
-        str,
-        Option(help="MLflow tracking server URI"),
-    ] = "sqlite:///mlflow.db",
+        str | None,
+        Option(help="Can be overriden with envrionment variables"),
+    ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ):
     from icftsc.logging import logger
     from icftsc.scripts.tracking import collect_metrics
 
     logger.setLevel(log_level)
-    collect_metrics(mlflow_tracking_uri, experiment, write_csv=True)
+    collect_metrics(experiment, mlflow_tracking_uri, write_csv=True)
 
 
 if __name__ == "__main__":

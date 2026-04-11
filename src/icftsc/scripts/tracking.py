@@ -8,11 +8,18 @@ from icftsc.logging import logger
 
 
 def collect_metrics(
-    mlflow_tracking_uri: str,
     experiment: str,
-    write_csv: bool,
+    mlflow_tracking_uri: str | None = None,
+    write_csv: bool = False,
 ) -> DataFrame:
-    logger.info("connecting to '%s'", mlflow_tracking_uri)
+    if mlflow_tracking_uri is None:
+        logger.debug("no tracking uri provided using env fallback")
+        mlflow_tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+
+    if mlflow_tracking_uri is None:
+        raise ValueError("no mlflow tracking uri provided")
+
+    logger.info("connecting to %s", mlflow_tracking_uri)
     client = MlflowClient(tracking_uri=mlflow_tracking_uri)
     exp = client.get_experiment_by_name(experiment)
 
