@@ -356,9 +356,10 @@ def load_multinerd(
         data["dev"] = data.pop("validation")
 
     if filter_en:
-        logger.info("using english only subset")
+        logger.warning("using english only subset")
         data = data.filter(_filter_english, batched=True)
 
+    logger.debug("tokenize multinerd")
     cols = ["tokens", "ner_tags", "lang"]
     fn_kwargs = {"tokenizer": tokenizer, "n_shot": n_shot, "arch": arch}
     data = data.map(

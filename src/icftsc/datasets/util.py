@@ -59,7 +59,7 @@ def load_data(
     n_dev_samples: int | None = None,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
-    logger.info("load '%s'", dataset)
+    logger.info("load '%s' dataset", dataset)
     if dataset == "multinerd":
         data, info = load_multinerd(tokenizer, arch, n_shot, split=split)
     elif dataset == "estner":

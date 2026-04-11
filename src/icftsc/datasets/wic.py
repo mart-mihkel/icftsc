@@ -199,8 +199,10 @@ def load_wic(
     data = cast(DatasetDict, load_dataset("super_glue", "wic", split=split))
 
     if "validation" in data:
+        logger.debug("rename 'validation' to 'dev'")
         data["dev"] = data.pop("validation")
 
+    logger.debug("tokenize wic")
     cols = [
         "idx",
         "sentence1",

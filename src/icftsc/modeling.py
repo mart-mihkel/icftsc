@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -16,10 +17,13 @@ from transformers import (
     PreTrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerFast,
+    ProgressCallback,
     T5Gemma2EncoderConfig,
     T5Gemma2Model,
     T5Gemma2TextConfig,
     TrainerCallback,
+    TrainerControl,
+    TrainerState,
 )
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
@@ -32,6 +36,21 @@ from icftsc.constants import (
 from icftsc.datasets.util import DatasetInfo
 from icftsc.logging import logger
 from icftsc.types import Architecture, PrefixInit
+
+
+class LoggerCallback(TrainerCallback):
+    def on_log(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        args, state, control
+
+        logs = kwargs.get("logs")
+        if logs:
+            logger.info(json.dumps(logs, indent=4))
 
 
 def get_arch(config: PreTrainedConfig) -> Architecture:
@@ -240,17 +259,18 @@ def get_trainer(
     train_dataset = data.get("train")
     eval_dataset = data.get("dev")
 
-    callbacks = None
-    if do_eval:
-        stopper = EarlyStoppingCallback(4, 0.01)
-        callbacks: list[TrainerCallback] = [stopper]
-
-    return Trainer(
+    trainer = Trainer(
         args=args,
         model=model,
-        callbacks=callbacks,
         data_collator=collate_fn,
         eval_dataset=eval_dataset,
         train_dataset=train_dataset,
         compute_metrics=_metrics_fn,
     )
+
+    trainer.remove_callback(ProgressCallback)
+    trainer.add_callback(LoggerCallback())
+    if do_eval:
+        trainer.add_callback(EarlyStoppingCallback(4, 0.01))
+
+    return trainer
