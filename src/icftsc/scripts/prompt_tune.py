@@ -107,8 +107,7 @@ def prompt_tune(
 
     logger.debug("start test eval")
     test = cast(Dataset, data["test"])
-    metrics = trainer.evaluate(test, metric_key_prefix="test")
-    logger.debug(metrics)
+    trainer.evaluate(test, metric_key_prefix="test")
 
     logger.info("save peft adapter to %s", trainer.args.output_dir)
     logdir = trainer.args.output_dir

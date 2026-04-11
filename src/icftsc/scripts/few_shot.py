@@ -79,7 +79,6 @@ def few_shot(
 
     logger.debug("start test eval")
     test = cast(Dataset, data["test"])
-    metrics = trainer.evaluate(test, metric_key_prefix="test")
-    logger.debug(metrics)
+    trainer.evaluate(test, metric_key_prefix="test")
 
     mlflow.end_run()

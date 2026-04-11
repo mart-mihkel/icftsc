@@ -278,6 +278,14 @@ def get_trainer(
     trainer.remove_callback(ProgressCallback)
     trainer.add_callback(LoggerCallback())
     if do_eval:
-        trainer.add_callback(EarlyStoppingCallback(4, 0.01))
+        patience = 4
+        tolerance = 0.01
+        logger.debug(
+            "using early stopping with %d patience and %.2f tolerance for eval f1",
+            patience,
+            tolerance,
+        )
+
+        trainer.add_callback(EarlyStoppingCallback(patience, tolerance))
 
     return trainer
