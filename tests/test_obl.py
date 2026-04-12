@@ -55,9 +55,9 @@ def test_obl_n_shot(bert_tokenizer: PreTrainedTokenizerFast):
     n_shot = 3
     _, info = load_obl(bert_tokenizer, "encoder", n_shot)
 
-    assert info["system_prompt"].count("Sentence:") == n_shot
-    assert info["system_prompt"].count("Span:") == n_shot
-    assert info["system_prompt"].count("Answer:") == n_shot
+    assert info["system_prompt"].count("Lause:") == n_shot
+    assert info["system_prompt"].count("Fraas:") == n_shot
+    assert info["system_prompt"].count("Kategooria:") == n_shot
 
 
 def test_obl_invalid_n_shot(

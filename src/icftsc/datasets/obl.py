@@ -14,7 +14,7 @@ _permalink = (
     "/phrase_removal/benchmarks/obl_phrases/obl_max/data/obl_all_hand_annotated.csv"
 )
 
-type OblLabel = Literal["bound", "unnatural", "redundant comma", "free", "dubious"]
+type OblLabel = Literal["seotud", "vaba", "ebaloomulik", "liigne koma", "kaheldav"]
 
 
 class OblExample(TypedDict):
@@ -31,62 +31,63 @@ class OblExample(TypedDict):
     la: float
 
 
+entoet: dict[str, OblLabel] = {
+    "bound": "seotud",
+    "free": "vaba",
+    "unnatural": "ebaloomulik",
+    "redundant comma": "liigne koma",
+    "dubious": "kaheldav",
+}
+
 id2label: dict[int, OblLabel] = {
-    0: "bound",
-    1: "unnatural",
-    2: "redundant comma",
-    3: "free",
-    4: "dubious",
+    0: "seotud",
+    1: "ebaloomulik",
+    2: "liigne koma",
+    3: "vaba",
+    4: "kaheldav",
 }
 
 label2id: dict[OblLabel, int] = {
-    "bound": 0,
-    "unnatural": 1,
-    "redundant comma": 2,
-    "free": 3,
-    "dubious": 4,
+    "seotud": 0,
+    "ebaloomulik": 1,
+    "liigne koma": 2,
+    "vaba": 3,
+    "kaheldav": 4,
 }
 
 examples = [
     (
-        "Sentence: Esimesel korral oli vene rahvas sõja vastu , aga seekord "
-        "ollakse siiski poolt .\n"
-        "Span: Esimesel korral\n"
-        "Answer: bound\n"
+        "Lause: Ilma vihmavarjuta ei oleks me kuiva nahaga koju jõudnud .\n"
+        "Fraas: Ilma vihmavarjuta\n"
+        "Kategooria: bound\n"
     ),
     (
-        "Sentence: Suusakeskus hakkas poolest talvest tööle ja muutus üsna "
-        "ruttu populaarseks .\n"
-        "Span: poolest talvest\n"
-        "Answer: free\n"
+        "Lause: Ta lõpetas töö hilisõhtul kontoris ja läks siis koju .\n"
+        "Fraas: kontoris\n"
+        "Kategooria: free\n"
     ),
     (
-        "Sentence: Hemodialüüsis patsientide jälgimisel jääb maha tohutu suur "
-        "hulk meditsiinilist infot , mistõttu arstidel on mustrite nägemine "
-        "üle pikema aja üsnagi problemaatiline .\n"
-        "Span: Hemodialüüsis patsientide jälgimisel\n"
-        "Answer: unnatural\n"
+        "Lause: Kiiresti joostes trepist üles ta jõudis lõpuks kohale .\n"
+        "Fraas: Kiiresti joostes trepist üles\n"
+        "Kategooria: unnatural\n"
     ),
     (
-        "Sentence: Päev hiljem , reede õhtul pidasid Tallinna Põhja "
-        "politseiosakonna inspektorid suure vaevaga kinni 1997. aasta "
-        "universaalkerega tumesinise Ford Mondeo .\n"
-        "Span: Päev hiljem\n"
-        "Answer: redundant comma\n"
+        "Lause: Mõni aeg tagasi , kohtusime vana sõbraga juhuslikult tänaval .\n"
+        "Fraas: Mõni aeg tagasi\n"
+        "Kategooria: redundant comma\n"
     ),
     (
-        "Sentence: 1990. aastal siirdus Gerda , kes vanemate ja passi järgi "
-        "on soomlane , oma esimesele kodumaale .\n"
-        "Span: vanemate ja passi järgi\n"
-        "Answer: dubious\n"
+        "Lause: Ta rääkis suure innuga oma uuest projektist töö juures .\n"
+        "Fraas: töö juures\n"
+        "Kategooria: dubious\n"
     ),
 ]
 
 
 def _enc_sys_prompt(sep: str) -> str:
     return dedent(f"""
-        What is the relation between the span and the sentence,
-        is it bound, free, dubious, unnatural or redundant comma?{sep}
+        Mis on seos fragmendi ja lause vahel,
+        kas see on seotud, vaba, kaheldav, ebaloomulik või liigne koma?{sep}
     """).strip()
 
 
@@ -96,45 +97,46 @@ def _enc_prompt(example: OblExample, sep: str) -> str:
 
 def _dec_sys_prompt() -> str:
     return dedent("""
-        You are an obligation labeling model. Classify the removed span into one label:
+        Sa oled liigse fraasi märgendamise mudel.
+        Liigita eemaldatud fraas ühte kategooriasse:
 
-        - bound: required for grammatical structure, removal breaks grammar
-        - unnatural: grammatical but awkward or non-native
-        - redundant comma: unnecessary or incorrect comma
-        - free: optional, removable without loss of meaning or grammar
-        - dubious: unclear or borderline incorrect
+        - seotud: vajalik grammatilise struktuuri jaoks, eemaldamine rikub grammatika
+        - ebaloomulik: grammatiliselt korrektne, kuid kohmakas või mittekeeleomane
+        - liigne koma: ebavajalik või vale koma
+        - vaba: valikuline, eemaldatav ilma tähendust või grammatikat muutmata
+        - kaheldav: ebaselge või piiripealne juhtum
 
-        Output only the label.
+        Väljasta ainult kategooria.
     """).strip()
 
 
 def _dec_prompt(example: OblExample) -> str:
     return dedent(f"""
-        Sentence: {example["sentence"]}
-        Span: {example["removed"]}
-        Label:
+        Lause: {example["sentence"]}
+        Fraas: {example["removed"]}
+        Kategooria:
     """).strip()
 
 
 def _encdec_sys_prompt() -> str:
     return dedent("""
-        obligation labeling: classify the removed text into one of five labels.
+        liigse fraasi märgendamine: liigita eemaldatud tekst ühte viiest kategooriast.
 
-        bound: required for grammatical structure; removal breaks grammar
-        unnatural: grammatically optional but awkward or non-native
-        redundant comma: unnecessary or incorrect comma
-        free: optional; removable without changing meaning or grammar
-        dubious: unclear or borderline case
+        seotud: vajalik grammatilise struktuuri jaoks; eemaldamine rikub grammatika
+        ebaloomulik: grammatiliselt valikuline, kuid kohmakas või mittekeeleomane
+        liigne koma: ebavajalik või vale koma
+        vaba: valikuline; eemaldatav ilma tähendust või grammatikat muutmata
+        kaheldav: ebaselge või piiripealne juhtum
 
-        output only the label
+        väljasta ainult kategooria
     """).strip()
 
 
 def _encdec_prompt(example: OblExample) -> str:
     return dedent(f"""
-        sentence: {example["sentence"]}
-        span: {example["removed"]}
-        label:
+        lause: {example["sentence"]}
+        fraas: {example["removed"]}
+        kategooria:
     """).strip()
 
 
@@ -209,23 +211,30 @@ def _tokenize(
     raise NotImplementedError(f"architecture '{arch}'")
 
 
+def _translate_entoet(example: OblExample) -> OblExample:
+    en_lbl = example["label"]
+    example["label"] = entoet[en_lbl]
+    return example
+
+
 def load_obl(
     tokenizer: PreTrainedTokenizerFast,
     arch: Architecture,
     n_shot: int,
 ) -> tuple[DatasetDict, DatasetInfo]:
     logger.debug("load obl csv from github permalink")
-    raw = Dataset.from_csv(_permalink, sep=";").rename_column("type", "label")
+    raw = Dataset.from_csv(_permalink, sep=";")
 
-    split1 = raw.train_test_split(test_size=1000, seed=0)
-    split2 = split1["train"].train_test_split(test_size=500, seed=0)
-    data = DatasetDict(
-        {
-            "train": split2["train"],
-            "dev": split2["test"],
-            "test": split1["test"],
-        }
-    )
+    logger.debug("rename 'type' to 'label'")
+    raw = raw.rename_column("type", "label")
+
+    logger.debug("translate labels")
+    raw = raw.map(_translate_entoet)
+
+    s1 = raw.train_test_split(test_size=1000, seed=0)
+    s2 = s1["train"].train_test_split(test_size=128, seed=0)
+    split = {"train": s2["train"], "dev": s2["test"], "test": s1["test"]}
+    data = DatasetDict(cast(dict, split))
 
     logger.debug("tokenize obl")
     cols = [

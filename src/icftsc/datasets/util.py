@@ -75,14 +75,24 @@ def load_data(
         raise NotImplementedError(f"dataset '{dataset}'")
 
     if n_train_samples is not None:
-        assert n_train_samples <= len(data["train"]), "requested too many train samples"
-        logger.warning(
-            "using %d of %d train samples",
-            n_train_samples,
-            len(data["train"]),
-        )
+        n_train = len(data["train"])
+        if n_train_samples > n_train:
+            n_train_samples = n_train
+            logger.warning("requested more train samples than in dataset %d", n_train)
 
-        data["train"] = data["train"].select(range(n_train_samples))
+        if n_train_samples < n_train:
+            data["train"] = data["train"].select(range(n_train_samples))
+            logger.warning("using %d of %d train samples", n_train_samples, n_train)
+
+    if n_dev_samples is not None:
+        n_dev = len(data["dev"])
+        if n_dev_samples > n_dev:
+            n_dev_samples = n_dev
+            logger.warning("requested more dev samples than in dataset %d", n_dev)
+
+        if n_dev_samples < n_dev:
+            data["dev"] = data["dev"].select(range(n_dev_samples))
+            logger.warning("using %d of %d dev samples", n_dev_samples, n_dev)
 
     if n_dev_samples is not None:
         assert n_dev_samples <= len(data["dev"]), "requested too many dev samples"
