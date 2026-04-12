@@ -24,7 +24,7 @@ def fine_tune(
     learning_rate: float,
     experiment: str | None,
     run_name: str | None,
-):
+) -> None:
     logger.info("load config for '%s'", model_path)
     config = AutoConfig.from_pretrained(model_path)
     arch = get_arch(config)

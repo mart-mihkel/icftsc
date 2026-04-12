@@ -7,7 +7,7 @@ from transformers import PreTrainedTokenizerFast
 from icftsc.datasets.multinerd import _join_spans, load_multinerd
 
 
-def test_join_spans():
+def test_join_spans() -> None:
     tokens = ["Kuulus", "kohver", "Eston", "Kohver"]
     tag_ids = [0, 0, 1, 2]
     jtokens, jtags = _join_spans(tokens=tokens, tag_ids=tag_ids)
@@ -19,7 +19,7 @@ def test_join_spans():
 def test_multinerd_seqcls(
     bert_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(bert_tokenizer, "encoder", 0, False)
 
@@ -38,7 +38,7 @@ def test_multinerd_seqcls(
 def test_multinerd_causal(
     gpt2_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(gpt2_tokenizer, "decoder", 0, False)
 
@@ -59,7 +59,7 @@ def test_multinerd_causal(
 def test_multinerd_seq2seq(
     t5_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(t5_tokenizer, "encoder-decoder", 0, False)
 
@@ -78,7 +78,7 @@ def test_multinerd_seq2seq(
 def test_multinerd_n_shot(
     bert_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     n_shot = 3
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         _, info = load_multinerd(bert_tokenizer, "encoder", n_shot, False)
@@ -91,7 +91,7 @@ def test_multinerd_n_shot(
 def test_multinerd_invalid_n_shot(
     bert_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     with (
         pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("datasets.load.load_dataset", return_value=multinerd),

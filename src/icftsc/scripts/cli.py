@@ -52,7 +52,7 @@ def fine_tune(
     ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
     seed: Annotated[int | None, Option(help="Random seed")] = None,
-):
+) -> None:
     from icftsc.logging import logger
     from icftsc.scripts.fine_tune import fine_tune
 
@@ -107,7 +107,7 @@ def prompt_tune(
     ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
     seed: Annotated[int | None, Option(help="Random seed")] = None,
-):
+) -> None:
     from icftsc.logging import logger
     from icftsc.scripts.prompt_tune import prompt_tune
 
@@ -147,7 +147,7 @@ def few_shot(
     ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
     seed: Annotated[int | None, Option(help="Random seed")] = None,
-):
+) -> None:
     from icftsc.logging import logger
     from icftsc.scripts.few_shot import few_shot
 
@@ -173,7 +173,7 @@ def collect_metrics(
         Option(help="Can be overriden with envrionment variables"),
     ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
-):
+) -> None:
     from icftsc.logging import logger
     from icftsc.scripts.tracking import collect_metrics
 

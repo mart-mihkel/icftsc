@@ -7,7 +7,10 @@ from transformers import PreTrainedTokenizerFast
 from icftsc.datasets.boolq import load_boolq
 
 
-def test_boolq_seqcls(bert_tokenizer: PreTrainedTokenizerFast, boolq: DatasetDict):
+def test_boolq_seqcls(
+    bert_tokenizer: PreTrainedTokenizerFast,
+    boolq: DatasetDict,
+) -> None:
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(bert_tokenizer, "encoder", 0)
 
@@ -23,7 +26,10 @@ def test_boolq_seqcls(bert_tokenizer: PreTrainedTokenizerFast, boolq: DatasetDic
     assert train_sample["label"] in {0, 1}
 
 
-def test_boolq_causal(gpt2_tokenizer: PreTrainedTokenizerFast, boolq: DatasetDict):
+def test_boolq_causal(
+    gpt2_tokenizer: PreTrainedTokenizerFast,
+    boolq: DatasetDict,
+) -> None:
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(gpt2_tokenizer, "decoder", 0)
 
@@ -41,7 +47,10 @@ def test_boolq_causal(gpt2_tokenizer: PreTrainedTokenizerFast, boolq: DatasetDic
     assert len(labels) == prompt_len
 
 
-def test_boolq_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, boolq: DatasetDict):
+def test_boolq_seq2seq(
+    t5_tokenizer: PreTrainedTokenizerFast,
+    boolq: DatasetDict,
+) -> None:
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(t5_tokenizer, "encoder-decoder", 0)
 
@@ -57,7 +66,10 @@ def test_boolq_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, boolq: DatasetDict
     assert all(label >= 0 for label in train_sample["labels"])
 
 
-def test_boolq_n_shot(bert_tokenizer: PreTrainedTokenizerFast, boolq: DatasetDict):
+def test_boolq_n_shot(
+    bert_tokenizer: PreTrainedTokenizerFast,
+    boolq: DatasetDict,
+) -> None:
     n_shot = 3
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
         _, info = load_boolq(bert_tokenizer, "encoder", n_shot)
@@ -70,7 +82,7 @@ def test_boolq_n_shot(bert_tokenizer: PreTrainedTokenizerFast, boolq: DatasetDic
 def test_boolq_invalid_n_shot(
     bert_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
-):
+) -> None:
     with (
         pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("icftsc.datasets.boolq.load_dataset", return_value=boolq),

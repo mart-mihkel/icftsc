@@ -45,7 +45,7 @@ class LoggerCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs,
+        **kwargs: dict,
     ) -> None:
         args, state, control
 

@@ -3,7 +3,7 @@ from transformers import PreTrainedTokenizerFast
 from icftsc.datasets.util import get_collator
 
 
-def test_collator_with_labels(gpt2_tokenizer: PreTrainedTokenizerFast):
+def test_collator_with_labels(gpt2_tokenizer: PreTrainedTokenizerFast) -> None:
     features = [
         {"input_ids": [1, 2, 3], "attention_mask": [1, 1, 1], "labels": [10, 20]},
         {"input_ids": [4, 5], "attention_mask": [1, 1], "labels": [30]},
@@ -25,7 +25,7 @@ def test_collator_with_labels(gpt2_tokenizer: PreTrainedTokenizerFast):
     assert batch["labels"][0][-1] == -100
 
 
-def test_collator_with_no_labels(gpt2_tokenizer: PreTrainedTokenizerFast):
+def test_collator_with_no_labels(gpt2_tokenizer: PreTrainedTokenizerFast) -> None:
     features = [
         {"input_ids": [1, 2, 3], "attention_mask": [1, 1, 1]},
         {"input_ids": [4, 5], "attention_mask": [1, 1]},

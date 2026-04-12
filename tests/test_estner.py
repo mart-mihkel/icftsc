@@ -7,7 +7,7 @@ from transformers import PreTrainedTokenizerFast
 from icftsc.datasets.estner import _join_spans, label2id, load_estner
 
 
-def test_join_spans():
+def test_join_spans() -> None:
     tokens = ["Kuulus", "kohver", "Eston", "Kohver"]
     tags = ["O", "O", "B-PER", "I-PER"]
     jtokens, jtags = _join_spans(tokens=tokens, tags=tags)
@@ -16,7 +16,10 @@ def test_join_spans():
     assert jtags == ["O", "O", "PER"]
 
 
-def test_estner_seqcls(bert_tokenizer: PreTrainedTokenizerFast, estner: DatasetDict):
+def test_estner_seqcls(
+    bert_tokenizer: PreTrainedTokenizerFast,
+    estner: DatasetDict,
+) -> None:
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         data, _ = load_estner(bert_tokenizer, "encoder", 0)
 
@@ -33,7 +36,10 @@ def test_estner_seqcls(bert_tokenizer: PreTrainedTokenizerFast, estner: DatasetD
     assert train_sample["labels"] in label2id.values()
 
 
-def test_estner_causal(gpt2_tokenizer: PreTrainedTokenizerFast, estner: DatasetDict):
+def test_estner_causal(
+    gpt2_tokenizer: PreTrainedTokenizerFast,
+    estner: DatasetDict,
+) -> None:
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         data, _ = load_estner(gpt2_tokenizer, "decoder", 0)
 
@@ -55,7 +61,10 @@ def test_estner_causal(gpt2_tokenizer: PreTrainedTokenizerFast, estner: DatasetD
     assert first_non_masked > 0
 
 
-def test_estner_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, estner: DatasetDict):
+def test_estner_seq2seq(
+    t5_tokenizer: PreTrainedTokenizerFast,
+    estner: DatasetDict,
+) -> None:
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         data, _ = load_estner(t5_tokenizer, "encoder-decoder", 0)
 
@@ -71,7 +80,10 @@ def test_estner_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, estner: DatasetDi
     assert all(label >= 0 for label in train_sample["labels"])
 
 
-def test_estner_n_shot(bert_tokenizer: PreTrainedTokenizerFast, estner: DatasetDict):
+def test_estner_n_shot(
+    bert_tokenizer: PreTrainedTokenizerFast,
+    estner: DatasetDict,
+) -> None:
     n_shot = 3
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         _, info = load_estner(bert_tokenizer, "encoder", n_shot)
@@ -84,7 +96,7 @@ def test_estner_n_shot(bert_tokenizer: PreTrainedTokenizerFast, estner: DatasetD
 def test_estner_invalid_n_shot(
     bert_tokenizer: PreTrainedTokenizerFast,
     estner: DatasetDict,
-):
+) -> None:
     with (
         pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("icftsc.datasets.estner.load_dataset", return_value=estner),

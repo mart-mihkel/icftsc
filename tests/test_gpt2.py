@@ -17,7 +17,7 @@ def test_gpt2_wic_forward(
     gpt2: PreTrainedModel,
     gpt2_tokenizer: PreTrainedTokenizerFast,
     wic: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(gpt2_tokenizer, _arch, 0)
 
@@ -35,7 +35,7 @@ def test_gpt2_boolq_forward(
     gpt2: PreTrainedModel,
     gpt2_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(gpt2_tokenizer, _arch, 0)
 
@@ -53,7 +53,7 @@ def test_gpt2_estner_forward(
     gpt2: PreTrainedModel,
     gpt2_tokenizer: PreTrainedTokenizerFast,
     estner: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         data, _ = load_estner(gpt2_tokenizer, _arch, 0)
 
@@ -71,7 +71,7 @@ def test_gpt2_multinerd_forward(
     gpt2: PreTrainedModel,
     gpt2_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(gpt2_tokenizer, _arch, 0, False)
 
@@ -89,7 +89,7 @@ def test_pt_gpt2_wic_forward(
     pt_gpt2: PeftModel,
     gpt2_tokenizer: PreTrainedTokenizerFast,
     wic: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(gpt2_tokenizer, _arch, 0)
 
@@ -107,7 +107,7 @@ def test_pt_gpt2_boolq_forward(
     pt_gpt2: PeftModel,
     gpt2_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(gpt2_tokenizer, _arch, 0)
 
@@ -125,7 +125,7 @@ def test_pt_gpt2_estner_forward(
     pt_gpt2: PeftModel,
     gpt2_tokenizer: PreTrainedTokenizerFast,
     estner: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         data, _ = load_estner(gpt2_tokenizer, _arch, 0)
 
@@ -143,7 +143,7 @@ def test_pt_gpt2_multinerd_forward(
     pt_gpt2: PeftModel,
     gpt2_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(gpt2_tokenizer, _arch, 0, False)
 

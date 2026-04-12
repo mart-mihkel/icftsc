@@ -10,13 +10,13 @@ from icftsc.metrics import (
 )
 
 
-def test_filter_gibberis():
+def test_filter_gibberis() -> None:
     ref = [" yes", " no", " yes"]
     pred = [" dog", " no", " yes"]
     assert _filter_gibberish(ref, pred) == ["<gibberish>", " no", " yes"]
 
 
-def test_seq_cls():
+def test_seq_cls() -> None:
     logits = np.array([[2.0, 1.0, 0.0], [2.0, 1.0, 0.0]])
     labels = np.array([0, 0])
     eval_pred = EvalPrediction(logits, labels)
@@ -25,7 +25,7 @@ def test_seq_cls():
     assert metrics["accuracy"] == 1.0
 
 
-def test_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
+def test_seq2seq(t5_tokenizer: PreTrainedTokenizerFast) -> None:
     logits = np.array(
         [
             [[1.0, 4.0, 3.0, 2.0, 5.0], [1.0, 4.0, 3.0, 2.0, 5.0]],
@@ -40,7 +40,7 @@ def test_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
     assert "accuracy" in metrics
 
 
-def test_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast):
+def test_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast) -> None:
     logits = np.array(
         [
             [[5.0, 4.0, 3.0, 2.0, 1.0], [5.0, 4.0, 3.0, 2.0, 1.0]],
@@ -56,6 +56,6 @@ def test_causal_lm(gpt2_tokenizer: PreTrainedTokenizerFast):
     assert "accuracy" in metrics
 
 
-def test_init_metrics_fn(bert_tokenizer: PreTrainedTokenizerFast):
+def test_init_metrics_fn(bert_tokenizer: PreTrainedTokenizerFast) -> None:
     metrics_fn = get_metrics_fn(bert_tokenizer, "encoder")
     assert metrics_fn == compute_metrics_seq_cls

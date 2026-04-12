@@ -7,7 +7,7 @@ from transformers import PreTrainedTokenizerFast
 from icftsc.datasets.wic import load_wic
 
 
-def test_wic_seqcls(bert_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict):
+def test_wic_seqcls(bert_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict) -> None:
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(bert_tokenizer, "encoder", 0)
 
@@ -23,7 +23,7 @@ def test_wic_seqcls(bert_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict):
     assert train_sample["label"] in {0, 1}
 
 
-def test_wic_causal(gpt2_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict):
+def test_wic_causal(gpt2_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict) -> None:
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(gpt2_tokenizer, "decoder", 0)
 
@@ -41,7 +41,7 @@ def test_wic_causal(gpt2_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict):
     assert len(labels) == prompt_len
 
 
-def test_wic_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict):
+def test_wic_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict) -> None:
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(t5_tokenizer, "encoder-decoder", 0)
 
@@ -57,7 +57,7 @@ def test_wic_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict):
     assert all(label >= 0 for label in train_sample["labels"])
 
 
-def test_wic_n_shot(bert_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict):
+def test_wic_n_shot(bert_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict) -> None:
     n_shot = 3
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
         _, info = load_wic(bert_tokenizer, "encoder", n_shot)
@@ -71,7 +71,7 @@ def test_wic_n_shot(bert_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict):
 def test_wic_invalid_n_shot(
     bert_tokenizer: PreTrainedTokenizerFast,
     wic: DatasetDict,
-):
+) -> None:
     with (
         pytest.raises(AssertionError, match="requested more examples than exist"),
         patch("icftsc.datasets.wic.load_dataset", return_value=wic),

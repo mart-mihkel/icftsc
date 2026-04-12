@@ -23,7 +23,7 @@ def test_bert_wic_forward(
     bert: BertForSequenceClassification,
     bert_tokenizer: PreTrainedTokenizerFast,
     wic: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(bert_tokenizer, _arch, 0)
 
@@ -41,7 +41,7 @@ def test_bert_boolq_forward(
     bert: BertForSequenceClassification,
     bert_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(bert_tokenizer, _arch, 0)
 
@@ -59,7 +59,7 @@ def test_bert_estner_forward(
     bert: BertForSequenceClassification,
     bert_tokenizer: PreTrainedTokenizerFast,
     estner: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         data, info = load_estner(bert_tokenizer, _arch, 0)
 
@@ -81,7 +81,7 @@ def test_bert_multinerd_forward(
     bert: BertForSequenceClassification,
     bert_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         data, info = load_multinerd(bert_tokenizer, _arch, 0, False)
 
@@ -104,7 +104,7 @@ def test_pt_bert_wic_forward(
     pt_bert: PeftModel,
     bert_tokenizer: PreTrainedTokenizerFast,
     wic: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(bert_tokenizer, _arch, 0)
 
@@ -123,7 +123,7 @@ def test_pt_bert_boolq_forward(
     pt_bert: PeftModel,
     bert_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(bert_tokenizer, _arch, 0)
 
@@ -141,7 +141,7 @@ def test_pt_bert_estner_forward(
     pt_bert: PeftModel,
     bert_tokenizer: PreTrainedTokenizerFast,
     estner: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
         data, info = load_estner(bert_tokenizer, _arch, 0)
 
@@ -164,7 +164,7 @@ def test_pt_bert_multinerd_forward(
     pt_bert: PeftModel,
     bert_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
-):
+) -> None:
     with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
         data, info = load_multinerd(bert_tokenizer, _arch, 0, False)
 

@@ -4,7 +4,7 @@ from transformers import PreTrainedTokenizerFast
 from icftsc.datasets.obl import load_obl
 
 
-def test_obl_seqcls(bert_tokenizer: PreTrainedTokenizerFast):
+def test_obl_seqcls(bert_tokenizer: PreTrainedTokenizerFast) -> None:
     data, _ = load_obl(bert_tokenizer, "encoder", 0)
 
     assert len(data["train"]) > 0
@@ -19,7 +19,7 @@ def test_obl_seqcls(bert_tokenizer: PreTrainedTokenizerFast):
     assert train_sample["label"] in {0, 1, 2, 3, 4}
 
 
-def test_obl_causal(gpt2_tokenizer: PreTrainedTokenizerFast):
+def test_obl_causal(gpt2_tokenizer: PreTrainedTokenizerFast) -> None:
     data, _ = load_obl(gpt2_tokenizer, "decoder", 0)
 
     assert len(data["train"]) > 0
@@ -36,7 +36,7 @@ def test_obl_causal(gpt2_tokenizer: PreTrainedTokenizerFast):
     assert len(labels) == prompt_len
 
 
-def test_obl_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
+def test_obl_seq2seq(t5_tokenizer: PreTrainedTokenizerFast) -> None:
     data, _ = load_obl(t5_tokenizer, "encoder-decoder", 0)
 
     assert len(data["train"]) > 0
@@ -51,7 +51,7 @@ def test_obl_seq2seq(t5_tokenizer: PreTrainedTokenizerFast):
     assert all(label >= 0 for label in train_sample["labels"])
 
 
-def test_obl_n_shot(bert_tokenizer: PreTrainedTokenizerFast):
+def test_obl_n_shot(bert_tokenizer: PreTrainedTokenizerFast) -> None:
     n_shot = 3
     _, info = load_obl(bert_tokenizer, "encoder", n_shot)
 
@@ -62,6 +62,6 @@ def test_obl_n_shot(bert_tokenizer: PreTrainedTokenizerFast):
 
 def test_obl_invalid_n_shot(
     bert_tokenizer: PreTrainedTokenizerFast,
-):
+) -> None:
     with pytest.raises(AssertionError, match="requested more examples than exist"):
         load_obl(bert_tokenizer, "encoder", 100)
