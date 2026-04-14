@@ -21,11 +21,14 @@ def collect_metrics(
 
     logger.info("connecting to %s", mlflow_tracking_uri)
     client = MlflowClient(tracking_uri=mlflow_tracking_uri)
+
+    logger.info("finding experiment %s", experiment)
     exp = client.get_experiment_by_name(experiment)
 
     if exp is None:
         raise RuntimeError(f"experiment '{experiment}' not found")
 
+    logger.info("collecting metrics")
     runs = client.search_runs(exp.experiment_id, "")
     rows = []
     for run in runs:
