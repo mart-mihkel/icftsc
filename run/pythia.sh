@@ -3,7 +3,7 @@
 #SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
 #SBATCH --job-name="gptneox"
-#SBATCH --time=12:00:00
+#SBATCH --time=6:00:00
 #SBATCH --partition=gpu
 #SBATCH --mem=32GB
 
