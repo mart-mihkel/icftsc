@@ -4,7 +4,7 @@ from typing import Literal, TypedDict, cast
 from datasets.dataset_dict import DatasetDict
 from datasets.load import load_dataset
 from datasets.splits import Split
-from transformers import PreTrainedTokenizerFast
+from transformers import BatchEncoding, PreTrainedTokenizerFast
 
 from icftsc.logging import logger
 from icftsc.types import Architecture, DatasetInfo
@@ -213,8 +213,19 @@ def _tokenize_batch(
             sys = _get_sys_prompt(tokenizer, arch, n_shot)
             prompt = _get_prompt(tokenizer, arch, sentence, entity)
 
-            prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
-            prompt_len = len(prompt_enc["input_ids"])
+            if tokenizer.chat_template is not None:
+                _kwargs = {"truncation": True}
+                conv = [
+                    {"role": "system", "content": sys},
+                    {"role": "user", "content": prompt},
+                ]
+
+                tokenizer.apply_chat_template(conv, truncation=True)
+            else:
+                prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+
+            prompt_enc = cast(BatchEncoding, prompt_enc)
+            prompt_len = len(cast(list[int], prompt_enc["input_ids"]))
 
             if arch == "encoder":
                 all_ids.append(prompt_enc["input_ids"])
@@ -222,9 +233,20 @@ def _tokenize_batch(
                 all_labels.append(label2id[tag])
                 continue
 
-            answer = f"{sys}\n{prompt} {tag}"
-            answer_enc = tokenizer(answer, truncation=True)
-            labels_enc = answer_enc["input_ids"].copy()
+            if tokenizer.chat_template is not None:
+                _kwargs = {"truncation": True}
+                conv = [
+                    {"role": "system", "content": sys},
+                    {"role": "user", "content": f"{prompt} {tag}"},
+                ]
+
+                tokenizer.apply_chat_template(conv, truncation=True)
+            else:
+                answer = f"{sys}\n{prompt} {tag}"
+                answer_enc = tokenizer(answer, truncation=True)
+
+            answer_enc = cast(BatchEncoding, answer_enc)
+            labels_enc = cast(list[int], answer_enc["input_ids"]).copy()
 
             all_ids.append(answer_enc["input_ids"])
             all_attn.append(answer_enc["attention_mask"])

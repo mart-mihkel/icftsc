@@ -160,16 +160,36 @@ def _tokenize(
     label_id = example["label"]
     label = _id2label[label_id]
 
-    prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
-    prompt_len = len(prompt_enc["input_ids"])
+    if tokenizer.chat_template is not None:
+        conv = [
+            {"role": "system", "content": sys},
+            {"role": "user", "content": prompt},
+        ]
+
+        prompt_enc = tokenizer.apply_chat_template(conv, truncation=True)
+    else:
+        prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+
+    prompt_enc = cast(BatchEncoding, prompt_enc)
+    prompt_len = len(cast(list[int], prompt_enc["input_ids"]))
 
     if arch == "encoder":
         prompt_enc["label"] = label_id
         return prompt_enc
 
-    answer = f"{sys}\n{prompt} {label}"
-    answer_enc = tokenizer(answer, truncation=True)
-    labels_enc = answer_enc["input_ids"].copy()
+    if tokenizer.chat_template is not None:
+        conv = [
+            {"role": "system", "content": sys},
+            {"role": "user", "content": f"{prompt} {label}"},
+        ]
+
+        answer_enc = tokenizer.apply_chat_template(conv, truncation=True)
+    else:
+        answer = f"{sys}\n{prompt} {label}"
+        answer_enc = tokenizer(answer, truncation=True)
+
+    answer_enc = cast(BatchEncoding, answer_enc)
+    labels_enc = cast(list[int], answer_enc["input_ids"]).copy()
 
     if arch == "decoder":
         labels_enc[:prompt_len] = [-100] * prompt_len
