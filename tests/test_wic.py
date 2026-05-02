@@ -57,15 +57,16 @@ def test_wic_seq2seq(t5_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict) ->
     assert all(label >= 0 for label in train_sample["labels"])
 
 
-def test_wic_n_shot(bert_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict) -> None:
+def test_wic_n_shot(gpt2_tokenizer: PreTrainedTokenizerFast, wic: DatasetDict) -> None:
     n_shot = 3
     with patch("instruct.datasets.wic.load_dataset", return_value=wic):
-        _, info = load_wic(bert_tokenizer, "encoder", n_shot)
+        data, _ = load_wic(gpt2_tokenizer, "encoder", n_shot)
 
-    assert info["system_prompt"].count("Sentence 1:") == n_shot
-    assert info["system_prompt"].count("Sentence 2:") == n_shot
-    assert info["system_prompt"].count("Word:") == n_shot
-    assert info["system_prompt"].count("Answer (yes/no):") == n_shot
+    sample = gpt2_tokenizer.decode(data["train"][0]["input_ids"])
+    assert sample.count("Sentence 1:") == n_shot
+    assert sample.count("Sentence 2:") == n_shot
+    assert sample.count("Word:") == n_shot
+    assert sample.count("Answer (yes/no):") == n_shot
 
 
 def test_wic_invalid_n_shot(
