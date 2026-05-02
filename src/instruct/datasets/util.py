@@ -71,8 +71,6 @@ def load_data(
         data, info = load_wic(tokenizer, arch, n_shot, split)
     elif dataset == "obl":
         data, info = load_obl(tokenizer, arch, n_shot)
-    else:
-        raise NotImplementedError(f"dataset '{dataset}'")
 
     if n_train_samples is not None:
         n_train = len(data["train"])
@@ -130,5 +128,3 @@ def get_collator(
 
     if arch == "decoder" or arch == "encoder-decoder":
         return Collator(tokenizer=tokenizer)
-
-    raise NotImplementedError(f"architecture '{arch}'")

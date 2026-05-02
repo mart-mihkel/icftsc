@@ -158,15 +158,19 @@ def _tokenize(
     label_id = example["label"]
     label = _id2label[label_id]
 
-    if tokenizer.chat_template is not None:
+    if tokenizer.chat_template is None:
+        prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+    else:
         conv = [
             {"role": "system", "content": sys},
             {"role": "user", "content": prompt},
         ]
 
-        prompt_enc = tokenizer.apply_chat_template(conv, truncation=True)
-    else:
-        prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+        prompt_enc = tokenizer.apply_chat_template(
+            conv,
+            truncation=True,
+            add_generation_prompt=arch != "encoder",
+        )
 
     prompt_enc = cast(BatchEncoding, prompt_enc)
     prompt_len = len(cast(list[int], prompt_enc["input_ids"]))
@@ -175,16 +179,17 @@ def _tokenize(
         prompt_enc["label"] = label_id
         return prompt_enc
 
-    if tokenizer.chat_template is not None:
+    if tokenizer.chat_template is None:
+        answer = f"{sys}\n{prompt} {label}"
+        answer_enc = tokenizer(answer, truncation=True)
+    else:
         conv = [
             {"role": "system", "content": sys},
-            {"role": "user", "content": f"{prompt} {label}"},
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": label},
         ]
 
         answer_enc = tokenizer.apply_chat_template(conv, truncation=True)
-    else:
-        answer = f"{sys}\n{prompt} {label}"
-        answer_enc = tokenizer(answer, truncation=True)
 
     answer_enc = cast(BatchEncoding, answer_enc)
     labels_enc = cast(list[int], answer_enc["input_ids"]).copy()

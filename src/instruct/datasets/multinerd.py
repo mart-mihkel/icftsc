@@ -270,15 +270,19 @@ def _tokenize_batch(
                 continue
 
             prompt = _get_prompt(tokenizer, arch, sentence, entity, n_shot)
-            if tokenizer.chat_template is not None:
+            if tokenizer.chat_template is None:
+                prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+            else:
                 conv = [
                     {"role": "system", "content": sys},
                     {"role": "user", "content": prompt},
                 ]
 
-                prompt_enc = tokenizer.apply_chat_template(conv, truncation=True)
-            else:
-                prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+                prompt_enc = tokenizer.apply_chat_template(
+                    conv,
+                    truncation=True,
+                    add_generation_prompt=arch != "encoder",
+                )
 
             prompt_enc = cast(BatchEncoding, prompt_enc)
             prompt_len = len(cast(list[int], prompt_enc["input_ids"]))
@@ -289,16 +293,17 @@ def _tokenize_batch(
                 all_labels.append(tag_id)
                 continue
 
-            if tokenizer.chat_template is not None:
+            if tokenizer.chat_template is None:
+                answer = f"{sys}\n{prompt} {id2label[tag_id]}"
+                answer_enc = tokenizer(answer, truncation=True)
+            else:
                 conv = [
                     {"role": "system", "content": sys},
-                    {"role": "user", "content": f"{prompt} {id2label[tag_id]}"},
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": id2label[tag_id]},
                 ]
 
                 answer_enc = tokenizer.apply_chat_template(conv, truncation=True)
-            else:
-                answer = f"{sys}\n{prompt} {id2label[tag_id]}"
-                answer_enc = tokenizer(answer, truncation=True)
 
             answer_enc = cast(BatchEncoding, answer_enc)
             labels_enc = cast(list[int], answer_enc["input_ids"]).copy()
