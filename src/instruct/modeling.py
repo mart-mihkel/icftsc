@@ -1,4 +1,3 @@
-import json
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -51,7 +50,7 @@ class LoggerCallback(TrainerCallback):
 
         logs = kwargs.get("logs")
         if logs:
-            logger.info(json.dumps(logs, indent=4))
+            logger.info(logs)
 
 
 def get_arch(config: PreTrainedConfig) -> Architecture:
@@ -111,8 +110,6 @@ def get_model(
             device_map="auto",
             dtype=dtype,
         )
-    else:
-        raise NotImplementedError(f"architecture '{arch}'")
 
     config = model.config
     if "text_config" in config:
@@ -171,15 +168,11 @@ def get_pt_model(
         task_type = TaskType.CAUSAL_LM
     elif arch == "encoder-decoder":
         task_type = TaskType.SEQ_2_SEQ_LM
-    else:
-        raise NotImplementedError(f"architecture '{arch}'")
 
     if prefix_init == "pretrained":
         init = "TEXT"
     elif prefix_init == "random":
         init = "RANDOM"
-    else:
-        raise NotImplementedError(f"prefix init '{prefix_init}'")
 
     special_kwargs = {}
     if "distilbert" in model_path:

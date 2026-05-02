@@ -51,13 +51,14 @@ def test_obl_seq2seq(t5_tokenizer: PreTrainedTokenizerFast) -> None:
     assert all(label >= 0 for label in train_sample["labels"])
 
 
-def test_obl_n_shot(bert_tokenizer: PreTrainedTokenizerFast) -> None:
+def test_obl_n_shot(gpt2_tokenizer: PreTrainedTokenizerFast) -> None:
     n_shot = 3
-    _, info = load_obl(bert_tokenizer, "encoder", n_shot)
+    data, _ = load_obl(gpt2_tokenizer, "encoder", n_shot)
 
-    assert info["system_prompt"].count("Lause:") == n_shot
-    assert info["system_prompt"].count("Fraas:") == n_shot
-    assert info["system_prompt"].count("Kategooria:") == n_shot
+    sample = gpt2_tokenizer.decode(data["train"][0]["input_ids"])
+    assert sample.count("Lause:") == n_shot
+    assert sample.count("Fraas:") == n_shot
+    assert sample.count("Kategooria:") == n_shot
 
 
 def test_obl_invalid_n_shot(

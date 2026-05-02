@@ -1,4 +1,3 @@
-import json
 from collections import Counter
 from collections.abc import Callable
 
@@ -134,8 +133,8 @@ def compute_metrics_seq_cls(
     _labels_count = Counter(all_labels[mask].tolist())
     _preds_count = Counter(all_preds[mask].tolist())
 
-    logger.debug("labels: %s", json.dumps(_labels_count, indent=4))
-    logger.debug("predictions: %s", json.dumps(_preds_count, indent=4))
+    logger.debug("labels: %s", _labels_count)
+    logger.debug("predictions: %s", _preds_count)
 
     return _compute_classification_metrics(all_labels[mask], all_preds[mask])
 
@@ -171,8 +170,8 @@ def compute_metrics_seq2seq(
     _refs_count = Counter(references)
     _preds_count = Counter(predictions)
 
-    logger.debug("references: %s", json.dumps(_refs_count, indent=4))
-    logger.debug("predictions: %s", json.dumps(_preds_count, indent=4))
+    logger.debug("references: %s", _refs_count)
+    logger.debug("predictions: %s", _preds_count)
 
     return _compute_classification_metrics(references, predictions)
 
@@ -211,8 +210,8 @@ def compute_metrics_causal_lm(
     _refs_count = Counter(references)
     _preds_count = Counter(predictions)
 
-    logger.debug("references: %s", json.dumps(_refs_count, indent=4))
-    logger.debug("predictions: %s", json.dumps(_preds_count, indent=4))
+    logger.debug("references: %s", _refs_count)
+    logger.debug("predictions: %s", _preds_count)
 
     return _compute_classification_metrics(references, predictions)
 
@@ -238,5 +237,3 @@ def get_metrics_fn(
             compute_result=compute_result,
             tokenizer=tokenizer,
         )
-
-    raise NotImplementedError(f"architecture '{arch}'")

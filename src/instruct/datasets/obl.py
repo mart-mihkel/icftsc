@@ -55,7 +55,7 @@ label2id: dict[OblLabel, int] = {
     "kaheldav": 4,
 }
 
-examples = [
+shots = [
     (
         "Lause: Ilma vihmavarjuta ei oleks me kuiva nahaga koju jõudnud .\n"
         "Fraas: Ilma vihmavarjuta\n"
@@ -140,41 +140,36 @@ def _encdec_prompt(example: OblExample) -> str:
     """).strip()
 
 
-def _get_sys_prompt(
-    tokenizer: PreTrainedTokenizerFast,
-    arch: Architecture,
-    n_shot: int,
-) -> str:
-    assert n_shot <= len(examples), "requested more examples than exist"
-
+def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, arch: Architecture) -> str:
     if arch == "encoder":
-        prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
-    elif arch == "decoder":
-        prompt = _dec_sys_prompt()
-    elif arch == "encoder-decoder":
-        prompt = _encdec_sys_prompt()
-    else:
-        raise NotImplementedError(f"architecture '{arch}'")
+        return _enc_sys_prompt(sep=tokenizer.sep_token)
 
-    shots = "\n".join(examples[:n_shot])
-    return f"{prompt}\n{shots}"
+    if arch == "decoder":
+        return _dec_sys_prompt()
+
+    if arch == "encoder-decoder":
+        return _encdec_sys_prompt()
 
 
 def _get_prompt(
     tokenizer: PreTrainedTokenizerFast,
     arch: Architecture,
     example: OblExample,
+    n_shot: int,
 ) -> str:
     if arch == "encoder":
-        return _enc_prompt(example, tokenizer.sep_token)
+        prompt = _enc_prompt(example, tokenizer.sep_token)
+    elif arch == "decoder":
+        prompt = _dec_prompt(example)
+    elif arch == "encoder-decoder":
+        prompt = _encdec_prompt(example)
 
-    if arch == "decoder":
-        return _dec_prompt(example)
+    if n_shot > 0:
+        assert n_shot <= len(shots), "requested more examples than exist"
+        prompt_shots = "\n".join(shots[:n_shot])
+        prompt = f"{prompt_shots}\n{prompt}"
 
-    if arch == "encoder-decoder":
-        return _encdec_prompt(example)
-
-    raise NotImplementedError(f"architecture '{arch}'")
+    return prompt
 
 
 def _tokenize(
@@ -183,8 +178,8 @@ def _tokenize(
     arch: Architecture,
     n_shot: int,
 ) -> BatchEncoding:
-    sys = _get_sys_prompt(tokenizer, arch, n_shot)
-    prompt = _get_prompt(tokenizer, arch, example)
+    sys = _get_sys_prompt(tokenizer, arch)
+    prompt = _get_prompt(tokenizer, arch, example, n_shot)
     label = example["label"]
 
     if tokenizer.chat_template is not None:
@@ -227,8 +222,6 @@ def _tokenize(
         idx = prompt_len - int(labels_enc[-1] == tokenizer.eos_token_id)
         answer_enc["labels"] = labels_enc[idx:]
         return answer_enc
-
-    raise NotImplementedError(f"architecture '{arch}'")
 
 
 def _translate_entoet(example: OblExample) -> OblExample:
@@ -279,7 +272,7 @@ def load_obl(
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=_get_sys_prompt(tokenizer, arch, n_shot),
+        system_prompt=_get_sys_prompt(tokenizer, arch),
     )
 
     return data, info
