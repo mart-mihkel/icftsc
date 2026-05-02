@@ -81,16 +81,17 @@ def test_estner_seq2seq(
 
 
 def test_estner_n_shot(
-    bert_tokenizer: PreTrainedTokenizerFast,
+    gpt2_tokenizer: PreTrainedTokenizerFast,
     estner: DatasetDict,
 ) -> None:
     n_shot = 3
     with patch("instruct.datasets.estner.load_dataset", return_value=estner):
-        _, info = load_estner(bert_tokenizer, "encoder", n_shot)
+        data, _ = load_estner(gpt2_tokenizer, "encoder", n_shot)
 
-    assert info["system_prompt"].count("Lause:") == n_shot
-    assert info["system_prompt"].count("Nimeüksus:") == n_shot
-    assert info["system_prompt"].count("Märgend:") == n_shot
+    sample = gpt2_tokenizer.decode(data["train"][0]["input_ids"])
+    assert sample.count("Lause:") == n_shot
+    assert sample.count("Nimeüksus:") == n_shot
+    assert sample.count("Märgend:") == n_shot
 
 
 def test_estner_invalid_n_shot(

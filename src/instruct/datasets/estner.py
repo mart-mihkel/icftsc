@@ -159,24 +159,15 @@ def _encdec_prompt(sentence: str, entity: str) -> str:
     """).strip()
 
 
-def _get_sys_prompt(
-    tokenizer: PreTrainedTokenizerFast,
-    arch: Architecture,
-    n_shot: int,
-) -> str:
-    assert n_shot <= len(examples), "requested more examples than exist"
-
+def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, arch: Architecture) -> str:
     if arch == "encoder":
-        prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
-    elif arch == "decoder":
-        prompt = _dec_sys_prompt()
-    elif arch == "encoder-decoder":
-        prompt = _encdec_sys_prompt()
-    else:
-        raise NotImplementedError(f"architecture '{arch}'")
+        return _enc_sys_prompt(sep=tokenizer.sep_token)
 
-    shots = "\n".join(examples[:n_shot])
-    return f"{prompt}\n{shots}"
+    if arch == "decoder":
+        return _dec_sys_prompt()
+
+    if arch == "encoder-decoder":
+        return _encdec_sys_prompt()
 
 
 def _get_prompt(
@@ -184,17 +175,21 @@ def _get_prompt(
     arch: Architecture,
     sentence: str,
     entity: str,
+    n_shot: int,
 ) -> str:
     if arch == "encoder":
-        return _enc_prompt(sentence, entity, tokenizer.sep_token)
+        prompt = _enc_prompt(sentence, entity, tokenizer.sep_token)
+    elif arch == "decoder":
+        prompt = _dec_prompt(sentence, entity)
+    elif arch == "encoder-decoder":
+        prompt = _encdec_prompt(sentence, entity)
 
-    if arch == "decoder":
-        return _dec_prompt(sentence, entity)
+    if n_shot > 0:
+        assert n_shot <= len(examples), "requested more examples than exist"
+        prompt_shots = "\n".join(examples[:n_shot])
+        prompt = f"{prompt_shots}\n{prompt}"
 
-    if arch == "encoder-decoder":
-        return _encdec_prompt(sentence, entity)
-
-    raise NotImplementedError(f"architecture '{arch}'")
+    return prompt
 
 
 def _tokenize_batch(
@@ -205,22 +200,20 @@ def _tokenize_batch(
 ) -> dict[str, list]:
     all_ids, all_attn, all_labels = [], [], []
 
+    sys = _get_sys_prompt(tokenizer, arch)
     for tokens, tags in zip(examples["tokens"], examples["ner_tags"], strict=True):
         sentence = " ".join(tokens)
         entities, tags = _join_spans(tokens, tags)
 
         for entity, tag in zip(entities, tags, strict=True):
-            sys = _get_sys_prompt(tokenizer, arch, n_shot)
-            prompt = _get_prompt(tokenizer, arch, sentence, entity)
-
+            prompt = _get_prompt(tokenizer, arch, sentence, entity, n_shot)
             if tokenizer.chat_template is not None:
-                _kwargs = {"truncation": True}
                 conv = [
                     {"role": "system", "content": sys},
                     {"role": "user", "content": prompt},
                 ]
 
-                tokenizer.apply_chat_template(conv, truncation=True)
+                prompt_enc = tokenizer.apply_chat_template(conv, truncation=True)
             else:
                 prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
 
@@ -234,13 +227,12 @@ def _tokenize_batch(
                 continue
 
             if tokenizer.chat_template is not None:
-                _kwargs = {"truncation": True}
                 conv = [
                     {"role": "system", "content": sys},
                     {"role": "user", "content": f"{prompt} {tag}"},
                 ]
 
-                tokenizer.apply_chat_template(conv, truncation=True)
+                answer_enc = tokenizer.apply_chat_template(conv, truncation=True)
             else:
                 answer = f"{sys}\n{prompt} {tag}"
                 answer_enc = tokenizer(answer, truncation=True)
@@ -260,8 +252,6 @@ def _tokenize_batch(
                 idx = prompt_len - int(labels_enc[-1] == tokenizer.eos_token_id)
                 all_labels.append(labels_enc[idx:])
                 continue
-
-            raise NotImplementedError(f"architecture '{arch}'")
 
     return {"input_ids": all_ids, "attention_mask": all_attn, "labels": all_labels}
 
@@ -321,7 +311,7 @@ def load_estner(
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=_get_sys_prompt(tokenizer, arch, n_shot),
+        system_prompt=_get_sys_prompt(tokenizer, arch),
     )
 
     return data, info
