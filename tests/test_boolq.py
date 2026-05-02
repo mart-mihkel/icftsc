@@ -67,16 +67,17 @@ def test_boolq_seq2seq(
 
 
 def test_boolq_n_shot(
-    bert_tokenizer: PreTrainedTokenizerFast,
+    gpt2_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
 ) -> None:
     n_shot = 3
     with patch("instruct.datasets.boolq.load_dataset", return_value=boolq):
-        _, info = load_boolq(bert_tokenizer, "encoder", n_shot)
+        data, _ = load_boolq(gpt2_tokenizer, "encoder", n_shot)
 
-    assert info["system_prompt"].count("Passage:") == n_shot
-    assert info["system_prompt"].count("Question:") == n_shot
-    assert info["system_prompt"].count("Answer:") == n_shot
+    sample = gpt2_tokenizer.decode(data["train"][0]["input_ids"])
+    assert sample.count("Passage:") == n_shot
+    assert sample.count("Question:") == n_shot
+    assert sample.count("Answer:") == n_shot
 
 
 def test_boolq_invalid_n_shot(
