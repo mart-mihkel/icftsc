@@ -12,13 +12,13 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 
-from icftsc.datasets.boolq import load_boolq
-from icftsc.datasets.estner import load_estner
-from icftsc.datasets.multinerd import load_multinerd
-from icftsc.datasets.obl import load_obl
-from icftsc.datasets.wic import load_wic
-from icftsc.logging import logger
-from icftsc.types import Architecture, DatasetInfo, DatasetName
+from instruct.datasets.boolq import load_boolq
+from instruct.datasets.estner import load_estner
+from instruct.datasets.multinerd import load_multinerd
+from instruct.datasets.obl import load_obl
+from instruct.datasets.wic import load_wic
+from instruct.logging import logger
+from instruct.types import Architecture, DatasetInfo, DatasetName
 
 
 @dataclass

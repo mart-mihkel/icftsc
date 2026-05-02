@@ -7,8 +7,8 @@ from datasets.splits import Split
 from datasets.utils.info_utils import VerificationMode
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from icftsc.logging import logger
-from icftsc.types import Architecture, DatasetInfo
+from instruct.logging import logger
+from instruct.types import Architecture, DatasetInfo
 
 type MultinerdLang = Literal[
     "zh",

@@ -4,14 +4,14 @@ import pytest
 from datasets.dataset_dict import DatasetDict
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.datasets.boolq import load_boolq
+from instruct.datasets.boolq import load_boolq
 
 
 def test_boolq_seqcls(
     bert_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
+    with patch("instruct.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(bert_tokenizer, "encoder", 0)
 
     assert len(data["train"]) > 0
@@ -30,7 +30,7 @@ def test_boolq_causal(
     gpt2_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
+    with patch("instruct.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(gpt2_tokenizer, "decoder", 0)
 
     assert len(data["train"]) > 0
@@ -51,7 +51,7 @@ def test_boolq_seq2seq(
     t5_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
+    with patch("instruct.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(t5_tokenizer, "encoder-decoder", 0)
 
     assert len(data["train"]) > 0
@@ -71,7 +71,7 @@ def test_boolq_n_shot(
     boolq: DatasetDict,
 ) -> None:
     n_shot = 3
-    with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
+    with patch("instruct.datasets.boolq.load_dataset", return_value=boolq):
         _, info = load_boolq(bert_tokenizer, "encoder", n_shot)
 
     assert info["system_prompt"].count("Passage:") == n_shot
@@ -85,6 +85,6 @@ def test_boolq_invalid_n_shot(
 ) -> None:
     with (
         pytest.raises(AssertionError, match="requested more examples than exist"),
-        patch("icftsc.datasets.boolq.load_dataset", return_value=boolq),
+        patch("instruct.datasets.boolq.load_dataset", return_value=boolq),
     ):
         load_boolq(bert_tokenizer, "encoder", 100)

@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from typer import Option, Typer
 
-from icftsc.types import DatasetName, PrefixInit
+from instruct.types import DatasetName, PrefixInit
 
 app = Typer(no_args_is_help=True)
 
@@ -29,7 +29,7 @@ def fine_tune(
         bool,
         Option(help="Freeze all parameters except for classifier head"),
     ] = False,
-    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
+    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 0,
     n_train_samples: Annotated[
         int | None,
         Option(help="If present take a subset of tokenized train data"),
@@ -53,8 +53,8 @@ def fine_tune(
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
     seed: Annotated[int | None, Option(help="Random seed")] = None,
 ) -> None:
-    from icftsc.logging import logger
-    from icftsc.scripts.fine_tune import fine_tune
+    from instruct.logging import logger
+    from instruct.scripts.fine_tune import fine_tune
 
     if seed is not None:
         _set_seed(seed)
@@ -84,7 +84,7 @@ def prompt_tune(
         PrefixInit.__value__,
         Option(help="Prefix initialization method"),
     ],
-    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
+    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 0,
     n_train_samples: Annotated[
         int | None,
         Option(help="If present take a subset of tokenized train data"),
@@ -108,8 +108,8 @@ def prompt_tune(
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
     seed: Annotated[int | None, Option(help="Random seed")] = None,
 ) -> None:
-    from icftsc.logging import logger
-    from icftsc.scripts.prompt_tune import prompt_tune
+    from instruct.logging import logger
+    from instruct.scripts.prompt_tune import prompt_tune
 
     if seed is not None:
         _set_seed(seed)
@@ -148,8 +148,8 @@ def few_shot(
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
     seed: Annotated[int | None, Option(help="Random seed")] = None,
 ) -> None:
-    from icftsc.logging import logger
-    from icftsc.scripts.few_shot import few_shot
+    from instruct.logging import logger
+    from instruct.scripts.few_shot import few_shot
 
     if seed is not None:
         _set_seed(seed)
@@ -174,8 +174,8 @@ def collect_metrics(
     ] = None,
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ) -> None:
-    from icftsc.logging import logger
-    from icftsc.scripts.tracking import collect_metrics
+    from instruct.logging import logger
+    from instruct.scripts.tracking import collect_metrics
 
     logger.setLevel(log_level)
     collect_metrics(experiment, mlflow_tracking_uri, write_csv=True)

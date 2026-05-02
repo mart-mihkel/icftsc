@@ -1,7 +1,7 @@
 [project]
-name = "icftsc"
+name = "instruct"
 version = "0.1.0"
-description = "In-Context Fine-Tuning for Sequence Classification"
+description = "Machine learning based language model prompting"
 readme = "README.md"
 requires-python = "==3.14.3"
 dependencies = [
@@ -29,8 +29,8 @@ dev = [
     "ipython==9.11.0",
     "marimo==0.23.0",
     "pytest==9.0.3",
-    "ruff==0.15.10",
-    "ty==0.0.29",
+    "ruff==0.15.12",
+    "ty==0.0.33",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +42,7 @@ cu128 = [
 ]
 
 [project.scripts]
-cli = "icftsc.scripts.cli:app"
+cli = "instruct.scripts.cli:app"
 
 [build-system]
 requires = ["hatchling==1.29"]

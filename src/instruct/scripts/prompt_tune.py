@@ -5,11 +5,11 @@ from peft import PromptTuningConfig
 from torch.utils.data import Dataset
 from transformers import AutoConfig
 
-from icftsc.datasets.util import get_collator, load_data, load_tokenizer
-from icftsc.logging import logger
-from icftsc.metrics import get_metrics_fn
-from icftsc.modeling import get_arch, get_pt_model, get_trainer
-from icftsc.types import DatasetName, PrefixInit
+from instruct.datasets.util import get_collator, load_data, load_tokenizer
+from instruct.logging import logger
+from instruct.metrics import get_metrics_fn
+from instruct.modeling import get_arch, get_pt_model, get_trainer
+from instruct.types import DatasetName, PrefixInit
 
 
 def prompt_tune(
@@ -59,7 +59,7 @@ def prompt_tune(
     ptcfg = cast(PromptTuningConfig, model.peft_config["default"])
 
     if experiment is None:
-        experiment = f"icftsc-{dataset}"
+        experiment = f"instruct-{dataset}"
 
     if run_name is None:
         run_name = f"{model_path}/{prefix_init}-prefix"

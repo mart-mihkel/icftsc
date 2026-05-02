@@ -1,7 +1,7 @@
 import pytest
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.datasets.obl import load_obl
+from instruct.datasets.obl import load_obl
 
 
 def test_obl_seqcls(bert_tokenizer: PreTrainedTokenizerFast) -> None:

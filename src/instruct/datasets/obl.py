@@ -5,8 +5,8 @@ from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 
-from icftsc.logging import logger
-from icftsc.types import Architecture, DatasetInfo
+from instruct.logging import logger
+from instruct.types import Architecture, DatasetInfo
 
 _permalink = (
     "https://raw.githubusercontent.com/estnltk/estnltk-model-data/"
@@ -100,11 +100,11 @@ def _dec_sys_prompt() -> str:
         Sa oled liigse fraasi märgendamise mudel.
         Liigita eemaldatud fraas ühte kategooriasse:
 
-        - seotud: vajalik grammatilise struktuuri jaoks, eemaldamine rikub grammatika
-        - ebaloomulik: grammatiliselt korrektne, kuid kohmakas või mittekeeleomane
         - liigne koma: ebavajalik või vale koma
-        - vaba: valikuline, eemaldatav ilma tähendust või grammatikat muutmata
+        - ebaloomulik: grammatiliselt korrektne, kuid kohmakas või mittekeeleomane
         - kaheldav: ebaselge või piiripealne juhtum
+        - seotud: vajalik grammatilise struktuuri jaoks, eemaldamine rikub grammatika
+        - vaba: eemaldatav ilma tähendust või grammatikat muutmata
 
         Väljasta ainult kategooria.
     """).strip()
@@ -122,11 +122,11 @@ def _encdec_sys_prompt() -> str:
     return dedent("""
         liigse fraasi märgendamine: liigita eemaldatud tekst ühte viiest kategooriast.
 
-        seotud: vajalik grammatilise struktuuri jaoks; eemaldamine rikub grammatika
-        ebaloomulik: grammatiliselt valikuline, kuid kohmakas või mittekeeleomane
         liigne koma: ebavajalik või vale koma
-        vaba: valikuline; eemaldatav ilma tähendust või grammatikat muutmata
+        ebaloomulik: grammatiliselt valikuline, kuid kohmakas või mittekeeleomane
         kaheldav: ebaselge või piiripealne juhtum
+        seotud: vajalik grammatilise struktuuri jaoks; eemaldamine rikub grammatika
+        vaba: eemaldatav ilma tähendust või grammatikat muutmata
 
         väljasta ainult kategooria
     """).strip()

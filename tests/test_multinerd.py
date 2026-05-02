@@ -4,7 +4,7 @@ import pytest
 from datasets.dataset_dict import DatasetDict
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.datasets.multinerd import _join_spans, load_multinerd
+from instruct.datasets.multinerd import _join_spans, load_multinerd
 
 
 def test_join_spans() -> None:
@@ -20,7 +20,7 @@ def test_multinerd_seqcls(
     bert_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
+    with patch("instruct.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(bert_tokenizer, "encoder", 0, False)
 
     assert len(data["train"]) > 0
@@ -39,7 +39,7 @@ def test_multinerd_causal(
     gpt2_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
+    with patch("instruct.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(gpt2_tokenizer, "decoder", 0, False)
 
     assert len(data["train"]) > 0
@@ -60,7 +60,7 @@ def test_multinerd_seq2seq(
     t5_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
+    with patch("instruct.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(t5_tokenizer, "encoder-decoder", 0, False)
 
     assert len(data["train"]) > 0
@@ -80,7 +80,7 @@ def test_multinerd_n_shot(
     multinerd: DatasetDict,
 ) -> None:
     n_shot = 3
-    with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
+    with patch("instruct.datasets.multinerd.load_dataset", return_value=multinerd):
         _, info = load_multinerd(bert_tokenizer, "encoder", n_shot, False)
 
     assert info["system_prompt"].count("Sentence:") == n_shot

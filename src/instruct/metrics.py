@@ -9,8 +9,8 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from torch.fft import Tensor
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
-from icftsc.logging import logger
-from icftsc.types import Architecture
+from instruct.logging import logger
+from instruct.types import Architecture
 
 _bleu = evaluate.load("bleu")
 _rouge = evaluate.load("rouge")

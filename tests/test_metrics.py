@@ -1,7 +1,7 @@
 import numpy as np
 from transformers import EvalPrediction, PreTrainedTokenizerFast
 
-from icftsc.metrics import (
+from instruct.metrics import (
     _filter_gibberish,
     compute_metrics_causal_lm,
     compute_metrics_seq2seq,

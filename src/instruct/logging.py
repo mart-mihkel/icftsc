@@ -44,4 +44,4 @@ _tf_logger = logging.getLogger("transformers")
 _tf_logger.handlers = [_handler]
 _tf_logger.propagate = True
 
-logger = logging.getLogger("icftsc")
+logger = logging.getLogger("instruct")

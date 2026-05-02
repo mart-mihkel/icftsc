@@ -15,8 +15,8 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 
-from icftsc.modeling import get_pt_model
-from icftsc.types import DatasetInfo
+from instruct.modeling import get_pt_model
+from instruct.types import DatasetInfo
 
 _split = {
     "train": "train[:10]",

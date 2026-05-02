@@ -28,15 +28,15 @@ from transformers import (
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
-from icftsc.constants import (
+from instruct.constants import (
     decoder_model_types,
     encoder_decoder_model_types,
     encoder_model_types,
     logdir,
 )
-from icftsc.datasets.util import DatasetInfo
-from icftsc.logging import logger
-from icftsc.types import Architecture, PrefixInit
+from instruct.datasets.util import DatasetInfo
+from instruct.logging import logger
+from instruct.types import Architecture, PrefixInit
 
 
 class LoggerCallback(TrainerCallback):

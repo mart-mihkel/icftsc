@@ -4,11 +4,11 @@ from datasets.dataset_dict import DatasetDict
 from peft import PeftModel
 from transformers import PreTrainedModel, PreTrainedTokenizerFast
 
-from icftsc.datasets.boolq import load_boolq
-from icftsc.datasets.estner import load_estner
-from icftsc.datasets.multinerd import load_multinerd
-from icftsc.datasets.util import get_collator
-from icftsc.datasets.wic import load_wic
+from instruct.datasets.boolq import load_boolq
+from instruct.datasets.estner import load_estner
+from instruct.datasets.multinerd import load_multinerd
+from instruct.datasets.util import get_collator
+from instruct.datasets.wic import load_wic
 
 _arch = "encoder-decoder"
 
@@ -18,7 +18,7 @@ def test_t5_wic_forward(
     t5_tokenizer: PreTrainedTokenizerFast,
     wic: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
+    with patch("instruct.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(t5_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
@@ -36,7 +36,7 @@ def test_t5_boolq_forward(
     t5_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
+    with patch("instruct.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(t5_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
@@ -54,7 +54,7 @@ def test_t5_estner_forward(
     t5_tokenizer: PreTrainedTokenizerFast,
     estner: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
+    with patch("instruct.datasets.estner.load_dataset", return_value=estner):
         data, _ = load_estner(t5_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
@@ -72,7 +72,7 @@ def test_t5_multinerd_forward(
     t5_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
+    with patch("instruct.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(t5_tokenizer, _arch, 0, False)
 
     examples = [data["train"][i] for i in range(4)]
@@ -90,7 +90,7 @@ def test_pt_t5_wic_forward(
     t5_tokenizer: PreTrainedTokenizerFast,
     wic: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.wic.load_dataset", return_value=wic):
+    with patch("instruct.datasets.wic.load_dataset", return_value=wic):
         data, _ = load_wic(t5_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
@@ -108,7 +108,7 @@ def test_pt_t5_boolq_forward(
     t5_tokenizer: PreTrainedTokenizerFast,
     boolq: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.boolq.load_dataset", return_value=boolq):
+    with patch("instruct.datasets.boolq.load_dataset", return_value=boolq):
         data, _ = load_boolq(t5_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
@@ -126,7 +126,7 @@ def test_pt_t5_estner_forward(
     t5_tokenizer: PreTrainedTokenizerFast,
     estner: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.estner.load_dataset", return_value=estner):
+    with patch("instruct.datasets.estner.load_dataset", return_value=estner):
         data, _ = load_estner(t5_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
@@ -144,7 +144,7 @@ def test_pt_t5_multinerd_forward(
     t5_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
 ) -> None:
-    with patch("icftsc.datasets.multinerd.load_dataset", return_value=multinerd):
+    with patch("instruct.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(t5_tokenizer, _arch, 0, False)
 
     examples = [data["train"][i] for i in range(4)]

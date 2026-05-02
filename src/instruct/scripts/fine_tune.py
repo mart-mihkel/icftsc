@@ -1,22 +1,27 @@
 from typing import cast
 
 import mlflow
-from datasets.splits import Split
 from torch.utils.data import Dataset
 from transformers import AutoConfig
 
-from icftsc.datasets.util import get_collator, load_data, load_tokenizer
-from icftsc.logging import logger
-from icftsc.metrics import get_metrics_fn
-from icftsc.modeling import get_arch, get_model, get_trainer
-from icftsc.types import DatasetName
+from instruct.datasets.util import get_collator, load_data, load_tokenizer
+from instruct.logging import logger
+from instruct.metrics import get_metrics_fn
+from instruct.modeling import get_arch, get_model, get_trainer
+from instruct.types import DatasetName
 
 
-def few_shot(
+def fine_tune(
     model_path: str,
     dataset: DatasetName,
+    head_only: bool,
     n_shot: int,
+    n_train_samples: int | None,
+    n_dev_samples: int | None,
+    do_eval: bool,
+    epochs: int,
     batch_size: int,
+    learning_rate: float,
     experiment: str | None,
     run_name: str | None,
 ) -> None:
@@ -27,25 +32,34 @@ def few_shot(
     tokenizer = load_tokenizer(model_path)
     collate_fn = get_collator(tokenizer, arch)
     metrics_fn = get_metrics_fn(tokenizer, arch)
-
-    split = cast(Split, {"test": "test"})
-    data, info = load_data(tokenizer, dataset, arch, n_shot, split=split)
+    data, info = load_data(
+        tokenizer,
+        dataset,
+        arch,
+        n_shot,
+        n_train_samples,
+        n_dev_samples,
+    )
 
     if dataset == "boolq" or dataset == "wic":
-        logger.warning("using superglue dev data, test labels are private")
+        logger.warning("using superglue dev data for test, labels are private")
         data["test"] = data["dev"]
 
     logger.info("load '%s'", model_path)
-    model = get_model(tokenizer, model_path, info, arch, head_only=False)
+    model = get_model(tokenizer, model_path, info, arch, head_only)
 
     total = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     if experiment is None:
-        experiment = f"icftsc-{dataset}"
+        experiment = f"instruct-{dataset}"
 
     if run_name is None:
-        run_name = f"{model_path}/few-shot"
+        ft_task = "cls-head" if head_only else "fine-tune"
+        run_name = f"{model_path}/{ft_task}"
 
+    logger.info("total parameters %d", total)
+    logger.info("trainable parameters %d", trainable)
     logger.info("tracking '%s' of experiment '%s'", run_name, experiment)
 
     mlflow.set_experiment(experiment)
@@ -53,25 +67,31 @@ def few_shot(
     mlflow.log_param("n_shot", n_shot)
     mlflow.log_param("dataset", dataset)
     mlflow.log_param("architecture", arch)
+    mlflow.log_param("head_only", head_only)
     mlflow.log_param("base_model", model_path)
-    mlflow.log_param("method", f"{n_shot}-shot")
     mlflow.log_param("system_prompt", info["system_prompt"])
-    mlflow.log_metric("train_samples", 0)
-    mlflow.log_metric("dev_samples", 0)
+    mlflow.log_param("method", "cls-head" if head_only else "fine-tune")
+    mlflow.log_metric("train_samples", len(data["train"]))
+    mlflow.log_metric("dev_samples", len(data["dev"]) if do_eval else 0)
     mlflow.log_metric("test_samples", len(data["test"]))
     mlflow.log_metric("total_parameters", total)
-    mlflow.log_metric("trainable_parameters", 0)
+    mlflow.log_metric("trainable_parameters", trainable)
 
     trainer = get_trainer(
         model=model,
         data=data,
         collate_fn=collate_fn,
         metrics_fn=metrics_fn,
-        do_eval=False,
+        do_eval=do_eval,
+        epochs=epochs,
+        learning_rate=learning_rate,
         batch_size=batch_size,
         run_name=run_name,
         report_to="mlflow",
     )
+
+    logger.debug("start trainer")
+    trainer.train()
 
     logger.debug("start test eval")
     test = cast(Dataset, data["test"])

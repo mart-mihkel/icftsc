@@ -3,8 +3,8 @@ import os
 from mlflow.tracking import MlflowClient
 from polars import DataFrame
 
-from icftsc.constants import logdir
-from icftsc.logging import logger
+from instruct.constants import logdir
+from instruct.logging import logger
 
 
 def collect_metrics(

@@ -9,9 +9,9 @@ with app.setup:
     import plotnine as pn
     import polars as pl
 
-    from icftsc.constants import logdir
-    from icftsc.logging import logger
-    from icftsc.scripts.tracking import collect_metrics
+    from instruct.constants import logdir
+    from instruct.logging import logger
+    from instruct.scripts.tracking import collect_metrics
 
     logger.setLevel("INFO")
     figpath = logdir / "fig" / "multinerd"
@@ -21,7 +21,7 @@ with app.setup:
 @app.cell
 def _():
     _tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
-    _experiment = "icftsc-multinerd"
+    _experiment = "instruct-multinerd"
     df = collect_metrics(_tracking_uri, _experiment, write_csv=False)
     return (df,)
 

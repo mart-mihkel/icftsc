@@ -1,6 +1,6 @@
 from transformers import PreTrainedTokenizerFast
 
-from icftsc.datasets.util import get_collator
+from instruct.datasets.util import get_collator
 
 
 def test_collator_with_labels(gpt2_tokenizer: PreTrainedTokenizerFast) -> None:
