@@ -48,7 +48,7 @@ class MultinerdExamples(TypedDict):
     lang: list[MultinerdLang]
 
 
-_id2label_full: dict[int, str] = {
+_id2label_bio: dict[int, str] = {
     0: "O",
     1: "B-PER",
     2: "I-PER",
@@ -118,7 +118,7 @@ label2id: dict[MultinerdTag, int] = {
     "VEHI": 14,
 }
 
-examples = [
+shots = [
     ("Sentence: John works at Google in California.\nEntity: John\nTag: PER\n"),
     ("Sentence: Paris is the capital of France.\nEntity: Paris\nTag: LOC\n"),
     ("Sentence: The dog chased the cat across the garden.\nEntity: dog\nTag: ANIM\n"),
@@ -219,24 +219,15 @@ def _encdec_prompt(sentence: str, entity: str) -> str:
     """).strip()
 
 
-def _get_sys_prompt(
-    tokenizer: PreTrainedTokenizerFast,
-    arch: Architecture,
-    n_shot: int,
-) -> str:
-    assert n_shot <= len(examples), "requested more examples than exist"
-
+def _get_sys_prompt(tokenizer: PreTrainedTokenizerFast, arch: Architecture) -> str:
     if arch == "encoder":
-        prompt = _enc_sys_prompt(sep=tokenizer.sep_token)
-    elif arch == "decoder":
-        prompt = _dec_sys_prompt()
-    elif arch == "encoder-decoder":
-        prompt = _encdec_sys_prompt()
-    else:
-        raise NotImplementedError(f"architecture '{arch}'")
+        return _enc_sys_prompt(sep=tokenizer.sep_token)
 
-    shots = "\n".join(examples[:n_shot])
-    return f"{prompt}\n{shots}"
+    if arch == "decoder":
+        return _dec_sys_prompt()
+
+    if arch == "encoder-decoder":
+        return _encdec_sys_prompt()
 
 
 def _get_prompt(
@@ -244,17 +235,21 @@ def _get_prompt(
     arch: Architecture,
     sentence: str,
     entity: str,
+    n_shot: int,
 ) -> str:
     if arch == "encoder":
-        return _enc_prompt(sentence, entity, tokenizer.sep_token)
+        prompt = _enc_prompt(sentence, entity, tokenizer.sep_token)
+    elif arch == "decoder":
+        prompt = _dec_prompt(sentence, entity)
+    elif arch == "encoder-decoder":
+        prompt = _encdec_prompt(sentence, entity)
 
-    if arch == "decoder":
-        return _dec_prompt(sentence, entity)
+    if n_shot > 0:
+        assert n_shot <= len(shots), "requested more examples than exist"
+        prompt_shots = "\n".join(shots[:n_shot])
+        prompt = f"{prompt_shots}\n{prompt}"
 
-    if arch == "encoder-decoder":
-        return _encdec_prompt(sentence, entity)
-
-    raise NotImplementedError(f"architecture '{arch}'")
+    return prompt
 
 
 def _tokenize_batch(
@@ -265,6 +260,7 @@ def _tokenize_batch(
 ) -> dict[str, list]:
     all_ids, all_attn, all_labels = [], [], []
 
+    sys = _get_sys_prompt(tokenizer, arch)
     for tokens, tag_ids in zip(examples["tokens"], examples["ner_tags"], strict=True):
         sentence = " ".join(tokens)
         entities, tag_ids = _join_spans(tokens, tag_ids)
@@ -273,9 +269,7 @@ def _tokenize_batch(
             if tag_id == -1:
                 continue
 
-            sys = _get_sys_prompt(tokenizer, arch, n_shot)
-            prompt = _get_prompt(tokenizer, arch, sentence, entity)
-
+            prompt = _get_prompt(tokenizer, arch, sentence, entity, n_shot)
             if tokenizer.chat_template is not None:
                 conv = [
                     {"role": "system", "content": sys},
@@ -322,8 +316,6 @@ def _tokenize_batch(
                 all_labels.append(labels_enc[idx:])
                 continue
 
-            raise NotImplementedError(f"architecture '{arch}'")
-
     return {"input_ids": all_ids, "attention_mask": all_attn, "labels": all_labels}
 
 
@@ -334,7 +326,7 @@ def _join_spans(
     out_ids = []
     out_tokens = []
     for token, tag_id in zip(tokens, tag_ids, strict=True):
-        tag = _id2label_full[tag_id]
+        tag = _id2label_bio[tag_id]
 
         if tag.startswith("B-"):
             tag = cast(MultinerdTag, tag[2:])
@@ -384,10 +376,10 @@ def load_multinerd(
     data = cast(DatasetDict, data)
 
     if "validation" in data:
+        logger.debug("rename 'validation' to 'dev'")
         data["dev"] = data.pop("validation")
 
     if filter_en:
-        logger.debug("rename 'validation' to 'dev'")
         logger.warning("using english only subset")
         data = data.filter(_filter_english, batched=True)
 
@@ -408,7 +400,7 @@ def load_multinerd(
     info = DatasetInfo(
         id2label=cast(dict[int, str], id2label),
         label2id=cast(dict[str, int], label2id),
-        system_prompt=_get_sys_prompt(tokenizer, arch, n_shot),
+        system_prompt=_get_sys_prompt(tokenizer, arch),
     )
 
     return data, info

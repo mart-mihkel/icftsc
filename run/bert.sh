@@ -3,7 +3,7 @@
 #SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
 #SBATCH --job-name="deberta"
-#SBATCH --time=02:00:00
+#SBATCH --time=05:00:00
 #SBATCH --partition=gpu
 #SBATCH --mem=16GB
 
@@ -11,6 +11,9 @@ BASE_MODELS=(
     distilbert/distilbert-base-cased
     jhu-clsp/mmBERT-small
     jhu-clsp/mmBERT-base
+    EuroBERT/EuroBERT-210m
+    EuroBERT/EuroBERT-610m
+    EuroBERT/EuroBERT-2.1B
     microsoft/deberta-v3-xsmall
     microsoft/deberta-v3-small
     microsoft/deberta-v3-base

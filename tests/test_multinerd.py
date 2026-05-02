@@ -76,16 +76,17 @@ def test_multinerd_seq2seq(
 
 
 def test_multinerd_n_shot(
-    bert_tokenizer: PreTrainedTokenizerFast,
+    gpt2_tokenizer: PreTrainedTokenizerFast,
     multinerd: DatasetDict,
 ) -> None:
     n_shot = 3
     with patch("instruct.datasets.multinerd.load_dataset", return_value=multinerd):
-        _, info = load_multinerd(bert_tokenizer, "encoder", n_shot, False)
+        data, _ = load_multinerd(gpt2_tokenizer, "encoder", n_shot, False)
 
-    assert info["system_prompt"].count("Sentence:") == n_shot
-    assert info["system_prompt"].count("Entity:") == n_shot
-    assert info["system_prompt"].count("Tag:") == n_shot
+    sample = gpt2_tokenizer.decode(data["train"][0]["input_ids"])
+    assert sample.count("Sentence:") == n_shot
+    assert sample.count("Entity:") == n_shot
+    assert sample.count("Tag:") == n_shot
 
 
 def test_multinerd_invalid_n_shot(

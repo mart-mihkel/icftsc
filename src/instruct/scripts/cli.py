@@ -135,7 +135,7 @@ def prompt_tune(
 def few_shot(
     model: Annotated[str, Option(help="HuggingFace model or path to checkpoint")],
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
-    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 3,
+    n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 5,
     batch_size: int = 8,
     experiment: Annotated[
         str | None,
