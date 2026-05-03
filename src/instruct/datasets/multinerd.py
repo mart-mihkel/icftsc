@@ -258,7 +258,7 @@ def _tokenize_batch(
     arch: Architecture,
     n_shot: int,
 ) -> dict[str, list]:
-    all_ids, all_attn, all_labels = [], [], []
+    all_ids, all_attn, all_tti, all_labels = [], [], [], []
 
     sys = _get_sys_prompt(tokenizer, arch)
     for tokens, tag_ids in zip(examples["tokens"], examples["ner_tags"], strict=True):
@@ -271,7 +271,11 @@ def _tokenize_batch(
 
             prompt = _get_prompt(tokenizer, arch, sentence, entity, n_shot)
             if tokenizer.chat_template is None:
-                prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+                prompt_enc = tokenizer(
+                    f"{sys}\n{prompt}",
+                    truncation=True,
+                    return_token_type_ids=True,
+                )
             else:
                 conv = [
                     {"role": "system", "content": sys},
@@ -281,6 +285,8 @@ def _tokenize_batch(
                 prompt_enc = tokenizer.apply_chat_template(
                     conv,
                     truncation=True,
+                    return_dict=True,
+                    return_token_type_ids=True,
                     add_generation_prompt=arch != "encoder",
                 )
 
@@ -290,12 +296,17 @@ def _tokenize_batch(
             if arch == "encoder":
                 all_ids.append(prompt_enc["input_ids"])
                 all_attn.append(prompt_enc["attention_mask"])
+                all_tti.append(prompt_enc.get("token_type_ids"))
                 all_labels.append(tag_id)
                 continue
 
             if tokenizer.chat_template is None:
                 answer = f"{sys}\n{prompt} {id2label[tag_id]}"
-                answer_enc = tokenizer(answer, truncation=True)
+                answer_enc = tokenizer(
+                    answer,
+                    truncation=True,
+                    return_token_type_ids=True,
+                )
             else:
                 conv = [
                     {"role": "system", "content": sys},
@@ -303,13 +314,19 @@ def _tokenize_batch(
                     {"role": "assistant", "content": id2label[tag_id]},
                 ]
 
-                answer_enc = tokenizer.apply_chat_template(conv, truncation=True)
+                answer_enc = tokenizer.apply_chat_template(
+                    conv,
+                    truncation=True,
+                    return_dict=True,
+                    return_token_type_ids=True,
+                )
 
             answer_enc = cast(BatchEncoding, answer_enc)
             labels_enc = cast(list[int], answer_enc["input_ids"]).copy()
 
             all_ids.append(answer_enc["input_ids"])
             all_attn.append(answer_enc["attention_mask"])
+            all_tti.append(answer_enc.get("token_type_ids"))
 
             if arch == "decoder":
                 labels_enc[:prompt_len] = [-100] * prompt_len
@@ -321,7 +338,12 @@ def _tokenize_batch(
                 all_labels.append(labels_enc[idx:])
                 continue
 
-    return {"input_ids": all_ids, "attention_mask": all_attn, "labels": all_labels}
+    return {
+        "input_ids": all_ids,
+        "attention_mask": all_attn,
+        "token_type_ids": all_tti,
+        "labels": all_labels,
+    }
 
 
 def _join_spans(
@@ -357,7 +379,7 @@ def _filter_english(batch: MultinerdExamples) -> list[bool]:
 def load_multinerd(
     tokenizer: PreTrainedTokenizerFast,
     arch: Architecture,
-    n_shot: int,
+    n_shot: int = 0,
     filter_en: bool = True,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:

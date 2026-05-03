@@ -169,7 +169,11 @@ def _tokenize(
     label = _id2label[label_id]
 
     if tokenizer.chat_template is None:
-        prompt_enc = tokenizer(f"{sys}\n{prompt}", truncation=True)
+        prompt_enc = tokenizer(
+            f"{sys}\n{prompt}",
+            truncation=True,
+            return_token_type_ids=True,
+        )
     else:
         conv = [
             {"role": "system", "content": sys},
@@ -179,6 +183,8 @@ def _tokenize(
         prompt_enc = tokenizer.apply_chat_template(
             conv,
             truncation=True,
+            return_dict=True,
+            return_token_type_ids=True,
             add_generation_prompt=arch != "encoder",
         )
 
@@ -191,7 +197,11 @@ def _tokenize(
 
     if tokenizer.chat_template is None:
         answer = f"{sys}\n{prompt} {label}"
-        answer_enc = tokenizer(answer, truncation=True)
+        answer_enc = tokenizer(
+            answer,
+            truncation=True,
+            return_token_type_ids=True,
+        )
     else:
         conv = [
             {"role": "system", "content": sys},
@@ -199,7 +209,12 @@ def _tokenize(
             {"role": "assistant", "content": label},
         ]
 
-        answer_enc = tokenizer.apply_chat_template(conv, truncation=True)
+        answer_enc = tokenizer.apply_chat_template(
+            conv,
+            truncation=True,
+            return_dict=True,
+            return_token_type_ids=True,
+        )
 
     answer_enc = cast(BatchEncoding, answer_enc)
     labels_enc = cast(list[int], answer_enc["input_ids"]).copy()
@@ -218,7 +233,7 @@ def _tokenize(
 def load_wic(
     tokenizer: PreTrainedTokenizerFast,
     arch: Architecture,
-    n_shot: int,
+    n_shot: int = 0,
     split: Split | None = None,
 ) -> tuple[DatasetDict, DatasetInfo]:
     data = cast(DatasetDict, load_dataset("super_glue", "wic", split=split))

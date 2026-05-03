@@ -4,6 +4,7 @@ from typing import Any, cast
 import torch
 from datasets.dataset_dict import DatasetDict
 from peft import PeftModel, PromptTuningConfig, TaskType, get_peft_model
+from torch import Tensor
 from torch.nn import Module
 from transformers import (
     AutoModelForCausalLM,
@@ -51,6 +52,27 @@ class LoggerCallback(TrainerCallback):
         logs = kwargs.get("logs")
         if logs:
             logger.info(logs)
+
+
+class CacheAwareTrainer(Trainer):
+    def prediction_step(
+        self,
+        model: Module,
+        inputs: dict[str, Tensor | Any],
+        prediction_loss_only: bool,
+        ignore_keys: list[str] | None = None,
+    ) -> tuple[Tensor | None, Tensor | None, Tensor | None]:
+        if ignore_keys is None:
+            ignore_keys = ["past_key_values"]
+        elif "past_key_values" not in ignore_keys:
+            ignore_keys.append("past_key_values")
+
+        return super().prediction_step(
+            model,
+            inputs,
+            prediction_loss_only,
+            ignore_keys=ignore_keys,
+        )
 
 
 def get_arch(config: PreTrainedConfig) -> Architecture:
@@ -221,6 +243,7 @@ def get_args(
     eval_strategy = "epoch" if do_eval else "no"
     out_dir = logdir / run_name
     return TrainingArguments(
+        full_determinism=True,
         run_name=run_name,
         report_to=report_to,
         output_dir=str(out_dir),
@@ -228,6 +251,7 @@ def get_args(
         eval_strategy=eval_strategy,
         eval_on_start=do_eval,
         batch_eval_metrics=True,
+        remove_unused_columns=False,
         logging_steps=100,
         metric_for_best_model="f1",
         learning_rate=learning_rate,
@@ -259,7 +283,7 @@ def get_trainer(
     train_dataset = data.get("train")
     eval_dataset = data.get("dev")
 
-    trainer = Trainer(
+    trainer = CacheAwareTrainer(
         args=args,
         model=model,
         data_collator=collate_fn,

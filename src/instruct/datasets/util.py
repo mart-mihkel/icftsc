@@ -28,25 +28,29 @@ class Collator:
     def __call__(self, features: list[dict[str, Any]]) -> dict[str, Tensor]:
         pad = self.tokenizer.pad_token_id
         mul = 8
-
         max_len = max(len(feature["input_ids"]) for feature in features)
         max_len = (max_len + mul - 1) // mul * mul
 
         labels = []
         inputs = []
         attn = []
+        tti = []
+
         for feature in features:
             _labels = feature.get("labels", [])
             _inputs = feature["input_ids"]
             _attn = feature["attention_mask"]
+            _tti = feature.get("token_type_ids")
 
             labels.append(_labels + [-100] * (max_len - len(_labels)))
             inputs.append(_inputs + [pad] * (max_len - len(_inputs)))
             attn.append(_attn + [0] * (max_len - len(_attn)))
+            tti.append((_tti or [0] * len(_inputs)) + [0] * (max_len - len(_inputs)))
 
         return {
             "labels": torch.tensor(labels),
             "input_ids": torch.tensor(inputs),
+            "token_type_ids": torch.tensor(tti),
             "attention_mask": torch.tensor(attn),
         }
 
