@@ -89,6 +89,7 @@ def _(logdir):
 @app.cell
 def _(arch_order, collect_metrics, dataset, figpath, mo, model_order, os, pl):
     os.makedirs(figpath, exist_ok=True)
+
     df = (
         collect_metrics("instruct", "sqlite:///mlflow.db")
         .filter(pl.col("dataset") == dataset)
