@@ -18,7 +18,7 @@
 # BASE=microsoft/deberta-v3-base
 # BASE=microsoft/deberta-v3-large
 
-# BASE=hf-internal-testing/tiny-random-gpt2
+BASE=hf-internal-testing/tiny-random-gpt2
 # BASE=openai-community/gpt2
 # BASE=openai-community/gpt2-medium
 # BASE=openai-community/gpt2-large
@@ -83,9 +83,9 @@ if [[ $1 = few-shot ]]; then
     uv run --no-sync cli few-shot \
         --run-name test/$BASE/$N_SHOT-shot \
         --batch-size $BATCH_SIZE \
-        --experiment icftsc-test \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
+        --experiment test \
         --n-shot $N_SHOT \
         --model $BASE \
         --seed $SEED
@@ -99,9 +99,9 @@ if [[ $1 = cls-head ]]; then
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
         --batch-size $BATCH_SIZE \
-        --experiment icftsc-test \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
+        --experiment test \
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
         --model $BASE \
@@ -118,9 +118,9 @@ if [[ $1 = fine-tune ]]; then
         --n-train-samples $N_TRAIN_SAMPLES \
         --n-dev-samples $N_DEV_SAMPLES \
         --batch-size $BATCH_SIZE \
-        --experiment icftsc-test \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
+        --experiment test \
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
         --no-head-only \
@@ -138,10 +138,10 @@ if [[ $1 = prompt-tune ]]; then
         --n-dev-samples $N_DEV_SAMPLES \
         --learning-rate $PREFIX_LR \
         --prefix-init $PREFIX_INIT \
-        --experiment icftsc-test \
         --batch-size $BATCH_SIZE \
         --log-level $LOG_LEVEL \
         --dataset $DATASET \
+        --experiment test \
         --epochs $EPOCHS \
         --n-shot $N_SHOT \
         --model $BASE \

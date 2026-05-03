@@ -2,8 +2,8 @@
 #SBATCH --output=log/slurm/%j-%x.out
 #SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
-#SBATCH --job-name="gemma3"
-#SBATCH --time=18:00:00
+#SBATCH --job-name="qwen35"
+#SBATCH --time=10:00:00
 #SBATCH --partition=gpu
 #SBATCH --mem=32GB
 
@@ -12,12 +12,6 @@ BASE_MODELS=(
     Qwen/Qwen3.5-2B
     Qwen/Qwen3.5-4B
     Qwen/Qwen3.5-9B
-    meta-llama/Llama-3.2-1B-Instruct
-    meta-llama/Llama-3.2-3B-Instruct
-    meta-llama/Llama-3.1-8B-Instruct
-    google/gemma-3-270m-it
-    google/gemma-3-1b-it
-    google/gemma-3-4b-it
 )
 
 PREFIX_INITS=(
