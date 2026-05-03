@@ -2,17 +2,15 @@
 #SBATCH --output=log/slurm/%j-%x.out
 #SBATCH --gres=gpu:h200-141g:1
 #SBATCH --cpus-per-task=32
-#SBATCH --job-name="flant5"
+#SBATCH --job-name="t5gemma"
 #SBATCH --time=08:00:00
 #SBATCH --partition=gpu
 #SBATCH --mem=32GB
 
 BASE_MODELS=(
-    google/flan-t5-small
-    google/flan-t5-base
-    google/flan-t5-large
-    google/flan-t5-xl
-    google/flan-t5-xxl
+    google/t5gemma-2-270m-270m
+    google/t5gemma-2-1b-1b
+    google/t5gemma-2-4b-4b
 )
 
 PREFIX_INITS=(
