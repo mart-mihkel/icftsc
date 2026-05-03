@@ -23,7 +23,7 @@ def prompt_tune(
     epochs: int,
     batch_size: int,
     learning_rate: float,
-    experiment: str | None,
+    experiment: str,
     run_name: str | None,
 ) -> None:
     logger.info("load config for '%s'", model_path)
@@ -58,11 +58,8 @@ def prompt_tune(
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     ptcfg = cast(PromptTuningConfig, model.peft_config["default"])
 
-    if experiment is None:
-        experiment = f"instruct-{dataset}"
-
     if run_name is None:
-        run_name = f"{model_path}/{prefix_init}-prefix"
+        run_name = f"{model_path}/{dataset}/{prefix_init}-prefix"
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)

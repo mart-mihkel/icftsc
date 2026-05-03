@@ -1,4 +1,4 @@
-# In-Context Fine-Tuning for Sequence Classification
+# ML Based LM Instructing
 
 ## Development
 
@@ -31,6 +31,3 @@ Experiment are tracked to `mlflow` and can be seen by serving the ui
 ```bash
 mlflow ui
 ```
-
-For tracking on a remote server set the `MLFLOW_TRACKING_URI` environment
-variable.

@@ -22,7 +22,7 @@ def fine_tune(
     epochs: int,
     batch_size: int,
     learning_rate: float,
-    experiment: str | None,
+    experiment: str,
     run_name: str | None,
 ) -> None:
     logger.info("load config for '%s'", model_path)
@@ -51,12 +51,9 @@ def fine_tune(
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    if experiment is None:
-        experiment = f"instruct-{dataset}"
-
     if run_name is None:
         ft_task = "cls-head" if head_only else "fine-tune"
-        run_name = f"{model_path}/{ft_task}"
+        run_name = f"{model_path}/{dataset}/{ft_task}"
 
     logger.info("total parameters %d", total)
     logger.info("trainable parameters %d", trainable)

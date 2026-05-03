@@ -5,7 +5,10 @@ BACKEND=cpu
 all: install check test
 
 install:
-	@MAX_JOBS=$(MAX_JOBS) uv sync --compile-bytecode --extra $(BACKEND)
+	@MAX_JOBS=$(MAX_JOBS) uv sync \
+		--compile-bytecode \
+		--extra notebooks \
+		--extra $(BACKEND)
 
 check:
 	@uv run --no-sync ruff check --fix
@@ -22,3 +25,6 @@ sync:
 		--exclude .ruff_cache \
 		--exclude .git \
 		. $(REMOTE)
+
+load:
+	@rsync --verbose --archive $(REMOTE)/mlflow.db $(REMOTE)/log .

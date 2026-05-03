@@ -9,16 +9,9 @@ from instruct.logging import logger
 
 def collect_metrics(
     experiment: str,
-    mlflow_tracking_uri: str | None = None,
+    mlflow_tracking_uri: str,
     write_csv: bool = False,
 ) -> DataFrame:
-    if mlflow_tracking_uri is None:
-        logger.debug("no tracking uri provided using env fallback")
-        mlflow_tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-
-    if mlflow_tracking_uri is None:
-        raise ValueError("no mlflow tracking uri provided")
-
     logger.info("connecting to %s", mlflow_tracking_uri)
     client = MlflowClient(tracking_uri=mlflow_tracking_uri)
 

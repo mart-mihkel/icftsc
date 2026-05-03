@@ -42,10 +42,7 @@ def fine_tune(
     epochs: int = 3,
     batch_size: int = 8,
     learning_rate: float = 5e-5,
-    experiment: Annotated[
-        str | None,
-        Option(help="Experiment for tracking, inferred from parameters by default"),
-    ] = None,
+    experiment: Annotated[str, Option(help="Experiment for tracking")] = "instruct",
     run_name: Annotated[
         str | None,
         Option(help="Run name for tracking, inferred from parameters by default"),
@@ -97,10 +94,7 @@ def prompt_tune(
     epochs: int = 3,
     batch_size: int = 8,
     learning_rate: float = 1e-3,
-    experiment: Annotated[
-        str | None,
-        Option(help="Experiment for tracking, inferred from parameters by default"),
-    ] = None,
+    experiment: Annotated[str, Option(help="Experiment for tracking")] = "instruct",
     run_name: Annotated[
         str | None,
         Option(help="Run name for tracking, inferred from parameters by default"),
@@ -137,10 +131,7 @@ def few_shot(
     dataset: Annotated[DatasetName.__value__, Option(help="Dataset name")],
     n_shot: Annotated[int, Option(help="Number of examples in system prompt")] = 5,
     batch_size: int = 8,
-    experiment: Annotated[
-        str | None,
-        Option(help="Experiment for tracking, inferred from parameters by default"),
-    ] = None,
+    experiment: Annotated[str, Option(help="Experiment for tracking")] = "instruct",
     run_name: Annotated[
         str | None,
         Option(help="Run name for tracking, inferred from parameters by default"),
@@ -167,11 +158,14 @@ def few_shot(
 
 @app.command(no_args_is_help=True)
 def collect_metrics(
-    experiment: Annotated[str, Option(help="MLflow experiment name")],
+    experiment: Annotated[str, Option(help="MLflow experiment name")] = "instruct",
     mlflow_tracking_uri: Annotated[
-        str | None,
-        Option(help="Can be overriden with envrionment variables"),
-    ] = None,
+        str,
+        Option(
+            help="Can be overriden with envrionment variables",
+            envvar="MLFLOW_TRACKING_URI",
+        ),
+    ] = "sqlite:///mlflow.db",
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
 ) -> None:
     from instruct.logging import logger

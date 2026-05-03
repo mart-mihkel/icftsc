@@ -17,7 +17,7 @@ def few_shot(
     dataset: DatasetName,
     n_shot: int,
     batch_size: int,
-    experiment: str | None,
+    experiment: str,
     run_name: str | None,
 ) -> None:
     logger.info("load config for '%s'", model_path)
@@ -40,11 +40,8 @@ def few_shot(
 
     total = sum(p.numel() for p in model.parameters())
 
-    if experiment is None:
-        experiment = f"instruct-{dataset}"
-
     if run_name is None:
-        run_name = f"{model_path}/few-shot"
+        run_name = f"{model_path}/{dataset}/few-shot"
 
     logger.info("tracking '%s' of experiment '%s'", run_name, experiment)
 
