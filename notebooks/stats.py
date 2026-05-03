@@ -29,8 +29,9 @@ def _(mo):
 
 @app.cell
 def _(logdir):
-    figpath = logdir / "fig" / "multinerd"
     dataset = "multinerd"
+    dataset_size = 20000
+    figpath = logdir / "fig" / dataset
 
     method_labels = {
         "5-shot": "Näitepõhine (5)",
@@ -48,7 +49,6 @@ def _(logdir):
         "gpt_neox": "GPT-NeoX",
         "qwen3_5_text": "Qwen 3.5",
         "gemma3_text": "Gemma 3",
-        "gemma3": "Gemma 3",
         "llama": "Llama 3.2",
         "t5": "Flan-T5",
         "t5gemma2": "T5Gemma2",
@@ -68,7 +68,6 @@ def _(logdir):
         "gpt_neox",
         "qwen3_5_text",
         "gemma3_text",
-        "gemma3",
         "llama",
         "t5",
         "t5gemma2",
@@ -79,6 +78,7 @@ def _(logdir):
         arch_labels,
         arch_order,
         dataset,
+        dataset_size,
         figpath,
         method_labels,
         model_labels,
@@ -87,7 +87,17 @@ def _(logdir):
 
 
 @app.cell
-def _(arch_order, collect_metrics, dataset, figpath, mo, model_order, os, pl):
+def _(
+    arch_order,
+    collect_metrics,
+    dataset,
+    dataset_size,
+    figpath,
+    mo,
+    model_order,
+    os,
+    pl,
+):
     os.makedirs(figpath, exist_ok=True)
 
     df = (
@@ -100,6 +110,9 @@ def _(arch_order, collect_metrics, dataset, figpath, mo, model_order, os, pl):
             pl.col("architecture").cast(pl.Enum(arch_order)),
         )
     )
+
+    if dataset_size is not None:
+        df = df.filter(pl.col("train_samples").is_in([0, dataset_size]))
 
     mo.md(f"Collected metrics for {len(df)} runs")
     return (df,)
@@ -155,21 +168,17 @@ def _(mo):
 def _(df, pl):
     _short = pl.col("base_model").str.split("/").list.last()
 
-    _pivot = (
-        df.filter(pl.col("train_samples").is_in([0, 20000]))
-        .with_columns(_short.alias("model"))
-        .pivot(
-            on="method",
-            index=[
-                "model",
-                "method",
-                "architecture",
-                "base_model",
-                "total_parameters",
-                "num_virtual_tokens",
-            ],
-            values="trainable_parameters",
-        )
+    _pivot = df.with_columns(_short.alias("model")).pivot(
+        on="method",
+        index=[
+            "model",
+            "method",
+            "architecture",
+            "base_model",
+            "total_parameters",
+            "num_virtual_tokens",
+        ],
+        values="trainable_parameters",
     )
 
     _head_col = (
@@ -229,10 +238,7 @@ def _(
     shape,
     theme,
 ):
-    _df = df.filter(
-        pl.col("train_samples").is_in([0, 20000]),
-        pl.col("model_type") != "distilbert",
-    )
+    _df = df.filter(pl.col("model_type") != "distilbert")
 
     _p = (
         pn.ggplot(_df)
@@ -252,7 +258,7 @@ def _(
             labeller=lambda s: model_labels.get(s, s),
         )
         + pn.geom_line(pn.aes(color="method"))
-        + pn.geom_point(stroke=0.3, size=2.5, alpha=0.85)
+        + pn.geom_point(stroke=0.3, size=3, color="white")
         + color(method_labels)
         + fill(method_labels)
         + shape(arch_labels)
@@ -269,7 +275,10 @@ def _(
             panel_border=pn.element_rect(color="#D8D8D8", alpha=0.25),
             figure_size=(8, 7),
         )
-        + pn.guides(color=pn.guide_legend(ncol=2), shape=pn.guide_legend(ncol=1))
+        + pn.guides(
+            color=pn.guide_legend(ncol=2),
+            shape=pn.guide_legend(ncol=1, override_aes={"color": "black"}),
+        )
     )
 
     _p.save(figpath / "model-performance-scaling.png", dpi=300)
@@ -292,10 +301,7 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
     ]
 
     _df = (
-        df.filter(
-            pl.col("train_samples").is_in([0, 20000]),
-            pl.col("architecture") == "encoder",
-        )
+        df.filter(pl.col("architecture") == "encoder")
         .unpivot(
             on=["test_f1", "test_precision", "test_recall"],
             index=_idx,
@@ -331,7 +337,7 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
             labeller=lambda s: model_labels.get(s, s),
         )
         + pn.geom_line(pn.aes(color="method"))
-        + pn.geom_point(shape="o", stroke=0.3, size=2.5, alpha=0.85)
+        + pn.geom_point(shape="o", stroke=0.3, size=3, color="white")
         + color(method_labels)
         + fill(method_labels)
         + theme()
@@ -370,10 +376,7 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
     ]
 
     _df = (
-        df.filter(
-            pl.col("train_samples").is_in([0, 20000]),
-            pl.col("architecture") == "decoder",
-        )
+        df.filter(pl.col("architecture") == "decoder")
         .unpivot(
             on=["test_f1", "test_precision", "test_recall"],
             index=_idx,
@@ -409,7 +412,7 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
             labeller=lambda s: model_labels.get(s, s),
         )
         + pn.geom_line(pn.aes(color="method"))
-        + pn.geom_point(shape="s", stroke=0.3, size=2.5, alpha=0.85)
+        + pn.geom_point(shape="s", stroke=0.3, size=3, color="white")
         + color(method_labels)
         + fill(method_labels)
         + theme()
@@ -448,10 +451,7 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
     ]
 
     _df = (
-        df.filter(
-            pl.col("train_samples").is_in([0, 20000]),
-            pl.col("architecture") == "encoder-decoder",
-        )
+        df.filter(pl.col("architecture") == "encoder-decoder")
         .unpivot(
             on=["test_f1", "test_precision", "test_recall"],
             index=_idx,
@@ -487,7 +487,7 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
             labeller=lambda s: model_labels.get(s, s),
         )
         + pn.geom_line(pn.aes(color="method"))
-        + pn.geom_point(shape="D", stroke=0.3, size=2.5, alpha=0.85)
+        + pn.geom_point(shape="D", stroke=0.3, size=3, color="white")
         + color(method_labels)
         + fill(method_labels)
         + theme()
@@ -522,7 +522,6 @@ def _(mo):
 @app.cell
 def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
     _df = df.filter(
-        pl.col("train_samples").is_in([0, 20000]),
         pl.col("base_model").str.contains(
             r"pythia-1.4b|Qwen3.5-4B|Llama-3.2-1B-Instruct|gemma-3-270m-it"
         ),
@@ -554,7 +553,7 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
             limits=[0, 1],
         )
         + pn.geom_line(pn.aes(color="method"))
-        + pn.geom_point(stroke=0.3, size=2.5, alpha=0.85)
+        + pn.geom_point(stroke=0.3, size=3.5, color="white")
         + pn.geom_text(
             pn.aes(x="total_parameters", y="test_f1", label="label"),
             data=_labels_df.to_pandas(),
@@ -599,11 +598,22 @@ def _(mo):
 
 
 @app.cell
-def _(color, df, figpath, fill, model_labels, pl, pn, shape, theme):
-    _df = df.filter(
-        pl.col("train_samples").eq(20000),
-        pl.col("method").str.contains(r"fine-tune|prompt-tune-pretrained"),
-    )
+def _(
+    color,
+    dataset_size,
+    df,
+    figpath,
+    fill,
+    model_labels,
+    pl,
+    pn,
+    shape,
+    theme,
+):
+    _df = df.filter(pl.col("method").str.contains(r"fine-tune|prompt-tune-pretrained"))
+
+    if dataset_size is not None:
+        _df = _df.filter(pl.col("train_samples").eq(dataset_size))
 
     _method_labels = {
         "fine-tune": "Peenhäälestus",
@@ -631,7 +641,7 @@ def _(color, df, figpath, fill, model_labels, pl, pn, shape, theme):
         + pn.scale_y_continuous(
             labels=lambda ticks: [f"{t / 3600:.1f}h" for t in ticks]
         )
-        + pn.geom_point(size=2.5, stroke=0.3, alpha=0.85)
+        + pn.geom_point(size=3.5, stroke=0.3, color="white")
         + color(_method_labels)
         + fill(_method_labels)
         + shape(model_labels)
@@ -646,7 +656,7 @@ def _(color, df, figpath, fill, model_labels, pl, pn, shape, theme):
             figure_size=(8, 7),
         )
         + pn.guides(
-            shape=pn.guide_legend(order=1),
+            shape=pn.guide_legend(order=1, override_aes={"color": "black"}),
             fill=pn.guide_legend(order=2),
         )
     )
@@ -665,9 +675,22 @@ def _(mo):
 
 
 @app.cell
-def _(arch_labels, df, figpath, fill, model_labels, pl, pn, shape, theme):
+def _(
+    arch_labels,
+    dataset_size,
+    df,
+    figpath,
+    fill,
+    model_labels,
+    pl,
+    pn,
+    shape,
+    theme,
+):
+    if dataset_size is not None:
+        _df = df.filter(pl.col("train_samples").eq(dataset_size))
+
     _df = df.filter(
-        pl.col("train_samples").eq(20000),
         pl.col("method").str.contains(r"fine-tune|prompt-tune-pretrained"),
     ).pivot(
         index=["base_model", "model_type", "architecture"],
@@ -697,8 +720,8 @@ def _(arch_labels, df, figpath, fill, model_labels, pl, pn, shape, theme):
         + pn.scale_y_continuous(
             labels=lambda ticks: [f"{t / 3600:.1f}h" for t in ticks]
         )
-        + pn.geom_point(stroke=0.3, alpha=0.85)
-        + pn.scale_size_continuous(range=(2, 6), guide=None)
+        + pn.geom_point(stroke=0.3, color="white")
+        + pn.scale_size_continuous(range=(3, 7), guide=None)
         + shape(model_labels)
         + fill(arch_labels)
         + theme()
@@ -712,8 +735,10 @@ def _(arch_labels, df, figpath, fill, model_labels, pl, pn, shape, theme):
             figure_size=(8, 7),
         )
         + pn.guides(
-            shape=pn.guide_legend(order=1, override_aes={"size": 2.5}),
-            fill=pn.guide_legend(order=2, override_aes={"size": 2.5}),
+            shape=pn.guide_legend(
+                order=1, override_aes={"size": 3.5, "color": "black"}
+            ),
+            fill=pn.guide_legend(order=2, override_aes={"size": 3.5}),
         )
     )
 
