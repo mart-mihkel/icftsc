@@ -18,7 +18,7 @@ check:
 test:
 	@uv run --no-sync pytest --quiet --numprocesses auto
 
-sync:
+push:
 	@rsync --verbose --archive --delete \
 		--exclude-from .gitignore \
 		--exclude .pytest_cache \
@@ -26,5 +26,8 @@ sync:
 		--exclude .git \
 		. $(REMOTE)
 
-load:
-	@rsync --verbose --archive $(REMOTE)/mlflow.db $(REMOTE)/log .
+pull:
+	@rsync --verbose --archive \
+		$(REMOTE)/mlflow.db \
+		$(REMOTE)/log \
+		.

@@ -25,6 +25,7 @@ from transformers import (
     TrainerControl,
     TrainerState,
 )
+from transformers.models.gemma3.modeling_gemma3 import Gemma3ModelOutputWithPast
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 
@@ -54,7 +55,7 @@ class LoggerCallback(TrainerCallback):
             logger.info(logs)
 
 
-class CacheAwareTrainer(Trainer):
+class Gemma3Trainer(Trainer):
     def prediction_step(
         self,
         model: Module,
@@ -62,6 +63,11 @@ class CacheAwareTrainer(Trainer):
         prediction_loss_only: bool,
         ignore_keys: list[str] | None = None,
     ) -> tuple[Tensor | None, Tensor | None, Tensor | None]:
+        """
+        Ignore kv-cache.
+
+        Multimodal Gemma 3 errors out using DynamicCache.
+        """
         if ignore_keys is None:
             ignore_keys = ["past_key_values"]
         elif "past_key_values" not in ignore_keys:
@@ -73,6 +79,23 @@ class CacheAwareTrainer(Trainer):
             prediction_loss_only,
             ignore_keys=ignore_keys,
         )
+
+
+def _patch_gemma3(model: PeftModel) -> None:
+    """
+    Patch Gemma 3 fowrad pass for pormpt tuning.
+
+    Multimodal Gemma 3 needs token type ids but peft prompt tuning drops them.
+    """
+    _base_model = model.base_model.model
+    _original_forward = _base_model.forward
+
+    def _gemma3_patched_forward(*args, **kwargs) -> tuple | Gemma3ModelOutputWithPast:
+        ref = kwargs["attention_mask"]
+        kwargs["token_type_ids"] = torch.zeros_like(ref)
+        return _original_forward(*args, **kwargs)
+
+    _base_model.forward = _gemma3_patched_forward
 
 
 def get_arch(config: PreTrainedConfig) -> Architecture:
@@ -283,7 +306,16 @@ def get_trainer(
     train_dataset = data.get("train")
     eval_dataset = data.get("dev")
 
-    trainer = CacheAwareTrainer(
+    if cast(Module, model.config).model_type == "gemma3":
+        logger.debug("use gemma3 trainer")
+        trainer_cls = Gemma3Trainer
+        if isinstance(model, PeftModel):
+            logger.debug("patch pt-gemma3 forward pass")
+            _patch_gemma3(model)
+    else:
+        trainer_cls = Trainer
+
+    trainer = trainer_cls(
         args=args,
         model=model,
         data_collator=collate_fn,

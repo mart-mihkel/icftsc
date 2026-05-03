@@ -28,9 +28,18 @@ def _(mo):
 
 
 @app.cell
-def _(logdir):
-    dataset = "multinerd"
-    dataset_size = 20000
+def _(mo):
+    dataset_dropdown = mo.ui.dropdown(["multinerd", "obl"], value="multinerd")
+    dataset_size_dropdown = mo.ui.dropdown([None, 20000, 1000, 100, 10], value=20000)
+
+    mo.hstack([dataset_dropdown, dataset_size_dropdown], justify="start")
+    return dataset_dropdown, dataset_size_dropdown
+
+
+@app.cell
+def _(dataset_dropdown, dataset_size_dropdown, logdir):
+    dataset = dataset_dropdown.value
+    dataset_size = dataset_size_dropdown.value
     figpath = logdir / "fig" / dataset
 
     method_labels = {
@@ -243,7 +252,7 @@ def _(
     _p = (
         pn.ggplot(_df)
         + pn.aes(x="total_parameters", y="test_f1", fill="method", shape="architecture")
-        + pn.labs(x="Parameetrid", y="", fill="", color="", shape="")
+        + pn.labs(x="Parameetrid", y="F1", fill="", color="", shape="")
         + pn.scale_x_log10(
             breaks=[10**i for i in range(6, 11)],
             labels=["1M", "10M", "100M", "1B", "10B"],
@@ -523,7 +532,7 @@ def _(mo):
 def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
     _df = df.filter(
         pl.col("base_model").str.contains(
-            r"pythia-1.4b|Qwen3.5-4B|Llama-3.2-1B-Instruct|gemma-3-270m-it"
+            r"pythia-410m|Qwen3.5-0.8B|gemma-3-1b-it|Llama-3.2-3B-Instruct"
         ),
     )
 
