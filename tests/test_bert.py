@@ -13,6 +13,7 @@ from transformers import (
 from instruct.datasets.boolq import load_boolq
 from instruct.datasets.estner import load_estner
 from instruct.datasets.multinerd import load_multinerd
+from instruct.datasets.obl import load_obl
 from instruct.datasets.util import get_collator
 from instruct.datasets.wic import load_wic
 
@@ -100,6 +101,26 @@ def test_bert_multinerd_forward(
     assert out.logits is not None
 
 
+def test_bert_obl_forward(
+    bert: BertForSequenceClassification,
+    bert_tokenizer: PreTrainedTokenizerFast,
+) -> None:
+    data, info = load_obl(bert_tokenizer, _arch, 0)
+
+    num_labels = len(info["id2label"])
+    bert.num_labels = num_labels
+    bert.classifier = Linear(bert.config.hidden_size, num_labels)
+
+    examples = [data["train"][i] for i in range(4)]
+    collator = get_collator(bert_tokenizer, _arch)
+
+    batch = collator(examples)
+    out = bert(**batch)
+
+    assert out.loss is not None
+    assert out.logits is not None
+
+
 def test_pt_bert_wic_forward(
     pt_bert: PeftModel,
     bert_tokenizer: PreTrainedTokenizerFast,
@@ -178,6 +199,27 @@ def test_pt_bert_multinerd_forward(
 
     batch = collator(examples)
     print(batch)
+    out = pt_bert(**batch)
+
+    assert out.loss is not None
+    assert out.logits is not None
+
+
+def test_pt_bert_obl_forward(
+    pt_bert: PeftModel,
+    bert_tokenizer: PreTrainedTokenizerFast,
+) -> None:
+    data, info = load_obl(bert_tokenizer, _arch, 0)
+
+    num_labels = len(info["id2label"])
+    bert = cast(BertForSequenceClassification, pt_bert.base_model)
+    bert.num_labels = num_labels
+    bert.classifier = Linear(pt_bert.config.hidden_size, num_labels)
+
+    examples = [data["train"][i] for i in range(4)]
+    collator = get_collator(bert_tokenizer, _arch)
+
+    batch = collator(examples)
     out = pt_bert(**batch)
 
     assert out.loss is not None

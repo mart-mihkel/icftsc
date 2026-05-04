@@ -7,6 +7,7 @@ from transformers import PreTrainedModel, PreTrainedTokenizerFast
 from instruct.datasets.boolq import load_boolq
 from instruct.datasets.estner import load_estner
 from instruct.datasets.multinerd import load_multinerd
+from instruct.datasets.obl import load_obl
 from instruct.datasets.util import get_collator
 from instruct.datasets.wic import load_wic
 
@@ -85,6 +86,22 @@ def test_qwen_multinerd_forward(
     assert out.logits is not None
 
 
+def test_qwen_obl_forward(
+    qwen: PreTrainedModel,
+    qwen_tokenizer: PreTrainedTokenizerFast,
+) -> None:
+    data, _ = load_obl(qwen_tokenizer, _arch, 0)
+
+    examples = [data["train"][i] for i in range(4)]
+    collator = get_collator(qwen_tokenizer, _arch)
+
+    batch = collator(examples)
+    out = qwen(**batch)
+
+    assert out.loss is not None
+    assert out.logits is not None
+
+
 def test_pt_qwen_wic_forward(
     pt_qwen: PeftModel,
     qwen_tokenizer: PreTrainedTokenizerFast,
@@ -146,6 +163,22 @@ def test_pt_qwen_multinerd_forward(
 ) -> None:
     with patch("instruct.datasets.multinerd.load_dataset", return_value=multinerd):
         data, _ = load_multinerd(qwen_tokenizer, _arch, 0, False)
+
+    examples = [data["train"][i] for i in range(4)]
+    collator = get_collator(qwen_tokenizer, _arch)
+
+    batch = collator(examples)
+    out = pt_qwen(**batch)
+
+    assert out.loss is not None
+    assert out.logits is not None
+
+
+def test_pt_qwen_obl_forward(
+    pt_qwen: PeftModel,
+    qwen_tokenizer: PreTrainedTokenizerFast,
+) -> None:
+    data, _ = load_obl(qwen_tokenizer, _arch, 0)
 
     examples = [data["train"][i] for i in range(4)]
     collator = get_collator(qwen_tokenizer, _arch)

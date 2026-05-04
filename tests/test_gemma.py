@@ -7,6 +7,7 @@ from transformers import PreTrainedModel, PreTrainedTokenizerFast
 from instruct.datasets.boolq import load_boolq
 from instruct.datasets.estner import load_estner
 from instruct.datasets.multinerd import load_multinerd
+from instruct.datasets.obl import load_obl
 from instruct.datasets.util import get_collator
 from instruct.datasets.wic import load_wic
 
@@ -80,6 +81,38 @@ def test_gemma_multinerd_forward(
 
     batch = collator(examples)
     out = gemma(**batch)
+
+    assert out.loss is not None
+    assert out.logits is not None
+
+
+def test_gemma_obl_forward(
+    gemma: PreTrainedModel,
+    gemma_tokenizer: PreTrainedTokenizerFast,
+) -> None:
+    data, _ = load_obl(gemma_tokenizer, _arch, 0)
+
+    examples = [data["train"][i] for i in range(4)]
+    collator = get_collator(gemma_tokenizer, _arch)
+
+    batch = collator(examples)
+    out = gemma(**batch)
+
+    assert out.loss is not None
+    assert out.logits is not None
+
+
+def test_pt_gemma_obl_forward(
+    pt_gemma: PeftModel,
+    gemma_tokenizer: PreTrainedTokenizerFast,
+) -> None:
+    data, _ = load_obl(gemma_tokenizer, _arch, 0)
+
+    examples = [data["train"][i] for i in range(4)]
+    collator = get_collator(gemma_tokenizer, _arch)
+
+    batch = collator(examples)
+    out = pt_gemma(**batch)
 
     assert out.loss is not None
     assert out.logits is not None
