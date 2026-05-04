@@ -29,10 +29,14 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    dataset_dropdown = mo.ui.dropdown(["multinerd", "obl"], value="multinerd")
-    dataset_size_dropdown = mo.ui.dropdown([None, 20000, 1000, 100, 10], value=20000)
+    dataset_dropdown = mo.ui.dropdown(
+        ["multinerd", "obl"], value="multinerd", label="Dataset"
+    )
+    dataset_size_dropdown = mo.ui.dropdown(
+        [None, 20000, 1000, 100, 10], value=20000, label="Trainset size"
+    )
 
-    mo.hstack([dataset_dropdown, dataset_size_dropdown], justify="start")
+    mo.vstack([dataset_dropdown, dataset_size_dropdown], justify="start")
     return dataset_dropdown, dataset_size_dropdown
 
 
@@ -40,7 +44,7 @@ def _(mo):
 def _(dataset_dropdown, dataset_size_dropdown, logdir):
     dataset = dataset_dropdown.value
     dataset_size = dataset_size_dropdown.value
-    figpath = logdir / "fig" / dataset
+    figpath = logdir / "fig" / dataset / str(dataset_size or "")
 
     method_labels = {
         "5-shot": "Näitepõhine (5)",
@@ -123,6 +127,10 @@ def _(
     if dataset_size is not None:
         df = df.filter(pl.col("train_samples").is_in([0, dataset_size]))
 
+    # NOTE: there's duplicate few-shot runs
+    # should fix later on mlflow side
+    df = df.sort("end_time").unique(subset=["run_name"], keep="last")
+
     mo.md(f"Collected metrics for {len(df)} runs")
     return (df,)
 
@@ -175,34 +183,29 @@ def _(mo):
 
 @app.cell
 def _(df, pl):
-    _short = pl.col("base_model").str.split("/").list.last()
-
-    _pivot = df.with_columns(_short.alias("model")).pivot(
-        on="method",
-        index=[
-            "model",
-            "method",
-            "architecture",
-            "base_model",
-            "total_parameters",
-            "num_virtual_tokens",
-        ],
-        values="trainable_parameters",
-    )
-
-    _head_col = (
-        pl.when(pl.col("architecture") == "encoder")
-        .then(pl.coalesce("cls-head", "fine-tune"))
-        .otherwise(None)
-        .alias("head_parameters")
-    )
-
-    _prompt_col = pl.coalesce("prompt-tune-pretrained", "prompt-tune-random").alias(
-        "prompt_parameters"
-    )
-
     (
-        _pivot.with_columns(_head_col, _prompt_col)
+        df.with_columns(pl.col("base_model").str.split("/").list.last().alias("model"))
+        .pivot(
+            on="method",
+            index=[
+                "model",
+                "method",
+                "architecture",
+                "base_model",
+                "total_parameters",
+                "num_virtual_tokens",
+            ],
+            values="trainable_parameters",
+        )
+        .with_columns(
+            pl.when(pl.col("architecture") == "encoder")
+            .then(pl.coalesce("cls-head", "fine-tune"))
+            .otherwise(None)
+            .alias("head_parameters"),
+            pl.coalesce("prompt-tune-pretrained", "prompt-tune-random").alias(
+                "prompt_parameters"
+            ),
+        )
         .select(
             "model",
             "method",
@@ -529,18 +532,22 @@ def _(mo):
 
 
 @app.cell
-def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
+def _(color, df, figpath, fill, method_labels, pl, pn, theme):
     _df = df.filter(
-        pl.col("base_model").str.contains(
-            r"pythia-410m|Qwen3.5-0.8B|gemma-3-1b-it|Llama-3.2-3B-Instruct"
-        ),
+        pl.col("model_type") == "gpt_neox",
+        pl.col("total_parameters") > 1e8,
+        pl.col("total_parameters") < 6 * 1e9,
     )
 
     _labels_df = (
         _df.with_columns(
-            pl.col("model_type").cast(pl.Utf8).replace(model_labels).alias("label")
+            pl.col("base_model")
+            .str.split("-")
+            .list.last()
+            .str.to_uppercase()
+            .alias("label")
         )
-        .group_by("model_type")
+        .group_by("base_model")
         .agg(
             pl.col("total_parameters").mean(),
             pl.col("test_f1").max(),
@@ -552,10 +559,7 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
         pn.ggplot(_df)
         + pn.aes(x="total_parameters", y="test_f1", fill="method")
         + pn.labs(x="Parameetrid", y="F1", fill="", color="")
-        + pn.scale_x_log10(
-            breaks=[10**i for i in range(6, 11)],
-            labels=["1M", "10M", "100M", "1B", "10B"],
-        )
+        + pn.scale_x_log10(labels=lambda ticks: [f"{t / 1e9:.2}B" for t in ticks])
         + pn.scale_y_continuous(
             breaks=[0, 0.25, 0.5, 0.75, 1.0],
             labels=["0%", "25%", "50%", "75%", "100%"],
@@ -565,11 +569,11 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
         + pn.geom_point(stroke=0.3, size=3.5, color="white")
         + pn.geom_text(
             pn.aes(x="total_parameters", y="test_f1", label="label"),
-            data=_labels_df.to_pandas(),
-            size=9,
+            inherit_aes=False,
+            data=_labels_df,
             nudge_y=0.025,
             va="bottom",
-            inherit_aes=False,
+            size=9,
         )
         + color(method_labels)
         + fill(method_labels)
@@ -586,6 +590,188 @@ def _(color, df, figpath, fill, method_labels, model_labels, pl, pn, theme):
     )
 
     _p.save(figpath / "instructability-scaling.png", dpi=300)
+    _p
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Relative and absolute metrics change
+
+    $$\Delta_{\text{prompt-tune}} = s_{\text{prompt-tune}} - s_{\text{few-shot}}$$
+
+    $$\Delta_{\text{fine-tune}} = s_{\text{fine-tune}} - s_{\text{few-shot}}$$
+
+    $$\delta = \frac{\Delta_{\text{prompt-tune}}}{\Delta_{\text{fine-tune}}}$$
+    """)
+    return
+
+
+@app.cell
+def _(
+    arch_labels,
+    color,
+    df,
+    figpath,
+    fill,
+    model_labels,
+    pl,
+    pn,
+    shape,
+    theme,
+):
+    _metric_labels = {"f1": "F1", "recall": "Saagis", "precision": "Täpsus"}
+    _metric_order = ["f1", "recall", "precision"]
+
+    _df = (
+        df.filter(
+            pl.col("method").str.contains(
+                r"5-shot|cls-head|fine-tune|prompt-tune-pretrained"
+            ),
+        )
+        .pivot(
+            index=["base_model", "model_type", "architecture"],
+            values=["test_f1", "test_recall", "test_precision"],
+            on="method",
+        )
+        .with_columns(
+            pl.coalesce(["test_f1_5-shot", "test_f1_cls-head"]).alias(
+                "test_f1_baseline"
+            ),
+            pl.coalesce(["test_recall_5-shot", "test_recall_cls-head"]).alias(
+                "test_recall_baseline"
+            ),
+            pl.coalesce(["test_precision_5-shot", "test_precision_cls-head"]).alias(
+                "test_precision_baseline"
+            ),
+        )
+        .with_columns(
+            pl.col("test_f1_prompt-tune-pretrained")
+            .sub(pl.col("test_f1_baseline"))
+            .alias("pt_abs_delta_f1"),
+            pl.col("test_recall_prompt-tune-pretrained")
+            .sub(pl.col("test_recall_baseline"))
+            .alias("pt_abs_delta_recall"),
+            pl.col("test_precision_prompt-tune-pretrained")
+            .sub(pl.col("test_precision_baseline"))
+            .alias("pt_abs_delta_precision"),
+            pl.col("test_f1_fine-tune")
+            .sub(pl.col("test_f1_baseline"))
+            .alias("ft_abs_delta_f1"),
+            pl.col("test_recall_fine-tune")
+            .sub(pl.col("test_recall_baseline"))
+            .alias("ft_abs_delta_recall"),
+            pl.col("test_precision_fine-tune")
+            .sub(pl.col("test_precision_baseline"))
+            .alias("ft_abs_delta_precision"),
+        )
+        .with_columns(
+            pl.col("pt_abs_delta_f1")
+            .mul(1 / pl.col("ft_abs_delta_f1"))
+            .alias("rel_delta_f1"),
+            pl.col("pt_abs_delta_recall")
+            .mul(1 / pl.col("ft_abs_delta_recall"))
+            .alias("rel_delta_recall"),
+            pl.col("pt_abs_delta_precision")
+            .mul(1 / pl.col("ft_abs_delta_precision"))
+            .alias("rel_delta_precision"),
+        )
+        .select(
+            "base_model",
+            "model_type",
+            "architecture",
+            "pt_abs_delta_f1",
+            "pt_abs_delta_recall",
+            "pt_abs_delta_precision",
+            "rel_delta_f1",
+            "rel_delta_recall",
+            "rel_delta_precision",
+        )
+        .unpivot(
+            index=["base_model", "model_type", "architecture"],
+            variable_name="metric",
+            value_name="value",
+        )
+        .with_columns(
+            pl.when(pl.col("metric").str.starts_with("pt_abs_delta"))
+            .then(pl.lit("pt_abs_delta"))
+            .otherwise(pl.lit("rel_delta"))
+            .alias("measure"),
+            pl.col("metric")
+            .str.replace("pt_abs_delta_|rel_delta_", "")
+            .alias("metric"),
+        )
+        .pivot(
+            index=["base_model", "model_type", "architecture", "metric"],
+            values="value",
+            on="measure",
+        )
+        .with_columns(
+            pl.col("metric").cast(pl.Enum(_metric_order)),
+            (
+                pl.col("metric").replace(_metric_labels)
+                + pl.lit("\n")
+                + pl.col("architecture")
+            ).alias("facet_label"),
+        )
+    )
+
+    _p = (
+        pn.ggplot(_df)
+        + pn.aes(
+            x="pt_abs_delta", y="rel_delta", shape="model_type", fill="architecture"
+        )
+        + pn.labs(
+            x=r"Prompt-häälestus absoluutne $\Delta$",
+            y=r"Prompt-häälestus ja peenhäälestus relatiivne $\delta$",
+            shape="",
+            fill="",
+        )
+        # + pn.facet_grid(
+        #     "metric ~ architecture",
+        #     scales="free",
+        #     labeller=lambda s: arch_labels.get(s, _metric_labels.get(s, s)),
+        # )
+        + pn.facet_wrap(
+            ["metric", "architecture"],
+            scales="free",
+            labeller=lambda s: arch_labels.get(s, _metric_labels.get(s, s)),
+        )
+        + pn.scale_x_continuous(
+            expand=(0.15, 0),
+            labels=lambda ticks: [f"{int(100 * t)}%" for t in ticks],
+        )
+        + pn.scale_y_continuous(
+            expand=(0.15, 0),
+            labels=lambda ticks: [f"{int(100 * t)}%" for t in ticks],
+        )
+        + pn.geom_point(stroke=0.3, size=3, color="white")
+        + color(arch_labels)
+        + fill(arch_labels)
+        + shape(model_labels)
+        + theme()
+        + pn.theme(
+            legend_position="top",
+            legend_background=pn.element_rect(
+                fill="#D8D8D8", color="#FFFFFF", alpha=0.25
+            ),
+            legend_margin=2,
+            strip_background=pn.element_rect(
+                fill="#D8D8D8", color="#FFFFFF", alpha=0.25
+            ),
+            panel_border=pn.element_rect(color="#D8D8D8", alpha=0.25),
+            panel_spacing_x=0.025,
+            panel_spacing_y=0.025,
+            figure_size=(10, 9),
+        )
+        + pn.guides(
+            shape=pn.guide_legend(order=1, nrow=3, override_aes={"color": "black"}),
+            fill=pn.guide_legend(order=2, ncol=1),
+        )
+    )
+
+    _p.save(figpath / "relative-absolute-performance.png", dpi=300)
     _p
     return
 

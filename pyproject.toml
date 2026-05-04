@@ -42,6 +42,7 @@ notebooks = [
     "plotnine==0.15.3",
     "ipython==9.11.0",
     "marimo==0.23.4",
+    "plotly==6.7.0",
 ]
 
 [project.scripts]
