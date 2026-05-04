@@ -226,8 +226,8 @@ def _tokenize(
 
     if arch == "encoder-decoder":
         idx = prompt_len - int(labels_enc[-1] == tokenizer.eos_token_id)
-        answer_enc["labels"] = labels_enc[idx:]
-        return answer_enc
+        prompt_enc["labels"] = labels_enc[idx:]
+        return prompt_enc
 
 
 def load_wic(

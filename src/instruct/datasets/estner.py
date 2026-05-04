@@ -266,11 +266,17 @@ def _tokenize_batch(
             all_tti.append(answer_enc.get("token_type_ids"))
 
             if arch == "decoder":
+                all_ids.append(answer_enc["input_ids"])
+                all_attn.append(answer_enc["attention_mask"])
+                all_tti.append(answer_enc.get("token_type_ids"))
                 labels_enc[:prompt_len] = [-100] * prompt_len
                 all_labels.append(labels_enc)
                 continue
 
             if arch == "encoder-decoder":
+                all_ids.append(prompt_enc["input_ids"])
+                all_attn.append(prompt_enc["attention_mask"])
+                all_tti.append(prompt_enc.get("token_type_ids"))
                 idx = prompt_len - int(labels_enc[-1] == tokenizer.eos_token_id)
                 all_labels.append(labels_enc[idx:])
                 continue

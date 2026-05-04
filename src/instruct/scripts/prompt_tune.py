@@ -85,6 +85,7 @@ def prompt_tune(
     trainer = get_trainer(
         model=model,
         data=data,
+        arch=arch,
         collate_fn=collate_fn,
         metrics_fn=metrics_fn,
         do_eval=do_eval,

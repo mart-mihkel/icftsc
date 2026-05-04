@@ -20,7 +20,8 @@ _preds: list[np.ndarray] = []
 
 
 def _batch_to_numpy(
-    eval_pred: EvalPrediction, arch: Architecture
+    eval_pred: EvalPrediction,
+    arch: Architecture,
 ) -> tuple[np.ndarray, np.ndarray]:
     batch_labels = eval_pred.label_ids
     if isinstance(batch_labels, tuple):
@@ -146,9 +147,17 @@ def compute_metrics_seq2seq(
 ) -> dict[str, float]:
     global _labels, _preds
 
-    labels, preds = _batch_to_numpy(eval_pred, "encoder-decoder")
-    _labels.extend(labels)
-    _preds.extend(preds)
+    batch_labels = eval_pred.label_ids
+    batch_preds = eval_pred.predictions
+
+    if isinstance(batch_labels, tuple):
+        batch_labels = batch_labels[0]
+
+    if isinstance(batch_preds, tuple):
+        batch_preds = batch_preds[0]
+
+    _labels.extend(batch_labels)
+    _preds.extend(batch_preds)
 
     if not compute_result:
         return {}
@@ -156,9 +165,11 @@ def compute_metrics_seq2seq(
     labels = []
     preds = []
     for label, pred in zip(_labels, _preds, strict=True):
-        mask = label != -100
-        labels.append(label[mask])
-        preds.append(pred[mask])
+        label_mask = label != -100
+        labels.append(label[label_mask])
+
+        pred_mask = pred != tokenizer.pad_token_id
+        preds.append(pred[pred_mask])
 
     _labels = []
     _preds = []

@@ -6,6 +6,7 @@ from datasets.dataset_dict import DatasetDict
 from peft import PeftModel, PromptTuningConfig, TaskType, get_peft_model
 from torch import Tensor
 from torch.nn import Module
+from torch.utils.data import Dataset
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
@@ -18,6 +19,8 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizerFast,
     ProgressCallback,
+    Seq2SeqTrainer,
+    Seq2SeqTrainingArguments,
     T5Gemma2EncoderConfig,
     T5Gemma2Model,
     T5Gemma2TextConfig,
@@ -79,6 +82,16 @@ class Gemma3Trainer(Trainer):
             prediction_loss_only,
             ignore_keys=ignore_keys,
         )
+
+
+class StripTokenTypeIds:
+    def __init__(self, collator: DataCollator) -> None:
+        self.collator = collator
+
+    def __call__(self, features: list[dict]) -> dict:
+        batch = self.collator(features)
+        batch.pop("token_type_ids", None)
+        return batch
 
 
 def _patch_gemma3(model: PeftModel) -> None:
@@ -254,6 +267,7 @@ def freeze(model: Module, skip: set[str] | None = None) -> None:
 
 
 def get_args(
+    arch: Architecture,
     do_eval: bool,
     epochs: int = 0,
     learning_rate: float = 5e-5,
@@ -265,32 +279,62 @@ def get_args(
     optim = "adamw_8bit" if have_cuda else "adamw_torch_fused"
     eval_strategy = "epoch" if do_eval else "no"
     out_dir = logdir / run_name
-    return TrainingArguments(
-        full_determinism=True,
-        run_name=run_name,
-        report_to=report_to,
-        output_dir=str(out_dir),
-        save_strategy="no",
-        eval_strategy=eval_strategy,
-        eval_on_start=do_eval,
-        batch_eval_metrics=True,
-        remove_unused_columns=False,
-        logging_steps=100,
-        metric_for_best_model="f1",
-        learning_rate=learning_rate,
-        optim=optim,
-        num_train_epochs=epochs,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
-        use_cpu=not have_cuda,
-        bf16_full_eval=have_cuda,
-        bf16=have_cuda,
-    )
+
+    if arch == "encoder-decoder":
+        logger.debug("use seq2seq training args")
+        args = Seq2SeqTrainingArguments(
+            full_determinism=True,
+            run_name=run_name,
+            report_to=report_to,
+            output_dir=str(out_dir),
+            save_strategy="no",
+            eval_strategy=eval_strategy,
+            eval_on_start=do_eval,
+            batch_eval_metrics=True,
+            remove_unused_columns=False,
+            logging_steps=100,
+            metric_for_best_model="f1",
+            learning_rate=learning_rate,
+            optim=optim,
+            num_train_epochs=epochs,
+            per_device_train_batch_size=batch_size,
+            per_device_eval_batch_size=batch_size,
+            use_cpu=not have_cuda,
+            bf16_full_eval=have_cuda,
+            bf16=have_cuda,
+            predict_with_generate=True,
+        )
+    else:
+        logger.debug("use regular training args")
+        args = TrainingArguments(
+            full_determinism=True,
+            run_name=run_name,
+            report_to=report_to,
+            output_dir=str(out_dir),
+            save_strategy="no",
+            eval_strategy=eval_strategy,
+            eval_on_start=do_eval,
+            batch_eval_metrics=True,
+            remove_unused_columns=False,
+            logging_steps=100,
+            metric_for_best_model="f1",
+            learning_rate=learning_rate,
+            optim=optim,
+            num_train_epochs=epochs,
+            per_device_train_batch_size=batch_size,
+            per_device_eval_batch_size=batch_size,
+            use_cpu=not have_cuda,
+            bf16_full_eval=have_cuda,
+            bf16=have_cuda,
+        )
+
+    return args
 
 
 def get_trainer(
     model: Module,
     data: DatasetDict,
+    arch: Architecture,
     collate_fn: DataCollator,
     metrics_fn: Callable[[EvalPrediction, bool], dict[str, int | float]],
     do_eval: bool,
@@ -300,19 +344,34 @@ def get_trainer(
     run_name: str = "default",
     report_to: str = "none",
 ) -> Trainer:
-    args = get_args(do_eval, epochs, learning_rate, batch_size, run_name, report_to)
+    args = get_args(
+        arch,
+        do_eval,
+        epochs,
+        learning_rate,
+        batch_size,
+        run_name,
+        report_to,
+    )
+
     _metrics_fn = cast(Callable, metrics_fn)
-
     train_dataset = data.get("train")
-    eval_dataset = data.get("dev")
+    eval_dataset = cast(Dataset, data.get("dev"))
 
-    if cast(Module, model.config).model_type == "gemma3":
+    config = cast(Module, model.config)
+    if isinstance(model, PeftModel) and config.model_type == "gemma3":
+        logger.debug("patch pt-gemma3 forward pass")
+        _patch_gemma3(model)
+
+    if config.model_type == "gemma3":
         logger.debug("use gemma3 trainer")
         trainer_cls = Gemma3Trainer
-        if isinstance(model, PeftModel):
-            logger.debug("patch pt-gemma3 forward pass")
-            _patch_gemma3(model)
+    elif arch == "encoder-decoder":
+        logger.debug("use seq2seq trainer")
+        trainer_cls = Seq2SeqTrainer
+        collate_fn = StripTokenTypeIds(collate_fn)
     else:
+        logger.debug("use regular trainer")
         trainer_cls = Trainer
 
     trainer = trainer_cls(
@@ -329,7 +388,8 @@ def get_trainer(
     if do_eval:
         patience = 4
         tolerance = 0.01
-        logger.debug(
+
+        logger.info(
             "using early stopping with %d patience and %.2f tolerance for eval f1",
             patience,
             tolerance,
