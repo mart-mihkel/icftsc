@@ -303,6 +303,7 @@ def get_args(
             bf16_full_eval=have_cuda,
             bf16=have_cuda,
             predict_with_generate=True,
+            generation_max_length=32,
         )
     else:
         logger.debug("use regular training args")

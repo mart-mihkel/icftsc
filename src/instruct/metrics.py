@@ -19,10 +19,7 @@ _labels: list[np.ndarray] = []
 _preds: list[np.ndarray] = []
 
 
-def _batch_to_numpy(
-    eval_pred: EvalPrediction,
-    arch: Architecture,
-) -> tuple[np.ndarray, np.ndarray]:
+def _batch_to_numpy(eval_pred: EvalPrediction) -> tuple[np.ndarray, np.ndarray]:
     batch_labels = eval_pred.label_ids
     if isinstance(batch_labels, tuple):
         batch_labels = batch_labels[0]
@@ -38,16 +35,6 @@ def _batch_to_numpy(
         batch_logits = batch_logits.detach().cpu().numpy()
 
     batch_preds = np.argmax(batch_logits, axis=-1)
-
-    if arch != "decoder":
-        return batch_labels, batch_preds
-
-    _, label_dim = batch_labels.shape
-    _, pred_dim = batch_preds.shape
-    if label_dim < pred_dim:
-        virtual_dim = pred_dim - label_dim
-        batch_preds = batch_preds[:, virtual_dim:]
-
     return batch_labels, batch_preds
 
 
@@ -117,7 +104,7 @@ def compute_metrics_seq_cls(
 ) -> dict[str, float]:
     global _labels, _preds
 
-    labels, preds = _batch_to_numpy(eval_pred, "encoder")
+    labels, preds = _batch_to_numpy(eval_pred)
     _labels.extend(labels)
     _preds.extend(preds)
 
@@ -194,7 +181,14 @@ def compute_metrics_causal_lm(
 ) -> dict[str, float]:
     global _labels, _preds
 
-    labels, preds = _batch_to_numpy(eval_pred, "decoder")
+    labels, preds = _batch_to_numpy(eval_pred)
+
+    _, label_dim = labels.shape
+    _, pred_dim = preds.shape
+    if label_dim < pred_dim:
+        virtual_dim = pred_dim - label_dim
+        preds = preds[:, virtual_dim:]
+
     _labels.extend(labels)
     _preds.extend(preds)
 
